@@ -11,14 +11,17 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
 # Setup logging
 from mate3.io import read_sun_spec_header, read_block
-from mate3.parsers import parse_single_inverter_block, parse_charge_controller_block, parse_flexnet_dc_block
+from mate3.parsers import (
+    parse_single_inverter_block,
+    parse_charge_controller_block,
+    parse_flexnet_dc_block,
+)
 from mate3.structures import Device
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S"
 )
 logging.getLogger(__name__)
-
 
 
 mate3_ip = "192.168.1.246"
@@ -94,5 +97,8 @@ def main():
         time.sleep(3)
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass

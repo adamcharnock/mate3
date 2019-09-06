@@ -3,7 +3,7 @@ from typing import NamedTuple
 
 
 class SingleInverterBlock(NamedTuple):
-    port: int
+    port_number: int
     output_current: float
     charge_current: float
     buy_current: float
@@ -17,12 +17,34 @@ class SingleInverterBlock(NamedTuple):
 
 
 class ChargeControllerBlock(NamedTuple):
-    port: int
-    battery_voltage: float
+    did: int
+    length: int
+    port_number: int
+    voltage_sf: int
+    current_sf: int
+    power_sf: int
+    ah_sf: int
+    kwh_sf: int
+    batt_voltage: float
     array_voltage: float
-    battery_current: float
+    batt_current: float
     array_current: float
-    charger_state: int
+    charger_state: float
+    watts: float
+    todays_min_battery_volts: float
+    todays_max_battery_volts: float
+    voc: float
+    todays_peak_voc: int
+    todays_kwh: float
+    todays_ah: float
+    lifetime_kwh_hours: int
+    lifetime_kamp_hours: float
+    lifetime_max_watts: float
+    lifetime_max_battery_volts: float
+    lifetime_max_voc: float
+    temp_sf: int
+    temp_output_fets: float
+    temp_enclosure: float
 
 
 class FlexnetDcBlock(NamedTuple):
@@ -40,6 +62,7 @@ class Device(Enum):
 
     AXS_APP_NOTE.PDF from Outback website has the data
     """
+
     mate3: int = 64110
     charge_controller: int = 64111
     charge_controller_configuration: int = 64112

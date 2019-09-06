@@ -13,7 +13,9 @@ from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadDecoder
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y%m%d %H:%M:%S')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S"
+)
 logging.getLogger(__name__)
 
 
@@ -31,7 +33,7 @@ def decode_int16(signed_value):
     # Outback has some bugs in their firmware it seems. The FlexNet DC Shunt current measurements
     # return an offset from 65535 for negative values. No reading should ever be higher then 2000. So use that
 
-    if signed_value > 32768+2000:
+    if signed_value > 32768 + 2000:
         return signed_value - 65535
     elif signed_value >= 32768:
         return int(32768 - signed_value)
@@ -39,7 +41,7 @@ def decode_int16(signed_value):
         return signed_value
 
 
-def get_common_block(basereg):
+def get_common_block(client: ModbusClient, basereg):
     """ Read and return the sunspec common information
     block.
 
@@ -47,27 +49,26 @@ def get_common_block(basereg):
     """
     length = 69
     response = client.read_holding_registers(basereg, length + 2)
-    decoder = BinaryPayloadDecoder.fromRegisters(response.registers,
-                                                 byteorder=Endian.Big,
-                                                 wordorder=Endian.Big)
+    decoder = BinaryPayloadDecoder.fromRegisters(
+        response.registers, byteorder=Endian.Big, wordorder=Endian.Big
+    )
 
     return {
-        'SunSpec_ID': decoder.decode_32bit_uint(),
-        'SunSpec_DID': decoder.decode_16bit_uint(),
-        'SunSpec_Length': decoder.decode_16bit_uint(),
-        'Manufacturer': decoder.decode_string(size=32),
-        'Model': decoder.decode_string(size=32),
-        'Options': decoder.decode_string(size=16),
-        'Version': decoder.decode_string(size=16),
-        'SerialNumber': decoder.decode_string(size=32),
-        'DeviceAddress': decoder.decode_16bit_uint(),
-        'Next_DID': decoder.decode_16bit_uint(),
-        'Next_DID_Length': decoder.decode_16bit_uint(),
+        "SunSpec_ID": decoder.decode_32bit_uint(),
+        "SunSpec_DID": decoder.decode_16bit_uint(),
+        "SunSpec_Length": decoder.decode_16bit_uint(),
+        "Manufacturer": decoder.decode_string(size=32),
+        "Model": decoder.decode_string(size=32),
+        "Options": decoder.decode_string(size=16),
+        "Version": decoder.decode_string(size=16),
+        "SerialNumber": decoder.decode_string(size=32),
+        "DeviceAddress": decoder.decode_16bit_uint(),
+        "Next_DID": decoder.decode_16bit_uint(),
+        "Next_DID_Length": decoder.decode_16bit_uint(),
     }
 
 
-# Read SunSpec header
-def getSunSpec(basereg):
+def read_sun_spec_header(client: ModbusClient, basereg):
     # Read two bytes from basereg, a SUNSPEC device will start with 0x53756e53
     # As 8bit ints they are 21365, 28243
     try:
@@ -83,9 +84,9 @@ def getSunSpec(basereg):
     # There is a 16 bit string at basereg + 4 that contains Manufacturer
     response = client.read_holding_registers(basereg + 4, 16)
 
-    decoder = BinaryPayloadDecoder.fromRegisters(response.registers,
-                                                 byteorder=Endian.Big,
-                                                 wordorder=Endian.Big)
+    decoder = BinaryPayloadDecoder.fromRegisters(
+        response.registers, byteorder=Endian.Big, wordorder=Endian.Big
+    )
     manufacturer = decoder.decode_string(16)
     if b"OUTBACK_POWER" in manufacturer.upper():
         logging.info(".. Outback Power device found")
@@ -103,13 +104,13 @@ def getSunSpec(basereg):
     return blocksize
 
 
-def getBlock(basereg):
+def read_block(client: ModbusClient, basereg):
     try:
         register = client.read_holding_registers(basereg)
     except:
         return None
 
-    blockID = int(register.registers[0])
+    block_id = int(register.registers[0])
 
     # Peek at block style
     try:
@@ -121,15 +122,14 @@ def getBlock(basereg):
     blockname = None
 
     try:
-        blockname = mate3_did[blockID]
+        blockname = mate3_did[block_id]
     except:
-        print("ERROR: Unknown device type with DID=" + str(blockID))
-
+        print("ERROR: Unknown device type with DID=" + str(block_id))
 
     return {"size": blocksize, "DID": blockname}
 
 
-mate3_ip = '192.168.1.246'
+mate3_ip = "192.168.1.246"
 mate3_modbus = 502
 
 sunspec_start_reg = 40000
@@ -138,32 +138,42 @@ sunspec_start_reg = 40000
 # Device IDs definitions = (DID)
 # AXS_APP_NOTE.PDF from Outback website has the data
 mate3_did = {
-    64110: "Outback block", 64111: "Charge Controller Block", 64112: "Charge Controller Configuration block",
-    64115: "Split Phase Radian Inverter Real Time Block", 64116: "Radian Inverter Configuration Block",
-    64117: "Single Phase Radian Inverter Real Time Block", 64113: "FX Inverter Real Time Block",
-    64114: "FX Inverter Configuration Block", 64119: "FLEXnet-DC Configuration Block",
+    64110: "Outback block",
+    64111: "Charge Controller Block",
+    64112: "Charge Controller Configuration block",
+    64115: "Split Phase Radian Inverter Real Time Block",
+    64116: "Radian Inverter Configuration Block",
+    64117: "Single Phase Radian Inverter Real Time Block",
+    64113: "FX Inverter Real Time Block",
+    64114: "FX Inverter Configuration Block",
+    64119: "FLEXnet-DC Configuration Block",
     64118: "FLEXnet-DC Real Time Block",
-    64120: "Outback System Control Block", 101: "SunSpec Inverter - Single Phase",
+    64120: "Outback System Control Block",
+    101: "SunSpec Inverter - Single Phase",
     102: "SunSpec Inverter - Split Phase",
-    103: "SunSpec Inverter - Three Phase", 64255: "OpticsRE Statistics Block", 65535: "End of SunSpec"
+    103: "SunSpec Inverter - Three Phase",
+    64255: "OpticsRE Statistics Block",
+    65535: "End of SunSpec",
 }
 
 # Try to build the mate3 MODBUS connection
 logging.info("Building MATE3 MODBUS connection")
 # Mate3 connection
 try:
-    client = ModbusClient(mate3_ip, mate3_modbus)
+    _client = ModbusClient(mate3_ip, mate3_modbus)
     logging.info(".. Make sure we are indeed connected to an Outback power system")
     reg = sunspec_start_reg
-    size = getSunSpec(reg)
+    size = read_sun_spec_header(_client, reg)
 
     if size is None:
         logging.info("We have failed to detect an Outback system. Exciting")
         exit()
 
 except:
-    client.close()
-    logging.info(".. Failed to connect to MATE3. Enable SUNSPEC and check port. Exciting")
+    _client.close()
+    logging.info(
+        ".. Failed to connect to MATE3. Enable SUNSPEC and check port. Exciting"
+    )
     raise
     exit()
 
@@ -171,7 +181,15 @@ logging.info(".. Connected OK to an Outback system")
 
 startReg = reg + size + 4
 
-pool = psycopg2.pool.SimpleConnectionPool(minconn=1, maxconn=2, dbname="postgres", host="127.0.0.1", port=5432, user="postgres", password="password")
+pool = psycopg2.pool.SimpleConnectionPool(
+    minconn=1,
+    maxconn=2,
+    dbname="postgres",
+    host="127.0.0.1",
+    port=5432,
+    user="postgres",
+    password="password",
+)
 
 
 @contextlib.contextmanager
@@ -330,26 +348,24 @@ def parse_flexnet_dc_block(client):
 while True:
     reg = startReg
     for block in range(0, 30):
-        blockResult = getBlock(reg)
+        blockResult = read_block(_client, reg)
         structure = None
 
-        if "Single Phase Radian Inverter Real Time Block" in blockResult['DID']:
-            structure = parse_single_inverter_block(client)
+        if "Single Phase Radian Inverter Real Time Block" in blockResult["DID"]:
+            structure = parse_single_inverter_block(_client)
 
-        if "Charge Controller Block" in blockResult['DID']:
-            structure = parse_charge_controller_block(client)
+        if "Charge Controller Block" in blockResult["DID"]:
+            structure = parse_charge_controller_block(_client)
 
-        if "FLEXnet-DC Real Time Block" in blockResult['DID']:
-            structure = parse_flexnet_dc_block(client)
+        if "FLEXnet-DC Real Time Block" in blockResult["DID"]:
+            structure = parse_flexnet_dc_block(_client)
 
         if structure:
             print(structure)
 
-        if "End of SunSpec" not in blockResult['DID']:
-            reg = reg + blockResult['size'] + 2
+        if "End of SunSpec" not in blockResult["DID"]:
+            reg = reg + blockResult["size"] + 2
         else:
             break
-
-
 
     time.sleep(3)

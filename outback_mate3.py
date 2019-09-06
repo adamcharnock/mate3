@@ -4,10 +4,10 @@
 import time
 import logging
 import contextlib
-from typing import NamedTuple
+from enum import Enum
+from typing import NamedTuple, Tuple, Optional
 
 import psycopg2.pool
-import pymodbus.exceptions
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Endian
@@ -18,6 +18,29 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S"
 )
 logging.getLogger(__name__)
+
+
+class Device(Enum):
+    """Outback devices by device ID (DID)
+
+    AXS_APP_NOTE.PDF from Outback website has the data
+    """
+    mate3: int = 64110
+    charge_controller: int = 64111
+    charge_controller_configuration: int = 64112
+    split_phase_radian_inverter: int = 64115
+    radian_inverter_configuration: int = 64116
+    single_phase_radian_inverter: int = 64117
+    fx_inverter: int = 64113
+    fx_inverter_configuration: int = 64114
+    flexnet_dc_configuration: int = 64119
+    flexnet_dc: int = 64118
+    outback_system_control: int = 64120
+    sunspec_inverter_single_phase: int = 101
+    sunspec_inverter_split_phase: int = 102
+    sunspec_inverter_three_phase: int = 103
+    opticsre_statistics: int = 64255
+    end_of_sun_spec: int = 65535
 
 
 # Read SunSpec Header with logic from pymodbus example
@@ -97,88 +120,27 @@ def read_sun_spec_header(client: ModbusClient, basereg):
     return block_size
 
 
-def read_block(client: ModbusClient, basereg):
+def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[Device]]:
+    register = client.read_holding_registers(basereg)
+    device_id = register.registers[0]
+
     try:
-        register = client.read_holding_registers(basereg)
-    except:
-        raise
+        device = Device(device_id)
+    except ValueError:
+        logging.warning(f"Unknown device type with device ID {device_id}")
+        return None, None
 
-    block_id = int(register.registers[0])
-
-    # Peek at block style
+    # Peek at block size
     register = client.read_holding_registers(basereg + 1)
     block_size = int(register.registers[0])
-    block_name = None
 
-    try:
-        block_name = mate3_did[block_id]
-    except:
-        logging.warning(f"Unknown device type with DID={block_id}")
-
-    return {"size": block_size, "DID": block_name}
+    return block_size, device
 
 
 mate3_ip = "192.168.1.246"
 mate3_modbus_port = 502
 
-sunspec_start_reg = 40000
-
-# Define the dictionary mapping SUNSPEC DID's to Outback names
-# Device IDs definitions = (DID)
-# AXS_APP_NOTE.PDF from Outback website has the data
-mate3_did = {
-    64110: "Outback block",
-    64111: "Charge Controller Block",
-    64112: "Charge Controller Configuration block",
-    64115: "Split Phase Radian Inverter Real Time Block",
-    64116: "Radian Inverter Configuration Block",
-    64117: "Single Phase Radian Inverter Real Time Block",
-    64113: "FX Inverter Real Time Block",
-    64114: "FX Inverter Configuration Block",
-    64119: "FLEXnet-DC Configuration Block",
-    64118: "FLEXnet-DC Real Time Block",
-    64120: "Outback System Control Block",
-    101: "SunSpec Inverter - Single Phase",
-    102: "SunSpec Inverter - Split Phase",
-    103: "SunSpec Inverter - Three Phase",
-    64255: "OpticsRE Statistics Block",
-    65535: "End of SunSpec",
-}
-
-# Try to build the mate3 MODBUS connection
-logging.info("Building MATE3 MODBUS connection")
-# Mate3 connection
-try:
-    _client = ModbusClient(mate3_ip, mate3_modbus_port)
-    logging.info(".. Make sure we are indeed connected to an Outback power system")
-    reg = sunspec_start_reg
-    size = read_sun_spec_header(_client, reg)
-
-    if size is None:
-        logging.info("We have failed to detect an Outback system. Exciting")
-        exit()
-
-except:
-    _client.close()
-    logging.info(
-        ".. Failed to connect to MATE3. Enable SUNSPEC and check port. Exciting"
-    )
-    raise
-    exit()
-
-logging.info(".. Connected OK to an Outback system")
-
-startReg = reg + size + 4
-
-pool = psycopg2.pool.SimpleConnectionPool(
-    minconn=1,
-    maxconn=2,
-    dbname="postgres",
-    host="127.0.0.1",
-    port=5432,
-    user="postgres",
-    password="password",
-)
+SUNSPEC_REGISTER_OFFSET = 40000
 
 
 @contextlib.contextmanager
@@ -221,7 +183,7 @@ class FlexnetDcBlock(NamedTuple):
     state_of_charge: float
 
 
-def parse_single_inverter_block(client):
+def parse_single_inverter_block(client: ModbusClient, reg: int):
     response = client.read_holding_registers(reg + 2, 1)
     port = int(response.registers[0])
 
@@ -271,7 +233,7 @@ def parse_single_inverter_block(client):
     )
 
 
-def parse_charge_controller_block(client):
+def parse_charge_controller_block(client: ModbusClient, reg: int):
     response = client.read_holding_registers(reg + 2, 1)
     port = int(response.registers[0])
 
@@ -300,7 +262,7 @@ def parse_charge_controller_block(client):
     )
 
 
-def parse_flexnet_dc_block(client):
+def parse_flexnet_dc_block(client: ModbusClient, reg: int):
     response = client.read_holding_registers(reg + 2, 1)
     shunt_a_port = int(response.registers[0])
 
@@ -333,28 +295,65 @@ def parse_flexnet_dc_block(client):
     )
 
 
-# Interrogation loop
-while True:
-    reg = startReg
-    for block in range(0, 30):
-        blockResult = read_block(_client, reg)
-        structure = None
+def main():
+    # Try to build the mate3 MODBUS connection
+    logging.info("Building MATE3 MODBUS connection")
+    # Mate3 connection
+    try:
+        _client = ModbusClient(mate3_ip, mate3_modbus_port)
+        logging.info(".. Make sure we are indeed connected to an Outback power system")
+        size = read_sun_spec_header(_client, SUNSPEC_REGISTER_OFFSET)
 
-        if "Single Phase Radian Inverter Real Time Block" in blockResult["DID"]:
-            structure = parse_single_inverter_block(_client)
+        if size is None:
+            logging.info("We have failed to detect an Outback system. Exciting")
+            exit()
 
-        if "Charge Controller Block" in blockResult["DID"]:
-            structure = parse_charge_controller_block(_client)
+    except:
+        _client.close()
+        logging.info(
+            ".. Failed to connect to MATE3. Enable SUNSPEC and check port. Exciting"
+        )
+        raise
+        exit()
 
-        if "FLEXnet-DC Real Time Block" in blockResult["DID"]:
-            structure = parse_flexnet_dc_block(_client)
+    logging.info(".. Connected OK to an Outback system")
 
-        if structure:
-            print(structure)
+    base_reg = SUNSPEC_REGISTER_OFFSET + size + 4
 
-        if "End of SunSpec" not in blockResult["DID"]:
-            reg = reg + blockResult["size"] + 2
-        else:
-            break
+    pool = psycopg2.pool.SimpleConnectionPool(
+        minconn=1,
+        maxconn=2,
+        dbname="postgres",
+        host="127.0.0.1",
+        port=5432,
+        user="postgres",
+        password="password",
+    )
 
-    time.sleep(3)
+    while True:
+        reg = base_reg
+        for block in range(0, 30):
+            block_size, device = read_block(_client, reg)
+            structure = None
+
+            if device == Device.single_phase_radian_inverter:
+                structure = parse_single_inverter_block(_client, reg)
+            elif device == Device.charge_controller:
+                structure = parse_charge_controller_block(_client, reg)
+            elif device == Device.flexnet_dc:
+                structure = parse_flexnet_dc_block(_client, reg)
+            elif device == Device.end_of_sun_spec:
+                break
+            else:
+                logging.info(f"Device {device} not implemented")
+
+            if structure:
+                print(structure)
+
+            reg = reg + block_size + 2
+
+        time.sleep(3)
+
+
+if __name__ == '__main__':
+    main()

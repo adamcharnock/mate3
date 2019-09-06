@@ -3,6 +3,8 @@
 
 import time
 import logging
+import contextlib
+import psycopg2.pool
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Endian
@@ -120,7 +122,6 @@ def getBlock(basereg):
 
     try:
         blockname = mate3_did[blockID]
-        # print "Detected a " + mate3_did[blockID] + " at " + str(basereg) + " with size " + str(blocksize)
     except:
         print
         "ERROR: Unknown device type with DID=" + str(blockID)
@@ -180,114 +181,127 @@ logging.info(".. Connected OK to an Outback system")
 
 startReg = reg + size + 4
 
+pool = psycopg2.pool.SimpleConnectionPool(minconn=1, maxconn=2, dbname="postgres", host="127.0.0.1", port=5432, user="postgres", password="password")
+
+
+@contextlib.contextmanager
+def get_db_connection():
+    connection = pool.getconn()
+    yield connection
+    pool.putconn(connection)
+
+
 # Interrogation loop
 while True:
     reg = startReg
     for block in range(0, 30):
-        # print "Getting data from Register=" + str(reg) + " last size was " + str(size)
+        # print "Getting data from Register=" + str(reg) + " last size was {size}")
         blockResult = getBlock(reg)
 
         if "Single Phase Radian Inverter Real Time Block" in blockResult['DID']:
             logging.info(".. Detected a Single Phase Radian Inverter Real Time Block")
             response = client.read_holding_registers(reg + 2, 1)
-            logging.info(".... Connected on HUB port " + str(response.registers[0]))
+            gs_single_inverter_port = int(response.registers[0])
+            logging.info(f".... Connected on HUB port {gs_single_inverter_port}")
 
             # Inverter Output current
             response = client.read_holding_registers(reg + 7, 1)
             gs_single_inverter_output_current = int(response.registers[0])
-            logging.info(".... Inverted output current (A) " + str(gs_single_inverter_output_current))
+            logging.info(f".... Inverted output current (A) {gs_single_inverter_output_current}")
 
             response = client.read_holding_registers(reg + 8, 1)
             gs_single_inverter_charge_current = int(response.registers[0])
-            logging.info(".... Charger current (A) " + str(gs_single_inverter_charge_current))
+            logging.info(f".... Charger current (A) {gs_single_inverter_charge_current}")
 
             response = client.read_holding_registers(reg + 9, 1)
             gs_single_inverter_buy_current = int(response.registers[0])
-            logging.info(".... Input current (A) " + str(gs_single_inverter_buy_current))
+            logging.info(f".... Input current (A) {gs_single_inverter_buy_current}")
 
             response = client.read_holding_registers(reg + 13, 1)
             gs_single_output_ac_voltage = int(response.registers[0])
-            logging.info(".... Voltage Out (V) " + str(gs_single_output_ac_voltage))
+            logging.info(f".... Voltage Out (V) {gs_single_output_ac_voltage}")
 
             response = client.read_holding_registers(reg + 14, 1)
             gs_single_inverter_operating_mode = int(response.registers[0])
-            logging.info(".... Inverter Operating Mode " + str(gs_single_inverter_operating_mode))
+            logging.info(f".... Inverter Operating Mode {gs_single_inverter_operating_mode}")
 
             response = client.read_holding_registers(reg + 17, 1)
             gs_single_battery_voltage = int(response.registers[0]) * 0.1
-            logging.info(".... Battery voltage (V) " + str(gs_single_battery_voltage))
+            logging.info(f".... Battery voltage (V) {gs_single_battery_voltage}")
 
             response = client.read_holding_registers(reg + 18, 1)
             gs_single_temp_compensated_target_voltage = int(response.registers[0]) * 0.1
-            logging.info(".... Battery target voltage - temp compensated (V) " + str(gs_single_temp_compensated_target_voltage))
+            logging.info(f".... Battery target voltage - temp compensated (V) {gs_single_temp_compensated_target_voltage}")
 
             response = client.read_holding_registers(reg + 27, 1)
             gs_single_battery_temperature = decode_int16(int(response.registers[0]))
-            logging.info(".... Battery temperature (V) " + str(gs_single_battery_temperature))
+            logging.info(f".... Battery temperature (V) {gs_single_battery_temperature}")
 
             response = client.read_holding_registers(reg + 30, 1)
             gs_single_ac_input_voltage = int(response.registers[0])
-            logging.info(".... AC Input Voltage " + str(gs_single_ac_input_voltage))
+            logging.info(f".... AC Input Voltage {gs_single_ac_input_voltage}")
 
             response = client.read_holding_registers(reg + 31, 1)
             gs_single_ac_input_state = int(response.registers[0])
-            logging.info(".... AC USE (Y/N) " + str(gs_single_ac_input_state))
+            logging.info(f".... AC USE (Y/N) {gs_single_ac_input_state}")
 
         if "Charge Controller Block" in blockResult['DID']:
             logging.info(".. Detected a Charge Controller Block")
 
             response = client.read_holding_registers(reg + 2, 1)
-            logging.info(".... Connected on HUB port " + str(response.registers[0]))
+            cc_batt_port = int(response.registers[0])
+            logging.info(f".... Connected on HUB port {cc_batt_port}")
 
             response = client.read_holding_registers(reg + 8, 1)
             cc_batt_voltage = int(response.registers[0]) * 0.1
-            logging.info(".... CC Battery Voltage (V) " + str(cc_batt_voltage))
+            logging.info(f".... CC Battery Voltage (V) {cc_batt_voltage}")
 
             response = client.read_holding_registers(reg + 9, 1)
             cc_array_voltage = int(response.registers[0]) * 0.1
-            logging.info(".... CC Array Voltage " + str(cc_array_voltage))
+            logging.info(f".... CC Array Voltage {cc_array_voltage}")
 
             response = client.read_holding_registers(reg + 10, 1)
             cc_batt_current = int(response.registers[0])
-            logging.info(".... CC Battery Current (A) " + str(cc_batt_current))
+            logging.info(f".... CC Battery Current (A) {cc_batt_current}")
 
             response = client.read_holding_registers(reg + 11, 1)
             cc_array_current = int(response.registers[0])
-            logging.info(".... CC Array Current (A) " + str(cc_array_current))
+            logging.info(f".... CC Array Current (A) {cc_array_current}")
 
             response = client.read_holding_registers(reg + 12, 1)
             cc_charger_state = int(response.registers[0])
-            logging.info(".... CC Charger State " + str(cc_charger_state))  # 0=Silent,1=Float,2=Bulk,3=Absorb,4=EQ
+            logging.info(f".... CC Charger State {cc_charger_state}")  # 0=Silent,1=Float,2=Bulk,3=Absorb,4=EQ
 
         if "FLEXnet-DC Real Time Block" in blockResult['DID']:
             logging.info(".. Detect a FLEXnet-DC Real Time Block")
 
             response = client.read_holding_registers(reg + 2, 1)
-            logging.info(".... Connected on HUB port " + str(response.registers[0]))
+            fn_shunt_a_port = int(response.registers[0])
+            logging.info(f".... Connected on HUB port {fn_shunt_a_port}")
 
             response = client.read_holding_registers(reg + 8, 1)
             fn_shunt_a_current = decode_int16(int(response.registers[0])) * 0.1
-            logging.info(".... FN Shunt A Current (A) " + str(fn_shunt_a_current))
+            logging.info(f".... FN Shunt A Current (A) {fn_shunt_a_current}")
 
             response = client.read_holding_registers(reg + 9, 1)
             fn_shunt_b_current = decode_int16(int(response.registers[0])) * 0.1
-            logging.info(".... FN Shunt B Current (A) " + str(fn_shunt_b_current))
+            logging.info(f".... FN Shunt B Current (A) {fn_shunt_b_current}")
 
             response = client.read_holding_registers(reg + 10, 1)
             fn_shunt_c_current = decode_int16(int(response.registers[0])) * 0.1
-            logging.info(".... FN Shunt C Current (A) " + str(fn_shunt_c_current))
+            logging.info(f".... FN Shunt C Current (A) {fn_shunt_c_current}")
 
             response = client.read_holding_registers(reg + 11, 1)
             fn_battery_voltage = int(response.registers[0]) * 0.1
-            logging.info(".... FN Battery Voltage " + str(fn_battery_voltage))
+            logging.info(f".... FN Battery Voltage {fn_battery_voltage}")
 
             response = client.read_holding_registers(reg + 13, 1)
             fn_battery_temperature = decode_int16(int(response.registers[0]))
-            logging.info(".... FN Battery Temperature " + str(fn_battery_temperature))
+            logging.info(f".... FN Battery Temperature {fn_battery_temperature}")
 
             response = client.read_holding_registers(reg + 27, 1)
             fn_state_of_charge = int(response.registers[0])
-            logging.info(".... FN State of Charge " + str(fn_state_of_charge))
+            logging.info(f".... FN State of Charge {fn_state_of_charge}")
 
         if "End of SunSpec" not in blockResult['DID']:
             reg = reg + blockResult['size'] + 2

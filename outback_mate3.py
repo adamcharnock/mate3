@@ -7,6 +7,7 @@ import contextlib
 from typing import NamedTuple
 
 import psycopg2.pool
+import pymodbus.exceptions
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Endian
@@ -71,11 +72,8 @@ def get_common_block(client: ModbusClient, basereg):
 def read_sun_spec_header(client: ModbusClient, basereg):
     # Read two bytes from basereg, a SUNSPEC device will start with 0x53756e53
     # As 8bit ints they are 21365, 28243
-    try:
-        response = client.read_holding_registers(basereg, 2)
-    except:
-        return None
 
+    response = client.read_holding_registers(basereg, 2)
     if response.registers[0] == 21365 and response.registers[1] == 28243:
         logging.info(".. SunSpec device found. Reading Manufacturer info")
     else:
@@ -94,43 +92,34 @@ def read_sun_spec_header(client: ModbusClient, basereg):
         logging.info(".. Not an Outback Power device. Detected " + manufacturer)
         return None
 
-    try:
-        register = client.read_holding_registers(basereg + 3)
-    except:
-        return None
-
-    blocksize = int(register.registers[0])
-
-    return blocksize
+    register = client.read_holding_registers(basereg + 3)
+    block_size = int(register.registers[0])
+    return block_size
 
 
 def read_block(client: ModbusClient, basereg):
     try:
         register = client.read_holding_registers(basereg)
     except:
-        return None
+        raise
 
     block_id = int(register.registers[0])
 
     # Peek at block style
-    try:
-        register = client.read_holding_registers(basereg + 1)
-    except:
-        return None
-
-    blocksize = int(register.registers[0])
-    blockname = None
+    register = client.read_holding_registers(basereg + 1)
+    block_size = int(register.registers[0])
+    block_name = None
 
     try:
-        blockname = mate3_did[block_id]
+        block_name = mate3_did[block_id]
     except:
-        print("ERROR: Unknown device type with DID=" + str(block_id))
+        logging.warning(f"Unknown device type with DID={block_id}")
 
-    return {"size": blocksize, "DID": blockname}
+    return {"size": block_size, "DID": block_name}
 
 
 mate3_ip = "192.168.1.246"
-mate3_modbus = 502
+mate3_modbus_port = 502
 
 sunspec_start_reg = 40000
 
@@ -160,7 +149,7 @@ mate3_did = {
 logging.info("Building MATE3 MODBUS connection")
 # Mate3 connection
 try:
-    _client = ModbusClient(mate3_ip, mate3_modbus)
+    _client = ModbusClient(mate3_ip, mate3_modbus_port)
     logging.info(".. Make sure we are indeed connected to an Outback power system")
     reg = sunspec_start_reg
     size = read_sun_spec_header(_client, reg)

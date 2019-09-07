@@ -4,6 +4,8 @@ import re
 from enum import Enum
 from pathlib import Path
 from typing import NamedTuple, Optional, NewType, Dict, List, Tuple, Set
+import black
+from click.testing import CliRunner
 
 from mate3.base_parser import Field, Mode
 from mate3.base_structures import Device
@@ -11,6 +13,8 @@ from mate3.base_structures import Device
 CSV_PATH = Path(__file__).parent.parent / 'registry_data'
 PARSERS_MODULE = Path(__file__).parent / 'parsers.py'
 STRUCTURES_MODULE = Path(__file__).parent / 'structures.py'
+
+WARNING = f'This file is auto generated, do not edit. The generation code can be found in {Path(__file__).name}'
 
 
 class Line(NamedTuple):
@@ -31,9 +35,9 @@ class Line(NamedTuple):
     def python_name(self) -> str:
         name = self.name.replace('\n', '').lower()
         name = re.sub(r'[^a-zA-Z0-9_]', r'', name)
-        name = re.sub(r'batt([_$])', r'battery\1', name)
+        name = re.sub(r'batt(_|$)', r'battery\1', name)
         name = re.sub(r'_sf$', r'_scale_factor', name)
-        name = re.sub(r'_temp([_$])', r'_temperature\1', name)
+        name = re.sub(r'_temp(_|$)', r'_temperature\1', name)
         return name
 
     @property
@@ -103,12 +107,16 @@ def strip_prefixes(register_name: str, prefixes: Set[str]):
 
 def to_camel_case(snake_str):
     components = snake_str.split('_')
-    return ''.join(x.title() for x in components[1:])
+    return ''.join(x.title() for x in components)
 
 
 def read_file(csv_path: Path) -> List[Line]:
     """Read the given csv file and return a list of Line tuples"""
     lines = []
+
+    def _remove_whitespace(v):
+        return re.sub(r'\s', '', v)
+
     with open(str(csv_path), newline='') as csv_file:
         reader = csv.reader(csv_file)
 
@@ -120,19 +128,20 @@ def read_file(csv_path: Path) -> List[Line]:
         # Now get all the rows which have a DID as the first value
         for row in reader:
             if row[0].isnumeric() and len(row) == len(Line._fields):
-                breakpoint()
+                row = [v.strip() for v in row]
+
                 lines.append(Line(
-                    did=int(row[0].replace('\n', '')),
-                    start=int(row[1].replace('\n', '')),
-                    end=int(row[2].replace('\n', '')),
-                    size=int(row[3].replace('\n', '')),
-                    mode=str(row[4].replace('\n', '')),
-                    name=str(row[5].replace('\n', '')),
-                    type=str(row[6].replace('\n', '')),
-                    units=str(row[7].replace('\n', '')),
-                    scale_factor=str(row[8].replace('\n', '')),
-                    contents=str(row[9].replace('\n', '')),
-                    description=str(row[10].replace('\n', ' ')),  # Note: \n replaced with space
+                    did=int(_remove_whitespace(row[0])),
+                    start=int(_remove_whitespace(row[1])),
+                    end=int(_remove_whitespace(row[2])),
+                    size=int(_remove_whitespace(row[3])),
+                    mode=str(_remove_whitespace(row[4])),
+                    name=str(_remove_whitespace(row[5])),
+                    type=str(_remove_whitespace(row[6])),
+                    units=str(_remove_whitespace(row[7])),
+                    scale_factor=str(_remove_whitespace(row[8])),
+                    contents=str(_remove_whitespace(row[9])),
+                    description=str(row[10].replace('\n', ' ')),
                 ))
 
     return lines
@@ -194,8 +203,10 @@ def generate_field(line: Line, prefixes_to_strip: Set[str], other_lines: List[Li
 
 def generate_parser_header():
     return (
+        f"'''{WARNING}'''\n\n"
         "from mate3.base_parser import *\n"
         "from mate3.base_structures import *\n"
+        "from mate3.structures import *\n"
         "\n\n"
     )
 
@@ -205,7 +216,14 @@ def generate_parser(device: Device, lines: List[Line]):
     common_prefixes = find_common_name_prefixes(lines)
 
     class_name = f"{to_camel_case(device.name)}Parser"
-    code = f"class {class_name}(BaseParser):\n"
+
+    code = (
+        f"# {WARNING}\n"
+        f"class {class_name}(BaseParser):\n"
+        f"    structure = {to_camel_case(device.name)}Block\n"
+        f"    device = Device.{device.name}\n\n"
+    )
+
     for line in lines:
         code += generate_field(line, prefixes_to_strip=common_prefixes, other_lines=lines)
 
@@ -215,6 +233,7 @@ def generate_parser(device: Device, lines: List[Line]):
 
 def generate_structure_header():
     return (
+        f"# {WARNING}\n\n"
         "from mate3.base_structures import *\n"
         "from typing import NamedTuple\n"
         "\n\n"
@@ -225,7 +244,8 @@ def generate_structure(device: Device, lines: List[Line]):
     common_prefixes = find_common_name_prefixes(lines)
 
     class_name = f"{to_camel_case(device.name)}Block"
-    code = f"class {class_name}(NamedTuple):\n"
+    code = f"# {WARNING}\n"
+    code += f"class {class_name}(NamedTuple):\n"
 
     for line in lines:
         name = strip_prefixes(register_name=line.python_name, prefixes=common_prefixes)
@@ -240,6 +260,15 @@ def generate_structure(device: Device, lines: List[Line]):
     return code
 
 
+def format_python_file(path: Path):
+    runner = CliRunner()
+    result = runner.invoke(
+        black.main,
+        [str(path)],
+    )
+    assert result.exit_code == 0, result.output
+
+
 def main():
     parser_code = generate_parser_header()
     for device, lines in read_all_files().items():
@@ -252,8 +281,12 @@ def main():
     with open(str(PARSERS_MODULE), 'w') as f:
         f.write(parser_code)
 
+    format_python_file(PARSERS_MODULE)
+
     with open(str(STRUCTURES_MODULE), 'w') as f:
         f.write(structure_code)
+
+    format_python_file(STRUCTURES_MODULE)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,11 @@
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+
 from mate3.base_structures import *
 from typing import NamedTuple
 
 
-class CommonModelBlock(NamedTuple):
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class SunspecCommonModelBlock(NamedTuple):
     sunspec_did: uint16
     sunspec_length: uint16
     manufacturer: str
@@ -12,7 +15,9 @@ class CommonModelBlock(NamedTuple):
     serialnumber: str
     deviceaddress: uint16
 
-class InverterSinglePhaseBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class SunspecInverterSinglePhaseBlock(NamedTuple):
     did: uint16
     length: uint16
     ac_current: uint16
@@ -59,7 +64,9 @@ class InverterSinglePhaseBlock(NamedTuple):
     event_3_vendor: uint32
     event_4_vendor: uint32
 
-class InverterSplitPhaseBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class SunspecInverterSplitPhaseBlock(NamedTuple):
     did: uint16
     length: uint16
     ac_current: uint16
@@ -106,7 +113,9 @@ class InverterSplitPhaseBlock(NamedTuple):
     event_3_vendor: uint32
     event_4_vendor: uint32
 
-class InverterThreePhaseBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class SunspecInverterThreePhaseBlock(NamedTuple):
     did: uint16
     length: uint16
     ac_current: uint16
@@ -153,7 +162,9 @@ class InverterThreePhaseBlock(NamedTuple):
     event_3_vendor: uint32
     event_4_vendor: uint32
 
-class Block(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class Mate3Block(NamedTuple):
     ags_quiet_time_weekday_stop_hour: uint16
     ags_quiet_time_weekday_stop_minute: uint16
     ags_quiet_time_weekend_start_hour: uint16
@@ -255,7 +266,7 @@ class Block(NamedTuple):
     hour: uint16
     minute: uint16
     second: uint16
-    temperature_batt: int16
+    temperature_battery: int16
     temperature_ambient: int16
     temperature_scale_factor: int16
     error: uint16
@@ -321,7 +332,9 @@ class Block(NamedTuple):
     ags_quiet_time_weekday_start_hour: uint16
     ags_quiet_time_weekday_start_minute: uint16
 
-class ControllerBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class ChargeControllerBlock(NamedTuple):
     did: uint16
     length: uint16
     port_number: uint16
@@ -351,7 +364,9 @@ class ControllerBlock(NamedTuple):
     temperature_output_fets: int16
     temperature_enclosure: int16
 
-class ControllerConfigurationBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class ChargeControllerConfigurationBlock(NamedTuple):
     night_light_on_hours: uint16
     night_light_on_hyst_time: uint16
     night_light_off_hyst_time: uint16
@@ -427,7 +442,9 @@ class ControllerConfigurationBlock(NamedTuple):
     aux_pv_limit_hold_time: uint16
     aux_night_light_thres_volts: uint16
 
-class InverterBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class FxInverterBlock(NamedTuple):
     did: uint16
     length: uint16
     port_number: uint16
@@ -467,7 +484,9 @@ class InverterBlock(NamedTuple):
     load_kw: uint16
     ac_couple_kw: uint16
 
-class InverterConfigurationBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class FxInverterConfigurationBlock(NamedTuple):
     grid_ac_input_current_limit: uint16
     gen_ac_input_current_limit: uint16
     charger_ac_input_current_limit: uint16
@@ -527,7 +546,9 @@ class InverterConfigurationBlock(NamedTuple):
     ac_input_type: uint16
     input_support: uint16
 
-class PhaseRadianInverterBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class SplitPhaseRadianInverterBlock(NamedTuple):
     did: uint16
     length: uint16
     port_number: uint16
@@ -589,7 +610,9 @@ class PhaseRadianInverterBlock(NamedTuple):
     load_kw: uint16
     ac_couple_kw: uint16
 
-class InverterConfigurationBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class RadianInverterConfigurationBlock(NamedTuple):
     aux_on_battery_voltage: uint16
     aux_on_delay_time: uint16
     aux_off_battery_voltage: uint16
@@ -665,7 +688,9 @@ class InverterConfigurationBlock(NamedTuple):
     aux_mode: uint16
     aux_control: uint16
 
-class PhaseRadianInverterBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class SinglePhaseRadianInverterBlock(NamedTuple):
     output_kw: uint16
     buy_kw: uint16
     sell_kw: uint16
@@ -715,7 +740,9 @@ class PhaseRadianInverterBlock(NamedTuple):
     output_kwh: uint16
     charger_kwh: uint16
 
-class DcBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class FlexnetDcBlock(NamedTuple):
     did: uint16
     length: uint16
     port_number: uint16
@@ -793,7 +820,9 @@ class DcBlock(NamedTuple):
     shunt_c_reset_maximum_data: uint16
     shunt_c_reset_maximum_data_write_complement: uint16
 
-class DcConfigurationBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class FlexnetDcConfigurationBlock(NamedTuple):
     did: uint16
     length: uint16
     port_number: uint16
@@ -833,7 +862,9 @@ class DcConfigurationBlock(NamedTuple):
     serial_number: str
     model_number: str
 
-class SystemControlBlock(NamedTuple):
+
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
+class OutbackSystemControlBlock(NamedTuple):
     did: uint16
     length: uint16
     dc_voltage_scale_factor: int16
@@ -861,4 +892,3 @@ class SystemControlBlock(NamedTuple):
     gen_last_start_run_duration: uint32
     set_ac_output_freq_offline_mode: uint16
     set_ac_output_offline_freq: uint16
-

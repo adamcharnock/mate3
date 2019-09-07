@@ -12,7 +12,6 @@ if __name__ == "__main__":
         flavor="lattice",
         pages="all",
         compress=False,
-        strip_text=" ",
         layout_kwargs={"detect_vertical": False},
         # Sometimes camelot will merge two cells together because it is
         # trying to be smart. Don't allow it because it doesn't happen

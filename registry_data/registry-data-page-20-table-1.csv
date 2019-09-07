@@ -1,0 +1,55 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64120","1","1","1","R","OB_DID","uint16","N/A","N/A","64120","Vendor Extension for OutBack System 
+Control Block"
+"64120","2","2","1","R","OB_Length","uint16","Registers","N/A","27","Length of block in 16-bit registers"
+"64120","3","3","1","R","OB_DC_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64120","4","4","1","R","OB_AC_Current_SF","int16","N/A","N/A","-1","AC Current Scale Factor"
+"64120","5","5","1","R","OB_Time_SF","int16","N/A","N/A","-1","Charge Time Scale Factor"
+"64120","6","6","1","W","OB_Bulk_Charge_Enable 
+_Disable","uint16","Enumerated","N/A","Programmable","1=Start Bulk, 2=Stop Bulk, 3=Start EQ 
+Charge, 4= Stop EQ Charge"
+"64120","7","7","1","W","OB_Inverter_AC_Drop_Use","uint16","Enumerated","N/A","Programmable","1=Use, 2=Drop"
+"64120","8","8","1","W","OB_Set_Inverter_Mode","uint16","Enumerated","N/A","Programmable","1=Off, 2=Search, 3=On"
+"64120","9","9","1","W","OB_Grid_Tie_Mode","uint16","Enumerated","N/A","Programmable","1=Enable, 2=Disable"
+"64120","10","10","1","W","OB_Set_Inverter_Charger_Mode","uint16","Enumerated","N/A","Programmable","1=Off, 2=Auto, 3=On"
+"64120","11","11","1","R","OB_Control_Status","uint16","Bitfield","N/A","N/A","Bit field for status 
+(See OB_Control_Status Table)"
+"64120","12","12","1","R/W","OB_Set_Sell_Voltage","uint16","Volts","OB_DC
+_Voltage_SF","Programmable","Global Sell Voltage"
+"64120","13","13","1","R/W","OB_Set_Radian_Inverter_Sell
+_Current_Limit","uint16","Amps","OB_AC
+_Current_SF","Programmable","Radian Inverter Sell Current Limit"
+"64120","14","14","1","R/W","OB_Set_Absorb_Voltage","uint16","Volts","OB_DC
+_Voltage_SF","Programmable","Global Absorb Voltage"
+"64120","15","15","1","R/W","OB_Set_Absorb_Time","uint16","Hours","OB_Time_SF","Programmable","Time in tenths of hour"
+"64120","16","16","1","R/W","OB_Set_Float_Voltage","uint16","Volts","OB_DC
+_Voltage_SF","Programmable","Global Float Voltage"
+"64120","17","17","1","R/W","OB_Set_Float_Time","uint16","Hours","OB_Time_SF","Programmable","Time in tenths of hour"
+"64120","18","18","1","R/W","OB_Set_Inverter_Charger 
+_Current_Limit","uint16","Amps","OB_AC
+_Current_SF","Programmable","Inverter Charger Current Limit"
+"64120","19","19","1","R/W","OB_Set_Inverter_AC1 
+_Current_Limit","uint16","Amps","OB_AC
+_Current_SF","Programmable","Inverter AC1 input Current Limit"
+"64120","20","20","1","R/W","OB_Set_Inverter_AC2 
+_Current_Limit","uint16","Amps","OB_AC
+_Current_SF","Programmable","Inverter AC2 input Current Limit"
+"64120","21","21","1","R/W","OB_Set_AGS_OP_Mode","uint16","Enumerated","N/A","Programmable","AGS Operating Mode: 0=Off, 1=On, 2=Auto"
+"64120","22","22","1","R","OB_AGS_Operational_State","uint16","Enumerated","N/A","N/A","GEN_STOP=0, GEN_STARTING=1, 
+GEN_RUNNING=2, GEN_WARMUP=3, 
+GEN_COOLDOWN=4, GEN_AWAITING_AC=5"
+"64120","23","23","1","R","OB_AGS_Operational_State 
+_Timer","uint16","Seconds","N/A","Measured","Number of seconds OB_AGS_Operational_State 
+has been in current state; if Operational State is 
+0 then timer=0"
+"64120","24","25","2","R","OB_Gen_Last_Run_Start 
+_Time_GMT","uint32","Seconds","N/A","Measured","Generator last start time in GMT seconds"
+"64120","26","27","2","R","OB_Gen_Last_Start_Run 
+_Duration","uint32","Seconds","N/A","Measured","Last Generator Start Run Duration Seconds"
+"64120","28","28","1","R/W","OB_Set_AC_Output_Freq 
+_Offline_Mode","uint16","NA","N/A","Programmable","Not implemented"
+"64120","29","29","1","R/W","OB_Set_AC_Output_Offline 
+_Freq","uint16","Hz","OB_DC 
+_Voltage_SF","Programmable","Set AC Output Frequency when AC Input is 
+disconnected: Range 60 Hz: 55.8 … 64.9 Hz, 
+50 Hz: 46.5 … 54.1 Hz"

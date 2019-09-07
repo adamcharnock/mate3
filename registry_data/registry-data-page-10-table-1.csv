@@ -1,0 +1,36 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64115","43","43","1","R","GS_Split_kWh_SF","int16","N/A","N/A","-1","AC kWh scale factor"
+"64115","44","44","1","R","GS_Split_AC1_L1_Buy_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC1 Buy L1 kWh"
+"64115","45","45","1","R","GS_Split_AC2_L1_Buy_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC2 Buy L1 kWh"
+"64115","46","46","1","R","GS_Split_AC1_L1_Sell_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC1 Sell L1 kWh"
+"64115","47","47","1","R","GS_Split_AC2_L1_Sell_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC2 Sell L1 kWh"
+"64115","48","48","1","R","GS_Split_L1_Output_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily Output L1 kWh"
+"64115","49","49","1","R","GS_Split_AC1_L2_Buy_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC1 Buy L2 kWh"
+"64115","50","50","1","R","GS_Split_AC2_L2_Buy_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC1 Sell L2 kWh"
+"64115","51","51","1","R","GS_Split_AC1_L2_Sell_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC1 Sell L2 kWh"
+"64115","52","52","1","R","GS_Split_AC2_L2_Sell_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily AC2 Sell L2 kWh"
+"64115","53","53","1","R","GS_Split_L2_Output_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily Output L2 kWh"
+"64115","54","54","1","R","GS_Split_Charger_kWh","uint16","kWh","GS_Split
+_kWh_SF","Measured","Daily Charger kWh"
+"64115","55","55","1","R","GS_Split_Output_kW","uint16","kW","GS_Split
+_kWh_SF","Measured","Output kW"
+"64115","56","56","1","R","GS_Split_Buy_kW","uint16","kW","GS_Split
+_kWh_SF","Measured","Buy kW"
+"64115","57","57","1","R","GS_Split_Sell_kW","uint16","kW","GS_Split
+_kWh_SF","Measured","Sell kW"
+"64115","58","58","1","R","GS_Split_Charge_kW","uint16","kW","GS_Split
+_kWh_SF","Measured","Charge kW"
+"64115","59","59","1","R","GS_Split_Load_kW","uint16","kW","GS_Split
+_kWh_SF","Measured","Load kW"
+"64115","60","60","1","R","GS_Split_AC_Couple_kW","uint16","kW","GS_Split
+_kWh_SF","Measured","AC Coupled kW"

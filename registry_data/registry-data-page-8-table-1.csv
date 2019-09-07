@@ -1,0 +1,75 @@
+"DID","Start","End","Size","R/W","Field Name","Type","Units","Scale Factor","Contents","Description"
+"64112","44","44","1","R/W","CCconfig_Night_Light_ON
+_Hours","uint16","Hours","N/A","Programmable","Night Light ON Time"
+"64112","45","45","1","R/W","CCconfig_Night_Light_ON
+_Hyst_Time","uint16","Mins","N/A","Programmable","Night Light ON Hyst Time"
+"64112","46","46","1","R/W","CCconfig_Night_Light_OFF
+_Hyst_Time","uint16","Mins","N/A","Programmable","Night Light OFF Hyst Time"
+"64112","47","47","1","R/W","CCconfig_AUX_Error 
+_Battery_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Battery voltage at which Aux Error occurs"
+"64112","48","48","1","R/W","CCconfig_AUX_Divert 
+_Hold_Time","uint16","Seconds","CCconfig
+_Hours_SF","Programmable","AUX Diver Hold Time"
+"64112","49","49","1","R/W","CCconfig_AUX_Divert 
+_Delay_Time","uint16","Secs","N/A","Programmable","AUX Divert Delay"
+"64112","50","50","1","R/W","CCconfig_AUX_Divert 
+_Relative_Volts","int16","Volts","CCconfig
+_Voltage_SF","Programmable","AUX Divert Relative Volts"
+"64112","51","51","1","R/W","CCconfig_AUX_Divert 
+_Hyst_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","AUX Divert Hyst Volts"
+"64112","52","52","1","R","CCconfig_Major_Firmware
+_Number","uint16","N/A","N/A","Read Only","Charge Controller Major firmware revision"
+"64112","53","53","1","R","CCconfig_Mid_Firmware 
+_Number","uint16","N/A","N/A","Read Only","Charge Controller Mid firmware revision"
+"64112","54","54","1","R","CCconfig_Minor_Firmware
+_Number","uint16","N/A","N/A","Read Only","Charge Controller Minor firmware revision"
+"64112","55","55","1","R/W","CCconfig_Set_Data_Log 
+_Day_Offset","uint16","Days","N/A","Programmable","Day offset 0-128, 0 =Today, 1 = -1 day …"
+"64112","56","56","1","R","CCconfig_Get_Current 
+_Data_Log_Day_Offset","uint16","Days","N/A","Read Only","Current Data Log Day Offset"
+"64112","57","57","1","R","CCconfig_Data_Log 
+_Daily_AH","uint16","AH","CCconfig
+_AH_SF","Read Only","Data Log AH"
+"64112","58","58","1","R","CCconfig_Data_Log 
+_Daily_kWH","uint16","KWH","CCconfig
+_KWH_SF","Read Only","Data Log kWH"
+"64112","59","59","1","R","CCconfig_Data_Log 
+_Daily_Max_Output_Amps","uint16","Amps","CCconfig
+_Voltage_SF","Read Only","Data Log maximum Output Amps"
+"64112","60","60","1","R","CCconfig_Data_Log 
+_Daily_Max_Output_Watts","uint16","Watts","CCconfig
+_Power_SF","Read Only","Data Log maximum Output Wattage"
+"64112","61","61","1","R","CCconfig_Data_Log 
+_Daily_Absorb_Time","uint16","Mins","N/A","Read Only","Data Log Absorb Time Minutes"
+"64112","62","62","1","R","CCconfig_Data_Log 
+_Daily_Float_Time","uint16","Mins","N/A","Read Only","Data Log Float Time Minutes"
+"64112","63","63","1","R","CCconfig_Data_Log 
+_Daily_Min_Batt_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Read Only","Data Log minimum daily battery voltage"
+"64112","64","64","1","R","CCconfig_Data_Log 
+_Daily_Max_Batt_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Read Only","Data Log maximum daily battery voltage"
+"64112","65","65","1","R","CCconfig_Data_Log 
+_Daily_Max_Input_Volts","uint16","Volts","N/A","Read Only","Data Log maximum daily input voltage"
+"64112","66","66","1","R","CCconfig_Clear 
+_Data_Log_Read","uint16","N/A","N/A","Read Only","Read value needed to clear data log"
+"64112","67","67","1","W","CCconfig_Clear_Data 
+_Log_Write_Complement","uint16","N/A","N/A","Write Only","Write value's complement to clear data log"
+"64112","68","68","1","R","CCconfig_Stats_Maximum
+_Reset_Read","uint16","N/A","N/A","Read Only","Read value needed to clear Stats 
+Maximums"
+"64112","69","69","1","W","CCconfig_Stats_Maximum
+_Write_Complement","uint16","N/A","N/A","Write Only","Write value's complement to clear Stats 
+Maximums"
+"64112","70","70","1","R","CCconfig_Stats_Totals 
+_Reset_Read","uint16","N/A","N/A","Read Only","Read value nneded to clear Stats Totals"
+"64112","71","71","1","W","CCconfig_Stats_Totals 
+_Write_Complement","uint16","N/A","N/A","Write Only","Write value's complement to clear Stats 
+Totals"
+"64112","72","72","1","R/W","CCconfig_Battery_Voltage
+_Calibrate_Offset","int16","DC Volts","CCconfig
+_Voltage_SF","Programmable","Battery voltage calibration offset"
+"64112","73","81","9","R","CCconfig_Serial_Number","string (18)","N/A","N/A","Read Only","Device serial number"
+"64112","82","90","9","R","CCconfig_Model_Number","string (18)","N/A","N/A","Read Only","Device model"

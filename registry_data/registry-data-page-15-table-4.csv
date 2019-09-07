@@ -1,0 +1,37 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64114","1","1","1","R","FXconfig_DID","uint16","N/A","N/A","64114","Vendor Extension for OutBack FX Series 
+Inverter  Configuration Block"
+"64114","2","2","1","R","FXconfig_Length","uint16","Registers","N/A","72","Length of block in 16-bit registers"
+"64114","3","3","1","R","FXconfig_Port_Number","uint16","N/A","N/A","0-10","Port number on Outback network"
+"64114","4","4","1","R","FXconfig_DC_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64114","5","5","1","R","FXconfig_AC_Current_SF","int16","N/A","N/A","-1","AC Current Scale Factor"
+"64114","6","6","1","R","FXconfig_AC_Voltage_SF","int16","N/A","N/A","0","AC Voltage Scale Factor"
+"64114","7","7","1","R","FXconfig_Time_SF","int16","N/A","N/A","-1","Time Scale Factor"
+"64114","8","8","1","R","FXconfig_Major_Firmware
+_Number","uint16","N/A","N/A","Read Only","Inverter Major firmware revision"
+"64114","9","9","1","R","FXconfig_Mid_Firmware 
+_Number","uint16","N/A","N/A","Read Only","Inverter Mid firmware revision"
+"64114","10","10","1","R","FXconfig_Minor_Firmware
+_Number","uint16","N/A","N/A","Read Only","Inverter Minor firmware revision"
+"64114","11","11","1","R/W","FXconfig_Absorb_Volts","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Absorb Voltage Target"
+"64114","12","12","1","R/W","FXconfig_Absorb_Time 
+_Hours","uint16","Hours","FXconfig
+_Time_SF","Programmable","Absorb Time Hours"
+"64114","13","13","1","R/W","FXconfig_Float_Volts","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Float Voltage Target"
+"64114","14","14","1","R/W","FXconfig_Float_Time_Hours","uint16","Hours","FXconfig
+_Time_SF","Programmable","Float Time Hours"
+"64114","15","15","1","R/W","FXconfig_ReFloat_Volts","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","ReFloat Voltage Target"
+"64114","16","16","1","R/W","FXconfig_EQ_Volts","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","EQ Voltage Target"
+"64114","17","17","1","R/W","FXconfig_EQ_Time_Hours","uint16","Hours","FXconfig
+_Time_SF","Programmable","EQ Time Hours"
+"64114","18","18","1","R/W","FXconfig_Search_Sensitivity","uint16","N/A","N/A","Programmable","Search sensitivity"
+"64114","19","19","1","R/W","FXconfig_Search_Pulse_Length","uint16","Cycles","N/A","Programmable","Search pulse length"
+"64114","20","20","1","R/W","FXconfig_Search_Pulse 
+_Spacing","uint16","Cycles","N/A","Programmable","Search pulse spacing"
+"64114","21","21","1","R/W","FXconfig_AC_Input_Type","uint16","Enumerated","N/A","Programmable","0=Grid, 1=Gen, 2=Grid Zero"
+"64114","22","22","1","R/W","Fxconfig_Input_Support","uint16","Enumerated","N/A","Programmable","1=Yes, 0=No (only valid if AC Input Type is 
+Gen)"

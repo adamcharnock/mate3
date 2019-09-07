@@ -1,0 +1,89 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64116","1","1","1","R","GSconfig_DID","uint16","N/A","N/A","64116","Vendor Extension for OutBack Radian Series 
+Split Phase Inverter Configuration Block"
+"64116","2","2","1","R","GSconfig_Length","uint16","Registers","N/A","86","Length of block in 16-bit registers"
+"64116","3","3","1","R","GSconfig_Port_number","uint16","N/A","N/A","0-10","Port number on Outback network"
+"64116","4","4","1","R","GSconfig_DC_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64116","5","5","1","R","GSconfig_AC_Current_SF","int16","N/A","N/A","-1","AC Current Scale Factor"
+"64116","6","6","1","R","GSconfig_AC_Voltage_SF","int16","N/A","N/A","0","AC Voltage Scale Factor"
+"64116","7","7","1","R","GSconfig_Time_SF","int16","N/A","N/A","-1","Time Scale Factor"
+"64116","8","8","1","R","GSconfig_Major_Firmware
+_Number","uint16","N/A","N/A","Read Only","Inverter Major firmware revision"
+"64116","9","9","1","R","GSconfig_Mid_Firmware 
+_Number","uint16","N/A","N/A","Read Only","Inverter Mid firmware revision"
+"64116","10","10","1","R","GSconfig_Minor_Firmware
+_Number","uint16","N/A","N/A","Read Only","Inverter Minor firmware revision"
+"64116","11","11","1","R/W","GSconfig_Absorb_Volts","uint16","DC Volts","GSconfig_DC
+_Voltage_SF","Programmable","Absorb Voltage Target"
+"64116","12","12","1","R/W","GSconfig_Absorb_Time 
+_Hours","uint16","Hours","GSconfig
+_Time_SF","Programmable","Absorb Time Hours"
+"64116","13","13","1","R/W","GSconfig_Float_Volts","uint16","DC Volts","GSconfig_DC
+_Voltage_SF","Programmable","Float Voltage Target"
+"64116","14","14","1","R/W","GSconfig_Float_Time_Hours","uint16","Hours","GSconfig
+_Time_SF","Programmable","Float Time Hours"
+"64116","15","15","1","R/W","GSconfig_ReFloat_Volts","uint16","DC Volts","GSconfig_DC
+_Voltage_SF","Programmable","ReFloat Voltage Target"
+"64116","16","16","1","R/W","GSconfig_EQ_Volts","uint16","DC Volts","GSconfig_DC
+_Voltage_SF","Programmable","EQ Voltage Target"
+"64116","17","17","1","R/W","GSconfig_EQ_Time_Hours","uint16","Hours","GSconfig
+_Time_SF","Programmable","EQ Time Hours"
+"64116","18","18","1","R/W","GSconfig_Search_Sensitivity","uint16","N/A","N/A","Programmable","Search sensitivity"
+"64116","19","19","1","R/W","GSconfig_Search_Pulse_Length","uint16","Cycles","N/A","Programmable","Search pulse length"
+"64116","20","20","1","R/W","GSconfig_Search_Pulse_Spacing","uint16","Cycles","N/A","Programmable","Search pulse spacing"
+"64116","21","21","1","R/W","GSconfig_AC_Input_Select
+_Priority","uint16","Enumerated","N/A","Programmable","0=Grid, 1=Gen"
+"64116","22","22","1","R/W","GSconfig_Grid_AC_Input 
+_Current_Limit","uint16","Amps","GSconfig_AC
+_Current_SF","Programmable","Grid AC input current limit"
+"64116","23","23","1","R/W","GSconfig_Gen_AC_Input 
+_Current_Limit","uint16","Amps","GSconfig_AC
+_Current_SF","Programmable","Gen AC input current limit"
+"64116","24","24","1","R/W","GSconfig_Charger_AC_Input
+_Current_Limit","uint16","Amps","GSconfig_AC
+_Current_SF","Programmable","Charger AC input current limit"
+"64116","25","25","1","R/W","GSconfig_Charger_Operating
+_Mode","uint16","Enumerated","N/A","Programmable","0=All Inverter Charging Disabled, 1=Bulk 
+and Float Charging Enabled"
+"64116","26","26","1","R/W","GSconfig_AC_Coupled","uint16","Enumerated","N/A","Programmable","0=No, 1=Yes (not implemented)"
+"64116","27","27","1","R/W","GSconfig_Grid_Input_Mode","uint16","Enumerated","N/A","Programmable","Grid Input Mode: 0=Generator, 1=Support, 
+2=Grid Tied, 3=UPS, 4=Backup, 5=Mini Grid, 
+6=Grid Zero"
+"64116","28","28","1","R/W","GSconfig_Grid_Lower_Input
+_Voltage_Limit","uint16","Volts AC","GSconfig_AC
+_Voltage_SF","Programmable","Grid Input AC voltage lower limit"
+"64116","29","29","1","R/W","GSconfig_Grid_Upper_Input
+_Voltage_Limit","uint16","Volts AC","GSconfig_AC
+_Voltage_SF","Programmable","Grid Input AC voltage upper limit"
+"64116","30","30","1","R/W","GSconfig_Grid_Transfer 
+_Delay","uint16","msecs","N/A","Programmable","Grid Input AC transfer delay"
+"64116","31","31","1","R/W","GSconfig_Grid_Connect 
+_Delay","uint16","Minutes","GSconfig
+_Time_SF","Programmable","Grid Input AC connect delay"
+"64116","32","32","1","R/W","GSconfig_Gen_Input_Mode","uint16","Enumerated","N/A","Programmable","Grid Input Mode: 0=Generator, 1=Support, 
+2=Grid Tied, 3=UPS, 4=Backup, 5=Mini Grid, 
+6=Grid Zero"
+"64116","33","33","1","R/W","GSconfig_Gen_Lower_Input
+_Voltage_Limit","uint16","Volts AC","GSconfig_AC
+_Voltage_SF","Programmable","Gen Input AC voltage lower limit"
+"64116","34","34","1","R/W","GSconfig_Gen_Upper_Input
+_Voltage_Limit","uint16","Volts AC","GSconfig_AC
+_Voltage_SF","Programmable","Gen Input AC voltage upper limit"
+"64116","35","35","1","R/W","GSconfig_Gen_Transfer 
+_Delay","uint16","msecs","N/A","Programmable","Gen Input AC transfer delay"
+"64116","36","36","1","R/W","GSconfig_Gen_Connect_Dela
+y","uint16","Minutes","GSconfig
+_Time_SF","Programmable","Gen Input AC connect delay"
+"64116","37","37","1","R/W","GSconfig_AC_Output_Voltag
+e","uint16","Volts AC","GSconfig_AC
+_Voltage_SF","Programmable","AC output Voltage"
+"64116","38","38","1","R/W","GSconfig_Low_Battery_Cut_O
+ut_Voltage","uint16","DC Volts","GSconfig_DC
+_Voltage_SF","Programmable","Low Battery Voltage Cut Out"
+"64116","39","39","1","R/W","GSconfig_Low_Battery_Cut_I
+n_Voltage","uint16","DC Volts","GSconfig_DC
+_Voltage_SF","Programmable","Low Battery Voltage Cut In"
+"64116","40","40","1","R/W","GSconfig_AUX_Mode","uint16","Enumerated","N/A","Programmable","1=Load Shed, 2=Gen Alert, 3=Fault, 4=Vent 
+Fan, 5=Cool Fan, 6=DC Divert, 7=Grid 
+Limit/IEEE ,8=AC Source Status,9=AC Divert"
+"64116","41","41","1","R/W","GSconfig_AUX_Control","uint16","Enumerated","N/A","Programmable","0 = Off; 1 = Auto; 2 = On"

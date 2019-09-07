@@ -1,0 +1,97 @@
+"DID","Start","End","Size","R/W","Field Name","Type","Units","Scale Factor","Contents","Description"
+"64110","322","322","1","R/W","OutBack_AGS_Quiet_Time 
+_Weekday_Stop_Hour","uint16","Hour","N/A","Programmable","AGS Quiet Time Weekday Stop Hour 0-23"
+"64110","323","323","1","R/W","OutBack_AGS_Quiet_Time 
+_Weekday_Stop_Minute","uint16","Minute","N/A","Programmable","AGS Quiet Time Weekday Stop Minute 0-59"
+"64110","324","324","1","R/W","OutBack_AGS_Quiet_Time 
+_Weekend_Start_Hour","uint16","Hour","N/A","Programmable","AGS Quiet Time Weekend Start Hour 0-23"
+"64110","325","325","1","R/W","OutBack_AGS_Quiet_Time 
+_Weekend_Start_Minute","uint16","Minute","N/A","Programmable","AGS Quiet Time Weekend Start Minute 0-59"
+"64110","326","326","1","R/W","OutBack_AGS_Quiet_Time 
+_Weekend_Stop_Hour","uint16","Hour","N/A","Programmable","AGS Quiet Time Weekend Stop Hour 0-23"
+"64110","327","327","1","R/W","OutBack_AGS_Quiet_Time 
+_Weekend_Stop_Minute","uint16","Minute","N/A","Programmable","AGS Quiet Time Weekend Stop Minute 0-59"
+"64110","328","329","2","R/W","OutBack_AGS_Total 
+_Generator_Run_Time","uint32","Hours","N/A","Programmable","AGS Generator Total Run Time in Seconds"
+"64110","330","330","1","R/W","OutBack_HBX_Mode","uint16","Enumerated","N/A","Programmable","0=Disabled, 1=Voltage Only, 2=SOC Only, 
+3=Both"
+"64110","331","331","1","R/W","OutBack_HBX_Grid 
+_Connect_Voltage","uint16","Volts","OutBack
+_Voltage_SF","Programmable","HBX Grid Connect Voltage"
+"64110","332","332","1","R/W","OutBack_HBX_Grid 
+_Connect_Delay","uint16","Hours","OutBack
+_Hour_SF","Programmable","HBX Grid Connect Delay"
+"64110","333","333","1","R/W","OutBack_HBX_Grid 
+_Disconnect_Voltage","uint16","Volts","OutBack
+_Voltage_SF","Programmable","HBX Grid Disconnect Voltage"
+"64110","334","334","1","R/W","OutBack_HBX_Grid 
+_Disconnect_Delay","uint16","Hours","OutBack
+_Hour_SF","Programmable","HBX Grid Disconnect Delay"
+"64110","335","335","1","R/W","OutBack_HBX_Grid 
+_Connect_SOC","uint16","Percent","N/A","Programmable","HBX Grid Connect SOC Percentage"
+"64110","336","336","1","R/W","OutBack_HBX_Grid 
+_Disconnect_SOC","uint16","Percent","N/A","Programmable","HBX Grid Disconnect SOC Percentage"
+"64110","337","337","1","R/W","OutBack_Grid_Use 
+_Interval_1_Mode","uint16","Enumerated","N/A","Programmable","0=Disabled, 1=Enabled"
+"64110","338","338","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekday_Start_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekday Start Hour 
+0-23"
+"64110","339","339","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekday_Start_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekday Start Minute 
+0-59"
+"64110","340","340","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekday_Stop_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekday Stop Hour 
+0-23"
+"64110","341","341","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekday_Stop_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekday Stop Minute 
+0-59"
+"64110","342","342","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekend_Start_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekend Start Hour 
+0-23"
+"64110","343","343","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekend_Start_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekend Start Minute 
+0-59"
+"64110","344","344","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekend_Stop_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekend Stop Hour |
+0-23"
+"64110","345","345","1","R/W","OutBack_Grid_Use_Interval_1
+_Weekend_Stop_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 1 Weekend Stop Minute 
+0-59"
+"64110","346","346","1","R/W","OutBack_Grid_Use_Interval_2
+_Mode","uint16","Enumerated","N/A","Programmable","0=Disabled, 1=Enabled"
+"64110","347","347","1","R/W","OutBack_Grid_Use_Interval_2
+_Weekday_Start_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 2 Weekday Start Hour 
+0-23"
+"64110","348","348","1","R/W","OutBack_Grid_Use_Interval_2
+_Weekday_Start_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 2 Weekday Start Minute 
+0-59"
+"64110","349","349","1","R/W","OutBack_Grid_Use_Interval_2
+_Weekday_Stop_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 2 Weekday Stop Hour 
+0-23"
+"64110","350","350","1","R/W","OutBack_Grid_Use_Interval_2
+_Weekday_Stop_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 2 Weekday Stop Minute 
+0-59"
+"64110","351","351","1","R/W","OutBack_Grid_Use_Interval_3
+_Mode","uint16","Enumerated","N/A","Programmable","0=Disabled, 1=Enabled"
+"64110","352","352","1","R/W","OutBack_Grid_Use_Interval_3
+_Weekday_Start_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 3 Weekday Start Hour 
+0-23"
+"64110","353","353","1","R/W","OutBack_Grid_Use_Interval_3
+_Weekday_Start_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 3 Weekday Start Minute 
+0-59"
+"64110","354","354","1","R/W","OutBack_Grid_Use_Interval_3
+_Weekday_Stop_Hour","uint16","Hour","N/A","Programmable","Grid Use Interval 3 Weekday Stop Hour 
+0-23"
+"64110","355","355","1","R/W","OutBack_Grid_Use_Interval_3
+_Weekday_Stop_Minute","uint16","Hour","N/A","Programmable","Grid Use Interval 3 Weekday Stop Minute 
+0-59"
+"64110","356","356","1","R/W","OutBack_Load_Grid_Transfer
+_Mode","uint16","Enumerated","N/A","Programmable","0=Disabled, 1=Enabled"
+"64110","357","357","1","R/W","OutBack_Load_Grid_Transfer
+_Threshold","uint16","kWatts","OutBack
+_Voltage_SF","Programmable","Load Grid Transfer Threshold kW"
+"64110","358","358","1","R/W","OutBack_Load_Grid_Transfer
+_Connect_Delay","uint16","Seconds","N/A","Programmable","Load Grid Transfer Connect Delay Seconds"
+"64110","359","359","1","R/W","OutBack_Load_Grid_Transfer
+_Disconnect_Delay","uint16","Seconds","N/A","Programmable","Load Grid Transfer Disconnect Delay 
+Seconds"

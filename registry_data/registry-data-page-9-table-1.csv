@@ -1,0 +1,99 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64115","1","1","1","R","GS_Split_DID","uint16","N/A","N/A","64115","Vendor Extension for OutBack Radian Series 
+Split Phase Inverter Status Block"
+"64115","2","2","1","R","GS_Split_Length","uint16","Registers","N/A","58","Length of block in 16-bit registers"
+"64115","3","3","1","R","GS_Split_Port_number","uint16","N/A","N/A","0-10","Port number on Outback network"
+"64115","4","4","1","R","GS_Split_DC_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64115","5","5","1","R","GS_Split_AC_Current_SF","int16","N/A","N/A","0","AC Current Scale Factor"
+"64115","6","6","1","R","GS_Split_AC_Voltage_SF","int16","N/A","N/A","0","AC Voltage Scale Factor"
+"64115","7","7","1","R","GS_Split_AC_Frequency_SF","int16","N/A","N/A","-1","AC Frequency Scale Factor"
+"64115","8","8","1","R","GS_Split_L1_Inverter_Output
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L1 inverter output current"
+"64115","9","9","1","R","GS_Split_L1_Inverter_Charge
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L1 inverter charger current"
+"64115","10","10","1","R","GS_Split_L1_Inverter_Buy 
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L1 inverter buy current"
+"64115","11","11","1","R","GS_Split_L1_Inverter_Sell 
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L1 inverter sell current"
+"64115","12","12","1","R","GS_Split_L1_Grid_Input_AC
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","L1 Grid Input AC Voltage"
+"64115","13","13","1","R","GS_Split_L1_Gen_Input_AC
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","L1 Gen Input AC Voltage"
+"64115","14","14","1","R","GS_Split_L1_Output_AC 
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","L1 Output AC Voltage"
+"64115","15","15","1","R","GS_Split_L2_Inverter_Output
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L2 inverter output current"
+"64115","16","16","1","R","GS_Split_L2_Inverter_Charge
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L2 inverter charger current"
+"64115","17","17","1","R","GS_Split_L2_Inverter_Buy 
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L2 inverter buy current"
+"64115","18","18","1","R","GS_Split_L2_Inverter_Sell 
+_Current","int16","Amps","GS_Split_AC
+_Current_SF","Measured","L2 inverter sell current"
+"64115","19","19","1","R","GS_Split_L2_Grid_Input_AC
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","L2 Grid Input AC Voltage"
+"64115","20","20","1","R","GS_Split_L2_Gen_Input_AC
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","L2 Gen Input AC Voltage"
+"64115","21","21","1","R","GS_Split_L2_Output_AC 
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","L2 Output AC Voltage"
+"64115","22","22","1","R","GS_Split_Inverter_Operating 
+_mode","int16","Enumerated","N/A","Read Only","0=Off, 1=Searching, 2=Inverting, 
+3=Charging, 4=Silent, 5=Float, 6=EQ, 
+7=Charger Off, 8=Support, 9=Selling, 
+10=Pass through, 14=Offsetting"
+"64115","23","23","1","R","GS_Split_Error_Flags","int16","Bitfield","N/A","N/A","Bit field for errors. See GS_Error table"
+"64115","24","24","1","R","GS_Split_Warning_Flags","int16","Bitfield","N/A","N/A","Bit field for warnings See GS_Warning table"
+"64115","25","25","1","R","GS_Split_Battery_Voltage","int16","Volts DC","GS_Split_DC
+_Voltage_SF","Measured","Battery Voltage"
+"64115","26","26","1","R","GS_Split_Temp_Compensated
+_Target_Voltage","int16","Volts DC","GS_Split_DC
+_Voltage_SF","Read Only","Temperature compensated target battery 
+voltage"
+"64115","27","27","1","R","GS_Split_AUX_Output_State","int16","Enumerated","N/A","N/A","0 = Disabled; 1 = Enabled"
+"64115","28","28","1","R","GS_Split_AUX_Relay_Output
+_State","int16","Enumerated","N/A","N/A","0 = Disabled; 1 = Enabled"
+"64115","29","29","1","R","GS_Split_L_Module 
+_Transformer_Temperature","int16","Degrees C","N/A","Measured","Left module transformer temp in degrees C"
+"64115","30","30","1","R","GS_Split_L_Module 
+_Capacitor_Temperature","int16","Degrees C","N/A","Measured","Left module capacitor temp in degrees C"
+"64115","31","31","1","R","GS_Split_L_Module 
+_FET_Temperature","int16","Degrees C","N/A","Measured","Left module FET temp in degrees C"
+"64115","32","32","1","R","GS_Split_R_Module 
+_Transformer_Temperature","int16","Degrees C","N/A","Measured","Right module transformer temp in degrees 
+C"
+"64115","33","33","1","R","GS_Split_R_Module 
+_Capacitor_Temperature","int16","Degrees C","N/A","Measured","Right module capacitor temp in degrees C"
+"64115","34","34","1","R","GS_Split_R_Module 
+_FET_Temperature","int16","Degrees C","N/A","Measured","Right module FET temp in degrees C"
+"64115","35","35","1","R","GS_Split_Battery 
+_Temperature","int16","Degrees C","N/A","Measured","Battery temp in degrees C"
+"64115","36","36","1","R","GS_Split_AC_Input_Selection","int16","Enumerated","N/A","Read Only","0=Grid, 1=Gen"
+"64115","37","37","1","R","GS_Split_AC_Input_Frequency","int16","Hz","GS_Split_AC
+_Frequency
+_SF","Measured","Selected AC Input frequency HZ"
+"64115","38","38","1","R","GS_Split_AC_Input_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Measured","Selected Input AC Voltage"
+"64115","39","39","1","R","GS_Split_AC_Input_State","int16","Enumerated","N/A","N/A","1=AC Use, 0=AC_Drop"
+"64115","40","40","1","R","GS_Split_Minimum_AC_Input
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Read Only","Minimum Input AC Voltage (Write to clear 
+stored value)"
+"64115","41","41","1","R","GS_Split_Maximum_AC_Input
+_Voltage","int16","Volts AC","GS_Split_AC
+_Voltage_SF","Read Only","Maximum Input AC Voltage (Write to clear 
+stored value)"
+"64115","42","42","1","R","GS_Split_Sell_Status","int16","Bitfield","N/A","N/A","Bit field for sell status 
+(See GS_Sell_Status table)"

@@ -1,0 +1,68 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"102","1","1","1","R","C_SunSpec_DID","uint16","N/A","N/A","102","Uniquely identifies this as a SunSpec Split 
+Phase Inverter"
+"102","2","2","1","R","C_SunSpec_Length","uint16","Registers","N/A","50","Length of model block"
+"102","3","3","1","R","I_AC_Current","uint16","Amps","I_AC
+_Current_SF","Measured","AC Total Current value"
+"102","4","4","1","R","I_AC_CurrentA","uint16","Amps","I_AC
+_Current_SF","Measured","AC Phase-A Current value"
+"102","5","5","1","R","I_AC_CurrentB","uint16","Amps","I_AC
+_Current_SF","Measured","AC Phase-B Current value"
+"102","6","6","1","R","I_AC_CurrentC","uint16","Amps","I_AC
+_Current_SF","Measured","AC Phase-C Current value"
+"102","7","7","1","R","I_AC_Current_SF","int16","SF","N/A","","AC Current Scale factor"
+"102","8","8","1","R","I_AC_VoltageAB","uint16","Volts","I_AC
+_Voltage_SF","Measured","AC Voltage Phase-AB value"
+"102","9","9","1","R","I_AC_VoltageBC","uint16","Volts","I_AC
+_Voltage_SF","Measured","AC Voltage Phase BC value"
+"102","10","10","1","R","I_AC_VoltageCA","uint16","Volts","I_AC
+_Voltage_SF","Measured","AC Voltage Phase CA value"
+"102","11","11","1","R","I_AC_VoltageAN","uint16","Volts","I_AC
+_Voltage_SF","Measured","AC Voltage Phase-A-to-neutral value"
+"102","12","12","1","R","I_AC_VoltageBN","uint16","Volts","I_AC
+_Voltage_SF","Measured","AC Voltage Phase B-to-neutral value"
+"102","13","13","1","R","I_AC_VoltageCN","uint16","Volts","I_AC
+_Voltage_SF","Measured","AC Voltage Phase C-to-neutral value"
+"102","14","14","1","R","I_AC_Voltage_SF","int16","SF","N/A","","AC Voltage Scale factor"
+"102","15","15","1","R","I_AC_Power","int16","Watts","I_AC_Power
+_SF","Measured","AC Power value"
+"102","16","16","1","R","I_AC_Power_SF","int16","SF","N/A","","AC Power Scale factor"
+"102","17","17","1","R","I_AC_Frequency","uint16","Hertz","I_AC
+_Frequency
+_SF","Measured","AC Frequency value"
+"102","18","18","1","R","I_AC_Frequency_SF","int16","SF","N/A","","Scale factor"
+"102","19","19","1","R","I_AC_VA","int16","VA","I_AC_VA_SF","Measured","Apparent Power"
+"102","20","20","1","R","I_AC_VA_SF","int16","SF","N/A","","Scale factor"
+"102","21","21","1","R","I_AC_VAR","int16","VAR","I_AC_VAR_S
+F","Measured","Reactive Power"
+"102","22","22","1","R","I_AC_VAR_SF","int16","SF","N/A","","Scale factor"
+"102","23","23","1","R","I_AC_PF","int16","%","I_AC_PF_SF","Measured","Power Factor"
+"102","24","24","1","R","I_AC_PF_SF","int16","SF","N/A","","Scale factor"
+"102","25","26","2","R","I_AC_Energy_WH","uint32","WattHours","I_AC_Energy
+_WH_SF","Measured","AC Lifetime Energy production"
+"102","27","27","1","R","I_AC_Energy_WH_SF","uint16","SF","N/A","Measured","AC Lifetime Energy production scale factor"
+"102","28","28","1","R","I_DC_Current","uint16","Amps","I_DC
+_Current_SF","Measured","DC Current value"
+"102","29","29","1","R","I_DC_Current_SF","int16","SF","N/A","","Scale factor"
+"102","30","30","1","R","I_DC_Voltage","uint16","Volts","I_DC
+_Voltage_SF","Measured","DC Voltage value"
+"102","31","31","1","R","I_DC_Voltage_SF","int16","SF","N/A","","Scale factor"
+"102","32","32","1","R","I_DC_Power","int16","Watts","I_DC
+_Power_SF","Measured","DC Power value"
+"102","33","33","1","R","I_DC_Power_SF","int16","SF","N/A","","Scale factor"
+"102","34","34","1","R","I_Temp_Cab","int16","Degrees C","I_Temp_SF","Measured","Cabinet Temperature"
+"102","35","35","1","R","I_Temp_Sink","int16","Degrees C","I_Temp_SF","Measured","Coolant or Heat Sink Temperature"
+"102","36","36","1","R","I_Temp_Trans","int16","Degrees C","I_Temp_SF","Measured","Transformer Temperature"
+"102","37","37","1","R","I_Temp_Other","int16","Degrees C","I_Temp_SF","Measured","Other Temperature"
+"102","38","38","1","R","I_Temp_SF","int16","SF","N/A","","Scale factor"
+"102","39","39","1","R","I_Status","uint16","Enumerated","N/A","N/A","Operating State"
+"102","40","40","1","R","I_Status_Vendor","uint16","Enumerated","N/A","N/A","Vendor Defined Operating State"
+"102","41","42","2","R","I_Event_1","uint32","Bitfield","N/A","N/A","Event Flags (bits 0-31)"
+"102","43","44","2","R","I_Event_2","uint32","Bitfield","N/A","N/A","Event Flags (bits 32-63); Future Use, set to 0"
+"102","45","46","2","R","I_Event_1_Vendor","uint32","Bitfield","N/A","N/A","Vendor Defined Event Flags (bits 0-31)"
+"102","47","48","2","R","I_Event_2_Vendor","uint32","Bitfield","N/A","N/A","Vendor Defined Event Flags (bits 32-63)   
+Future Use"
+"102","49","50","2","R","I_Event_3_Vendor","uint32","Bitfield","N/A","N/A","Vendor Defined Event Flags (bits 64-95)   
+Future Use"
+"102","51","52","2","R","I_Event_4_Vendor","uint32","Bitfield","N/A","N/A","Vendor Defined Event Flags (bits 96-127)  
+Future Use"

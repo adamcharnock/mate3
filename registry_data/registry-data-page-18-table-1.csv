@@ -1,0 +1,76 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64118","1","1","1","R","FN_DID","uint16","N/A","N/A","64118","Vendor Extension for OutBack FLEXnet DC 
+Battery Monitor Status Block"
+"64118","2","2","1","R","FN_Length","uint16","Registers","N/A","76","Length of block in 16-bit registers"
+"64118","3","3","1","R","FN_Port_Number","uint16","N/A","N/A","1-10","Port number on Outback network"
+"64118","4","4","1","R","FN_DC_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64118","5","5","1","R","FN_DC_Current_SF","int16","N/A","N/A","-1","DC Current Scale Factor"
+"64118","6","6","1","R","FN_Time_SF","int16","N/A","N/A","-1","Time Scale Factor"
+"64118","7","7","1","R","FN_kWh_SF","int16","N/A","N/A","-2","Kilo Watt Hours Scale Factor"
+"64118","8","8","1","R","FN_kW_SF","int16","N/A","N/A","-2","Kilo Watt Scale Factor"
+"64118","9","9","1","R","FN_Shunt_A_Current","int16","Amps","FN_DC
+_Current_SF","Read Only","Shunt A current"
+"64118","10","10","1","R","FN_Shunt_B_Current","int16","Amps","FN_DC
+_Current_SF","Read Only","Shunt B current"
+"64118","11","11","1","R","FN_Shunt_C_Current","int16","Amps","FN_DC
+_Current_SF","Read Only","Shunt C current"
+"64118","12","12","1","R","FN_Battery_Voltage","uint16","Volts","FN_DC
+_Voltage_SF","Read Only","Battery Voltage"
+"64118","13","13","1","R","FN_Battery_Current","int16","Amps","FN_DC
+_Current_SF","Read Only","Battery Current"
+"64118","14","14","1","R","FN_Battery_Temperature","int16","Degrees C","N/A","Read Only","Battery Temperature C"
+"64118","15","15","1","R","FN_Status_Flags","uint16","Bitfield","N/A","Read Only","See FN Status Table"
+"64118","16","16","1","R","FN_Shunt_A_Accumulated
+_AH","int16","AH","N/A","Read Only","Shunt A Accumulated_AH"
+"64118","17","17","1","R","FN_Shunt_A_Accumulated
+_kWh","int16","kWh","FN_kWh_SF","Read Only","Shunt A Accumulated_kWh"
+"64118","18","18","1","R","FN_Shunt_B_Accumulated
+_AH","int16","AH","N/A","Read Only","Shunt B Accumulated_AH"
+"64118","19","19","1","R","FN_Shunt_B_Accumulated
+_kWh","int16","kWh","FN_kWh_SF","Read Only","Shunt B Accumulated_kWh"
+"64118","20","20","1","R","FN_Shunt_C_Accumulated
+_AH","int16","AH","N/A","Read Only","Shunt C Accumulated_AH"
+"64118","21","21","1","R","FN_Shunt_C_Accumulated
+_kWh","int16","kWh","FN_kWh_SF","Read Only","Shunt C Accumulated_kWh"
+"64118","22","22","1","R","FN_Input_Current","uint16","Amps","FN_DC
+_Current_SF","Read Only","Total_input_current"
+"64118","23","23","1","R","FN_Output_Current","uint16","Amps","FN_DC
+_Current_SF","Read Only","Total_output_current"
+"64118","24","24","1","R","FN_Input_kW","uint16","kW","FN_kW_SF","Read Only","Total_input_kWatts"
+"64118","25","25","1","R","FN_Output_kW","uint16","kW","FN_kW_SF","Read Only","Total_output_kWatts"
+"64118","26","26","1","R","FN_Net_kW","int16","kW","FN_kW_SF","Read Only","Total_net_kWatts"
+"64118","27","27","1","R","FN_Days_Since_Charge 
+_Parameters_Met","uint16","Days","FN_Time_SF","Read Only","Days Since Charge Parameters Met"
+"64118","28","28","1","R","FN_State_Of_Charge","uint16","Percent","N/A","Read Only","Current Battery State of Charge"
+"64118","29","29","1","R","FN_Todays_Minimum_SOC","uint16","Percent","N/A","Read Only","Todays minimum SOC"
+"64118","30","30","1","R","FN_Todays_Maximum_SOC","uint16","Percent","N/A","Read Only","Todays maximum SOC"
+"64118","31","31","1","R","FN_Todays_NET_Input_AH","uint16","AH","N/A","Read Only","Todays NET input AH"
+"64118","32","32","1","R","FN_Todays_NET_Input_kWh","uint16","kWh","FN_kWh_SF","Read Only","Todays NET input kWh"
+"64118","33","33","1","R","FN_Todays_NET_Output_AH","uint16","AH","N/A","Read Only","Todays NET output AH"
+"64118","34","34","1","R","FN_Todays_NET_Output_kWh","uint16","kWh","FN_kWh_SF","Read Only","Todays NET output kWh"
+"64118","35","35","1","R","FN_Todays_NET_Battery_AH","int16","AH","N/A","Read Only","Todays NET battery AH"
+"64118","36","36","1","R","FN_Todays_NET_Battery_kWh","int16","kWh","FN_kWh_SF","Read Only","Todays NET battery kWh"
+"64118","37","37","1","R","FN_Charge_Factor_Corrected
+_NET_Battery_AH","int16","AH","N/A","Read Only","Charge factor corrected NET battery AH"
+"64118","38","38","1","R","FN_Charge_Factor_Corrected
+_NET_Battery_kWh","int16","kWh","FN_kWh_SF","Read Only","Charge factor corrected NET battery kWh"
+"64118","39","39","1","R","FN_Todays_Minimum_Battery
+_Voltage","uint16","Volts","FN_DC
+_Voltage_SF","Programmable","Todays minimum battery voltage"
+"64118","40","41","2","R","FN_Todays_Minimum_Battery
+_Time","uint32","Seconds","N/A","Read Only","Todays minimum battery voltage time UTC"
+"64118","42","42","1","R","FN_Todays_Maximum 
+_Battery_Voltage","uint16","Volts","FN_DC
+_Voltage_SF","Programmable","Todays maximum battery voltage"
+"64118","43","44","2","R","FN_Todays_Maximum 
+_Battery_Time","uint32","Seconds","N/A","Read Only","Todays maximum battery voltage time UTC"
+"64118","45","45","1","R","FN_Cycle_Charge_Factor","uint16","Percent","N/A","Read Only","Cycle Charge Factor"
+"64118","46","46","1","R","FN_Cycle_kWh_Charge 
+_Efficiency","uint16","Percent","N/A","Read Only","Cycle kWh Charge Efficiency"
+"64118","47","47","1","R","FN_Total_Days_At_100 
+_Percent","uint16","Days","FN_Time_SF","Programmable","Total days at 100% charged"
+"64118","48","48","1","R","FN_Lifetime_kAH_Removed","uint16","AH","N/A","Programmable","Lifetime kAH removed from battery"
+"64118","49","49","1","R","FN_Shunt_A_Historical 
+_Returned_To_Battery_AH","uint16","AH","N/A","Read Only","Shunt A historical returned to battery AH"
+"64118","50","50","1","R","FN_Shunt_A_Historical 
+_Returned_To_Battery_kWh","uint16","kWh","FN_kWh_SF","Read Only","Shunt A historical returned to battery kWh"

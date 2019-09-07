@@ -1,0 +1,84 @@
+"DID","Start","End","Size","R/W","Field Name","Type","Units","Scale Factor","Contents","Description"
+"64112","1","1","1","R","CCconfig_DID","uint16","N/A","N/A","64112","Vendor Extension for OutBack FM Series 
+Charge Controllers"
+"64112","2","2","1","R","CCconfig_Length","uint16","Registers","N/A","88","Length of block in 16-bit registers"
+"64112","3","3","1","R","CCconfig_Port_number","uint16","N/A","N/A","0-10","Port number on Outback network"
+"64112","4","4","1","R","CCconfig_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64112","5","5","1","R","CCconfig_Current_SF","int16","N/A","N/A","-1","DC Current Scale Factor"
+"64112","6","6","1","R","CCconfig_Hours_SF","int16","N/A","N/A","-1","Time in Hours Scale Factor"
+"64112","7","7","1","R","CCconfig_Power_SF","int16","N/A","N/A","0","Power Scale Factor"
+"64112","8","8","1","R","CCconfig_AH_SF","int16","N/A","N/A","0","Amp Hours Scale Factor"
+"64112","9","9","1","R","CCconfig_KWH_SF","int16","N/A","N/A","-1","DC kWH Scale Factor"
+"64112","10","10","1","R","CCconfig_Faults","uint16","Bitfield","N/A","N/A","CC Error Flags: 0x0080=High VOC, 
+0x0040=Over Temp,  0x0020=Shorted Battery 
+Temp Sensor, 0x0010=Fault Input Active"
+"64112","11","11","1","R/W","CCconfig_Absorb_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Absorb Voltage Target"
+"64112","12","12","1","R/W","CCconfig_Absorb_Time 
+_Hours","uint16","Hours","CCconfig
+_Hours_SF","Programmable","Absorb Time Hours"
+"64112","13","13","1","R/W","CCconfig_Absorb_End_Amps","uint16","Amps","N/A","Programmable","Amperage to end Absorbing"
+"64112","14","14","1","R/W","CCconfig_Rebulk_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Voltage to re-initiate Bulk charge"
+"64112","15","15","1","R/W","CCconfig_Float_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Float Voltage Target"
+"64112","16","16","1","R/W","CCconfig_Bulk_Current","uint16","Amps","CCconfig
+_Current_SF","Programmable","Max Output Current Limit"
+"64112","17","17","1","R/W","CCconfig_EQ_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Target Voltage for Equalize"
+"64112","18","18","1","R/W","CCconfig_EQ_Time_Hours","uint16","Hours","N/A","Programmable","EQ Time Hours"
+"64112","19","19","1","R/W","CCconfig_Auto_EQ_Days","uint16","Days","N/A","Programmable","Auto EQ Interval Days"
+"64112","20","20","1","R/W","CCconfig_MPPT_Mode","uint16","Enumerated","N/A","Programmable","0 = Auto; 1 = U-Pick"
+"64112","21","21","1","R/W","CCconfig_Sweep_Width","uint16","Enumerated","N/A","Programmable","0 = Full; 1 = Half"
+"64112","22","22","1","R/W","CCconfig_Sweep_Max 
+_Percentage","uint16","Enumerated","N/A","Programmable","0 = 80; 1 = 85; 2 = 90; 3 = 99"
+"64112","23","23","1","R/W","CCconfig_U_Pick_PWM 
+_Duty_Cycle","uint16","Percentage","CCconfig
+_Voltage_SF","Programmable","Park Duty Cycle (%) (40% - 90%)"
+"64112","24","24","1","R/W","CCconfig_Grid_Tie_Mode","uint16","Enumerated","N/A","Programmable","0 = Grid Tie Mode disabled; 1 = Grid Tie 
+Mode enabled"
+"64112","25","25","1","R/W","CCconfig_Temp_Comp_Mode","uint16","Enumerated","N/A","Programmable","0 = Wide; 1 = User Limited"
+"64112","26","26","1","R/W","CCconfig_Temp_Comp 
+_Lower_Limit_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","RTS compensation lower voltage limit"
+"64112","27","27","1","R/W","CCconfig_Temp_Comp 
+_Upper_Limit_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","RTS compensation upper voltage limit"
+"64112","28","28","1","R/W","CCconfig_Temp_Comp_Slope","uint16","Milli Volts","N/A","Programmable","RTS temp compensation Slope 2-6 mV per 
+Degree C"
+"64112","29","29","1","R/W","CCconfig_Auto_Restart_Mode","uint16","Enumerated","N/A","Programmable","0 = Off; 1 = Restart every 90 minutes; 2 = 
+Restart every 90 minutes if absorb charging 
+or float charging"
+"64112","30","30","1","R/W","CCconfig_Wakeup_VOC","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","VOC change which causes Wakeup occurs"
+"64112","31","31","1","R/W","CCconfig_Snooze_Mode 
+_Amps","uint16","Amps","CCconfig
+_Voltage_SF","Programmable","Snooze Mode Amps"
+"64112","32","32","1","R/W","CCconfig_Wakeup_Interval","uint16","Mins","N/A","Programmable","How often to check for Wakeup condition"
+"64112","33","33","1","R/W","CCconfig_AUX_Mode","uint16","Enumerated","N/A","Programmable","0 = Float; 1 = Diversion: Relay; 2 = 
+Diversion: Solid St; 3 = Low Batt Disconnect; 
+4 = Remote; 5 = Vent Fan; 6 = PV Trigger; 7 
+= Error Output; 8 = Night Light"
+"64112","34","34","1","R/W","CCconfig_AUX_Control","uint16","Enumerated","N/A","Programmable","0 = Off; 1 = Auto; 2 = On"
+"64112","35","35","1","R","CCconfig_AUX_State","uint16","Enumerated","N/A","Read Only","0 = Disabled; 1 = Enabled"
+"64112","36","36","1","R/W","CCconfig_AUX_Polarity","uint16","Enumerated","N/A","Programmable","0 = Low; 1 = High"
+"64112","37","37","1","R/W","CCconfig_AUX_Low_Batt 
+_Disconnect","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Low Battery Disconnect Voltage"
+"64112","38","38","1","R/W","CCconfig_AUX_Low_Batt 
+_Reconnect","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Low Battery Reconnect Volts"
+"64112","39","39","1","R/W","CCconfig_AUX_Low_Batt 
+_Disconnect_Delay","uint16","Secs","N/A","Programmable","Low Battery Disconnect Delay (secs)"
+"64112","40","40","1","R/W","CCconfig_AUX_Vent_Fan 
+_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Vent Fan Voltage"
+"64112","41","41","1","R/W","CCconfig_AUX_PV_Limit 
+_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Voltage at which PV disconnect occurs"
+"64112","42","42","1","R/W","CCconfig_AUX_PV_Limit 
+_Hold_Time","uint16","Secs","CCconfig
+_Hours_SF","Programmable","AUX PV Trigger Hold Time"
+"64112","43","43","1","R/W","CCconfig_AUX_Night_Light
+_Thres_Volts","uint16","Volts","CCconfig
+_Voltage_SF","Programmable","Voltage Threshold for AUX Night Light"

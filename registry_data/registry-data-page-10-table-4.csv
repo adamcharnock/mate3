@@ -1,0 +1,8 @@
+"DID","Start","End","Size","R/W","Field Name","Type","Units","Scale Factor","Contents","Description"
+"—","—","—","—","—","—","—","—","—","0x0001","AC input frequency too high"
+"—","—","—","—","—","—","—","—","—","0x0002","AC input frequency too low"
+"—","—","—","—","—","—","—","—","—","0x0004","AC input voltage too low"
+"—","—","—","—","—","—","—","—","—","0x0008","AC input voltage too high"
+"—","—","—","—","—","—","—","—","—","0x0010","Awaiting sell delay"
+"—","—","—","—","—","—","—","—","—","0x0020","Sell disabled"
+"—","—","—","—","—","—","—","—","—","0x0040","Battery voltage less than target"

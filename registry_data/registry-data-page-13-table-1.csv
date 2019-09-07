@@ -1,0 +1,89 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64117","1","1","1","R","GS_Single_DID","uint16","N/A","N/A","64117","Vendor Extension for OutBack Radian Series 
+Split Phase Inverter Status Block"
+"64117","2","2","1","R","GS_Single_Length","uint16","Registers","N/A","46","Length of block in 16-bit registers"
+"64117","3","3","1","R","GS_Single_Port_number","uint16","N/A","N/A","0-10","Port number on Outback network"
+"64117","4","4","1","R","GS_Single_DC_Voltage_SF","int16","N/A","N/A","-1","DC Voltage Scale Factor"
+"64117","5","5","1","R","GS_Single_AC_Current_SF","int16","N/A","N/A","0","AC Current Scale Factor"
+"64117","6","6","1","R","GS_Single_AC_Voltage_SF","int16","N/A","N/A","0","AC Voltage Scale Factor"
+"64117","7","7","1","R","GS_Single_AC_Frequency_SF","int16","N/A","N/A","-1","AC Frequency Scale Factor"
+"64117","8","8","1","R","GS_Single_Inverter_Output
+_Current","uint16","Amps","GS_Single_AC
+_Current_SF","Measured","Inverter output current"
+"64117","9","9","1","R","GS_Single_Inverter_Charge
+_Current","uint16","Amps","GS_Single_AC
+_Current_SF","Measured","Inverter charger current"
+"64117","10","10","1","R","GS_Single_Inverter_Buy_Curr
+ent","uint16","Amps","GS_Single_AC
+_Current_SF","Measured","Inverter buy current"
+"64117","11","11","1","R","GS_Single_Inverter_Sell 
+_Current","uint16","Amps","GS_Single_AC
+_Current_SF","Measured","Inverter sell current"
+"64117","12","12","1","R","GS_Single_Grid_Input_AC
+_Voltage","uint16","Volts AC","GS_Single_AC
+_Voltage_SF","Measured","Grid Input AC Voltage"
+"64117","13","13","1","R","GS_Single_Gen_Input_AC 
+_Voltage","uint16","Volts AC","GS_Single_AC
+_Voltage_SF","Measured","Gen Input AC Voltage"
+"64117","14","14","1","R","GS_Single_Output_AC 
+_Voltage","uint16","Volts AC","GS_Single_AC
+_Voltage_SF","Measured","Output AC Voltage"
+"64117","15","15","1","R","GS_Single_Inverter 
+_Operating_mode","uint16","Enumerated","N/A","Read Only","0=Off, 1=Searching, 2=Inverting, 
+3=Charging, 4=Silent, 5=Float, 6=EQ, 
+7=Charger Off, 8=Support, 9=Selling, 
+10=Pass through, 14=Offsetting"
+"64117","16","16","1","R","GS_Single_Error_Flags","uint16","Bitfield","N/A","Read Only","Bit field for errors  (See GS_Error Table)"
+"64117","17","17","1","R","GS_Single_Warning_Flags","uint16","Bitfield","N/A","Read Only","Bit field for warnings (See GS_Warning Table)"
+"64117","18","18","1","R","GS_Single_Battery_Voltage","uint16","Volts DC","GS_Single_DC
+_Voltage_SF","Measured","Battery Voltage"
+"64117","19","19","1","R","GS_Single_Temp_Compensated
+_Target_Voltage","uint16","Volts DC","GS_Single_DC
+_Voltage_SF","Read Only","Temperature compensated target battery 
+voltage"
+"64117","20","20","1","R","GS_Single_AUX_Output_State","uint16","Enumerated","N/A","Read Only","0 = Disabled; 1 = Enabled"
+"64117","21","21","1","R","GS_Single_AUX_Relay_Output
+_State","uint16","Enumerated","N/A","Read Only","0 = Disabled; 1 = Enabled"
+"64117","22","22","1","R","GS_Single_L_Module 
+_Transformer_Temperature","int16","Degrees C","N/A","Measured","Left module transformer temp in degrees C"
+"64117","23","23","1","R","GS_Single_L_Module_Capacitor
+_Temperature","int16","Degrees C","N/A","Measured","Left module capacitor temp in degrees C"
+"64117","24","24","1","R","GS_Single_L_Module_FET 
+_Temperature","int16","Degrees C","N/A","Measured","Left module FET temp in degrees C"
+"64117","25","25","1","R","GS_Single_R_Module 
+_Transformer_Temperature","int16","Degrees C","N/A","Measured","Right module transformer temp in degrees C"
+"64117","26","26","1","R","GS_Single_R_Module 
+_Capacitor_Temperature","int16","Degrees C","N/A","Measured","Right module capacitor temp in degrees C"
+"64117","27","27","1","R","GS_Single_R_Module_FET
+_Temperature","int16","Degrees C","N/A","Measured","Right module FET temp in degrees C"
+"64117","28","28","1","R","GS_Single_Battery 
+_Temperature","int16","Degrees C","N/A","Measured","Battery temp in degrees C"
+"64117","29","29","1","R","GS_Single_AC_Input_Selection","uint16","Enumerated","N/A","Read Only","0=Grid, 1=Gen"
+"64117","30","30","1","R","GS_Single_AC_Input_Frequency","uint16","Hz","GS_Single_AC_
+Frequency_SF","Measured","Selected AC Input frequency HZ"
+"64117","31","31","1","R","GS_Single_AC_Input_Voltage","uint16","Volts AC","GS_Single_AC
+_Voltage_SF","Measured","Selected Input AC Voltage"
+"64117","32","32","1","R","GS_Single_AC_Input_State","uint16","Enumerated","N/A","N/A","1=AC Use, 0=AC_Drop"
+"64117","33","33","1","R","GS_Single_Minimum_AC 
+_Input_Voltage","uint16","Volts AC","GS_Single_AC
+_Voltage_SF","Read Only","Minimum Input AC Voltage 
+(Write to clear value)"
+"64117","34","34","1","R","GS_Single_Maximum_AC 
+_Input_Voltage","uint16","Volts AC","GS_Single_AC
+_Voltage_SF","Read Only","Maximum Input AC Voltage 
+(Write to clear value)"
+"64117","35","35","1","R","GS_Single_Sell_Status","uint16","Bitfield","N/A","N/A","Bit field for sell status 
+(See GS_Sell_Status Table)"
+"64117","36","36","1","R","GS_Single_kWh_SF","int16","N/A","N/A","-1","AC kWh scale factor"
+"64117","37","37","1","R","GS_Single_AC1_Buy_kWh","uint16","kWh","GS_Single
+_kWh_SF","Measured","Daily AC1 Buy kWh"
+"64117","38","38","1","R","GS_Single_AC2_Buy_kWh","uint16","kWh","GS_Single
+_kWh_SF","Measured","Daily AC2 Buy kWh"
+"64117","39","39","1","R","GS_Single_AC1_Sell_kWh","uint16","kWh","GS_Single
+_kWh_SF","Measured","Daily AC1 Sell kWh"
+"64117","40","40","1","R","GS_Single_AC2_Sell_kWh","uint16","kWh","GS_Single
+_kWh_SF","Measured","Daily AC2 Sell kWh"
+"64117","41","41","1","R","GS_Single_Output_kWh","uint16","kWh","GS_Single
+_kWh_SF","Measured","Daily Output kWh"
+"64117","42","42","1","R","GS_Single_Charger_kWh","uint16","kWh","GS_Single
+_kWh_SF","Measured","Daily Charger kWh"

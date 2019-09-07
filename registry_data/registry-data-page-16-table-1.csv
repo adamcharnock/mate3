@@ -1,0 +1,89 @@
+"DID","Start","End","Size","R/W","Name","Type","Units","Scale Factor","Contents","Description"
+"64114","23","23","1","R/W","FXconfig_Grid_AC_Input 
+_Current_Limit","uint16","Amps","FXconfig_AC
+_Current_SF","Programmable","Grid AC input current limit"
+"64114","24","24","1","R/W","FXconfig_Gen_AC_Input 
+_Current_Limit","uint16","Amps","FXconfig_AC
+_Current_SF","Programmable","Gen AC input current limit"
+"64114","25","25","1","R/W","FXconfig_Charger_AC_Input
+_Current_Limit","uint16","Amps","FXconfig_AC
+_Current_SF","Programmable","Charger AC input current limit"
+"64114","26","26","1","R/W","FXconfig_Charger_Operating
+_Mode","uint16","Enumerated","N/A","Programmable","0=Charger Off, 1=Charger Auto, 2=Charger 
+On"
+"64114","27","27","1","R/W","FXconfig_Grid_Lower_Input
+_Voltage_Limit","uint16","Volts AC","FXconfig_AC
+_Voltage_SF","Programmable","Grid Input AC voltage lower limit"
+"64114","28","28","1","R/W","FXconfig_Grid_Upper_Input
+_Voltage_Limit","uint16","Volts AC","FXconfig_AC
+_Voltage_SF","Programmable","Grid Input AC voltage upper limit"
+"64114","29","29","1","R/W","FXconfig_Grid_Transfer_Delay","uint16","Minutes","N/A","Programmable","Grid Input AC connect delay"
+"64114","30","30","1","R/W","FXconfig_Gen_Lower_Input_
+Voltage_Limit","uint16","Volts AC","FXconfig_AC
+_Voltage_SF","Programmable","Gen Input AC voltage lower limit"
+"64114","31","31","1","R/W","FXconfig_Gen_Upper_Input
+_Voltage_Limit","uint16","Volts AC","FXconfig_AC
+_Voltage_SF","Programmable","Gen Input AC voltage upper limit"
+"64114","32","32","1","R/W","FXconfig_Gen_Transfer_Delay","uint16","Cycles","N/A","Programmable","Gen Input AC transfer delay"
+"64114","33","33","1","R/W","FXconfig_Gen_Connect_Delay","uint16","Minutes","FXconfig
+_Time_SF","Programmable","Gen Input AC connect delay"
+"64114","34","34","1","R/W","FXconfig_AC_Output_Voltage","uint16","Volts AC","FXconfig_AC
+_Voltage_SF","Programmable","AC output Voltage"
+"64114","35","35","1","R/W","FXconfig_Low_Battery_Cut
+_Out_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Battery cut-out voltage"
+"64114","36","36","1","R/W","FXconfig_Low_Battery_Cut
+_In_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Battery cut-in voltage"
+"64114","37","37","1","R/W","FXconfig_AUX_Mode","uint16","Enumerated","N/A","Programmable","0=Remote, 1=Load Shed, 2=Gen Alert, 
+3=Fault, 4=Vent Fan, 5=Cool Fan, 6=Divert 
+DC, 7=Divert AC, 8=AC Drop"
+"64114","38","38","1","R/W","FXconfig_AUX_Control","uint16","Enumerated","N/A","Programmable","0 = Off; 1 = Auto; 2 = On"
+"64114","39","39","1","R/W","FXconfig_AUX_Load_Shed
+_Enable_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Load Shed enable voltage"
+"64114","40","40","1","R/W","FXconfig_AUX_Gen_Alert 
+_On_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Gen Alert On voltage"
+"64114","41","41","1","R/W","FXconfig_AUX_Gen_Alert 
+_On_Delay","uint16","Minutes","N/A","Programmable","Gen Alert On delay minutes"
+"64114","42","42","1","R/W","FXconfig_AUX_Gen_Alert 
+_Off_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Gen Alert Off voltage"
+"64114","43","43","1","R/W","FXconfig_AUX_Gen_Alert 
+_Off_Delay","uint16","Minutes","N/A","Programmable","Gen Alert Off delay minutes"
+"64114","44","44","1","R/W","FXconfig_AUX_Vent_Fan 
+_Enable_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Vent Fan enable voltage"
+"64114","45","45","1","R/W","FXconfig_AUX_Vent_Fan 
+_Off_Period","uint16","Minutes","N/A","Programmable","Van Fan Off delay minutes"
+"64114","46","46","1","R/W","FXconfig_AUX_Divert_Enable
+_Voltage","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","DC Divert enable voltage"
+"64114","47","47","1","R/W","FXconfig_AUX_Divert_Off 
+_Delay","uint16","Minutes","N/A","Programmable","Divert Off delay minutes"
+"64114","48","48","1","R","FXconfig_Stacking_Mode","uint16","Enumerated","N/A","Read Only","0=1-2phase Master, 1=Classic Slave, 2=OB 
+Slave L1, 3=OB Slave L2, 4=3phase Master, 
+5=3phase Slave,10=Master, 11=Classic 
+Slave, 12=OB Slave L1, 13=OB Slave L2, 
+14=3phase OB Slave A, 15=3phase OB Slave 
+B, 16=3phase OB Slave C, 17=3phase 
+Classic B, 18=3phase Classic C, 
+19=Independent"
+"64114","49","49","1","R/W","FXconfig_Master_Power_Save
+_Level","uint16","N/A","N/A","Programmable","Master inverter power save level"
+"64114","50","50","1","R/W","FXconfig_Slave_Power_Save
+_Level","uint16","N/A","N/A","Programmable","Slave inverter power save level"
+"64114","51","51","1","R/W","FXconfig_Sell_Volts","uint16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Sell Voltage Target"
+"64114","52","52","1","R/W","FXconfig_Grid_Tie_Window","uint16","Enumerated","N/A","Programmable","0=IEEE, 1=User"
+"64114","53","53","1","R/W","FXconfig_Grid_Tie_Enable","uint16","Enumerated","N/A","Programmable","1=Yes, 0=No"
+"64114","54","54","1","R/W","FXconfig_AC_Input_Voltage
+_Calibrate_Factor","int16","Volts AC","N/A","Programmable","AC input voltage calibration factor"
+"64114","55","55","1","R/W","FXconfig_AC_Output_Voltage
+_Calibrate_Factor","int16","Volts AC","N/A","Programmable","AC output voltage calibration factor"
+"64114","56","56","1","R/W","FXconfig_Battery_Voltage 
+_Calibrate_Factor","int16","DC Volts","FXconfig_DC
+_Voltage_SF","Programmable","Battery voltage calibration factor"
+"64114","57","65","9","R","FXconfig_Serial_Number","string (18)","N/A","N/A","Read Only","Device serial number"
+"64114","66","74","9","R","FXconfig_Model_Number","string (18)","N/A","N/A","Read Only","Device model"

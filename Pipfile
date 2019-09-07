@@ -8,6 +8,9 @@ pymodbus = "*"
 "psycopg2-binary" = "*"
 
 [dev-packages]
+camelot-py = {extras = ["plot"], version = "*"}
+excalibur-py = "*"
+black = "==19.3b0"
 
 [requires]
 python_version = "3.7"

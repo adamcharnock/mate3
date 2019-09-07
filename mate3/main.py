@@ -5,8 +5,6 @@ import time
 import logging
 import contextlib
 
-import psycopg2.pool
-
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
 # Setup logging
@@ -56,16 +54,6 @@ def main():
     logging.info(".. Connected OK to an Outback system")
 
     base_reg = SUNSPEC_REGISTER_OFFSET + size + 4
-
-    pool = psycopg2.pool.SimpleConnectionPool(
-        minconn=1,
-        maxconn=2,
-        dbname="postgres",
-        host="127.0.0.1",
-        port=5432,
-        user="postgres",
-        password="password",
-    )
 
     while True:
         reg = base_reg

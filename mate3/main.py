@@ -12,7 +12,6 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 # Setup logging
 from mate3.io import read_sun_spec_header, read_block
 from mate3.base_parser import parse
-from mate3.parsers import SinglePhaseRadianInverterBlock
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S"
@@ -79,8 +78,8 @@ def main():
 
             structure = parse(device, _client, reg)
 
-            if isinstance(structure, SinglePhaseRadianInverterBlock):
-                print(structure.output_ac_voltage)
+            if structure:
+                print(structure)
 
             reg = reg + block_size + 2
 

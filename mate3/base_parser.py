@@ -5,8 +5,8 @@ from typing import NewType, NamedTuple, Type, Union, Dict, Optional
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
-from mate3.base_structures import int16, Device
-from mate3.io import decode_int16
+from mate3.base_structures import int16, Device, uint32
+from mate3.io import decode_int16, combine_ints, int16s_to_str, int_to_ip_address
 
 
 class Mode(Enum):
@@ -35,7 +35,14 @@ class BaseParser(object):
         for name, field in self.fields.items():
             register_number = register_offset + field.start - 1
             response = client.read_holding_registers(register_number, field.size)
-            value = response.registers[0]
+
+            if field.type == str:
+                value = int16s_to_str(response.registers)
+            elif 'tcpip' in name and field.type == uint32:
+                value = int_to_ip_address(combine_ints(response.registers))
+            else:
+                value = combine_ints(response.registers)
+
             value = field.type(value)
 
             if field.type == int16:

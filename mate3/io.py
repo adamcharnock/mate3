@@ -1,4 +1,6 @@
 import logging
+import socket
+import struct
 from typing import Tuple, Optional
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
@@ -27,6 +29,27 @@ def decode_int16(signed_value):
         return int(32768 - signed_value)
     else:
         return signed_value
+
+
+def combine_ints(ints):
+    out = 0
+    for i in ints:
+        out = out << 16
+        out |= i
+    return out
+
+
+def int16s_to_str(ints):
+    int8s = []
+    for i in ints:
+        int8s.append(i >> 8)
+        int8s.append(i & 255)
+    chars = map(chr, int8s)
+    return ''.join(chars).strip("\0")
+
+
+def int_to_ip_address(int_ip_address: int):
+    return socket.inet_ntoa(struct.pack("!I", int_ip_address))
 
 
 def get_common_block(client: ModbusClient, basereg):

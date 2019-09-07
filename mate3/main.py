@@ -25,33 +25,12 @@ SUNSPEC_REGISTER_OFFSET = 40000
 
 
 def main():
-    # Try to build the mate3 MODBUS connection
-    logging.info("Building MATE3 MODBUS connection")
-    # Mate3 connection
-    try:
-        _client = ModbusClient(mate3_ip, mate3_modbus_port)
-        logging.info(".. Make sure we are indeed connected to an Outback power system")
-        size = read_sun_spec_header(_client, SUNSPEC_REGISTER_OFFSET)
-
-        if size is None:
-            logging.info("We have failed to detect an Outback system. Exciting")
-            exit()
-
-    except:
-        _client.close()
-        logging.info(
-            ".. Failed to connect to MATE3. Enable SUNSPEC and check port. Exciting"
-        )
-        raise
-        exit()
-
-    logging.info(".. Connected OK to an Outback system")
-
-    base_reg = SUNSPEC_REGISTER_OFFSET + size + 4
+    _client = ModbusClient(mate3_ip, mate3_modbus_port)
+    base_reg = SUNSPEC_REGISTER_OFFSET
 
     while True:
         reg = base_reg
-        for block in range(0, 30):
+        for _ in range(0, 30):
             block_size, device = read_block(_client, reg)
 
             if device is Device.end_of_sun_spec:

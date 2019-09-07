@@ -12,7 +12,7 @@ class Device(Enum):
 
     AXS_APP_NOTE.PDF from Outback website has the data
     """
-
+    sunspec_header: int = 21365
     mate3: int = 64110
     charge_controller: int = 64111
     charge_controller_configuration: int = 64112

@@ -5,7 +5,7 @@ from typing import NewType, NamedTuple, Type, Union, Dict, Optional
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
-from mate3.base_structures import int16, Device, uint32
+from mate3.base_structures import int16, Device, uint32, uint16
 from mate3.io import decode_int16, combine_ints, int16s_to_str, int_to_ip_address
 
 
@@ -88,3 +88,28 @@ def parse(device: Device, client: ModbusClient, register_offset: int):
         return
 
     return parser().parse(client, register_offset)
+
+
+class SunspecHeaderBlock(NamedTuple):
+    sunspec_id: uint32
+    model_id: uint16
+    total_subsequent_registers: uint16
+    manufacturer: str
+    model: str
+    options: str
+    version: str
+    serial_number: str
+
+
+class SunspecHeaderParser(BaseParser):
+    structure = SunspecHeaderBlock
+    device = Device.sunspec_header
+
+    sunspec_id = Field(start=1, size=2, type=uint32)
+    model_id = Field(start=3, size=1, type=uint16)
+    total_subsequent_registers = Field(start=4, size=1, type=uint16)
+    manufacturer = Field(start=5, size=16, type=str)
+    model = Field(start=5, size=16, type=str)
+    options = Field(start=5, size=8, type=str)
+    version = Field(start=5, size=8, type=str)
+    serial_number = Field(start=5, size=16, type=str)

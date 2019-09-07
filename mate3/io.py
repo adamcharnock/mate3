@@ -117,8 +117,11 @@ def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[D
         logging.warning(f"Unknown device type with device ID {device_id}")
         return None, None
 
-    # Peek at block size
-    register = client.read_holding_registers(basereg + 1)
-    block_size = int(register.registers[0])
+    if device == Device.sunspec_header:
+        register = client.read_holding_registers(basereg + 3)
+        block_size = int(register.registers[0]) + 2
+    else:
+        register = client.read_holding_registers(basereg + 1)
+        block_size = int(register.registers[0])
 
     return block_size, device

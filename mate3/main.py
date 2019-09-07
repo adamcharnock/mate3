@@ -11,12 +11,8 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
 # Setup logging
 from mate3.io import read_sun_spec_header, read_block
-from mate3.parsers import (
-    parse_single_inverter_block,
-    parse_charge_controller_block,
-    parse_flexnet_dc_block,
-)
-from mate3.structures import Device
+from mate3.base_parser import parse
+from mate3.parsers import SinglePhaseRadianInverterBlock
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S"
@@ -76,21 +72,15 @@ def main():
         reg = base_reg
         for block in range(0, 30):
             block_size, device = read_block(_client, reg)
-            structure = None
 
-            if device == Device.single_phase_radian_inverter:
-                structure = parse_single_inverter_block(_client, reg)
-            elif device == Device.charge_controller:
-                structure = parse_charge_controller_block(_client, reg)
-            elif device == Device.flexnet_dc:
-                structure = parse_flexnet_dc_block(_client, reg)
-            elif device == Device.end_of_sun_spec:
-                break
-            else:
-                logging.info(f"Device {device} not implemented")
+            if not device:
+                # Unknown device
+                continue
 
-            if structure:
-                print(structure)
+            structure = parse(device, _client, reg)
+
+            if isinstance(structure, SinglePhaseRadianInverterBlock):
+                print(structure.output_ac_voltage)
 
             reg = reg + block_size + 2
 

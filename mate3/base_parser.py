@@ -1,10 +1,11 @@
+import logging
 from enum import Enum
 from functools import lru_cache
 from typing import NewType, NamedTuple, Type, Union, Dict, Optional
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
-from mate3.base_structures import int16
+from mate3.base_structures import int16, Device
 from mate3.io import decode_int16
 
 
@@ -27,6 +28,7 @@ class Field(NamedTuple):
 class BaseParser(object):
 
     structure = None
+    device: Device = None
 
     def parse(self, client: ModbusClient, register_offset: int):
         values = {}
@@ -63,3 +65,19 @@ class BaseParser(object):
             for name in dir(self)
             if name != "fields" and isinstance(getattr(self, name), Field)
         }
+
+
+def parse(device: Device, client: ModbusClient, register_offset: int):
+    # Find the parser for this device
+    import mate3.parsers
+
+    parser = None
+    for value in mate3.parsers.__dict__.values():
+        if hasattr(value, 'device') and issubclass(value, BaseParser) and value != BaseParser and value.device == device:
+            parser = value
+
+    if not parser:
+        logging.warning(f"No parser found for device {device}, DID {device.value}")
+        return
+
+    return parser().parse(client, register_offset)

@@ -5,6 +5,8 @@ I don't own all the devices so cannot test it).
 
 This data is accessed though the Mate3's Modbus interface.
 
+Tested on Python 3.7. May work on 3.6.
+
 ## Enabling the Modbus interface on your Mate 3
 
 TBA. System -> opticsre -> Modbus?

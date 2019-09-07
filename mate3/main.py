@@ -8,7 +8,7 @@ import contextlib
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
 # Setup logging
-from mate3.io import read_sun_spec_header, read_block
+from mate3.io import read_block
 from mate3.base_parser import parse
 from mate3.base_structures import Device
 

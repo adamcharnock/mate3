@@ -34,7 +34,7 @@ def main():
             block_size, device = read_block(_client, reg)
 
             if device is Device.end_of_sun_spec:
-                # No more blacks to read
+                # No more blocks to read
                 break
 
             if not device:

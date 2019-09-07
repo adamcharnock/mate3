@@ -5,7 +5,7 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadDecoder
 
-from mate3.structures import Device
+from mate3.base_structures import Device
 
 
 def decode_int16(signed_value):

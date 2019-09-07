@@ -1,405 +1,879 @@
-from enum import Enum
-from functools import lru_cache
-from typing import NewType, NamedTuple, Type, Union, Dict
-
-from pymodbus.client.sync import ModbusTcpClient as ModbusClient
-
-from mate3.structures import SingleInverterBlock, ChargeControllerBlock, FlexnetDcBlock
-from mate3.io import decode_int16
+from mate3.base_parser import *
+from mate3.base_structures import *
 
 
-class Mode(Enum):
-    R = "r"
-    W = "w"
-    RW = "rw"
+class CommonModelParser(BaseParser):
+    sunspec_did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='UniquelyidentifiesthisasaSunSpec CommonModelblock', units=None, scale_factor=None)
+    sunspec_length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    manufacturer = Field(start=3, size=16, type=str, mode=Mode.R, description='—', units=None, scale_factor=None)
+    model = Field(start=19, size=16, type=str, mode=Mode.R, description='—', units=None, scale_factor=None)
+    options = Field(start=35, size=8, type=str, mode=Mode.R, description='—', units=None, scale_factor=None)
+    version = Field(start=43, size=8, type=str, mode=Mode.R, description='—', units=None, scale_factor=None)
+    serialnumber = Field(start=51, size=16, type=str, mode=Mode.R, description='—', units=None, scale_factor=None)
+    deviceaddress = Field(start=67, size=1, type=uint16, mode=Mode.RW, description='—', units=None, scale_factor=None)
 
 
-R = Mode.R
-W = Mode.W
-RW = Mode.RW
-
-uint16 = NewType("uint16", int)
-int16 = NewType("int16", int)
-
-
-class Field(NamedTuple):
-    start: int
-    size: int
-    mode: Mode
-    type: Type
-    units: str
-    description: str
-    scale_factor: Union[None, str, float] = None
-
-
-class BaseParser(object):
-
-    structure = None
-
-    def parse(self, client: ModbusClient, register_offset: int):
-        values = {}
-        for name, field in self.fields.items():
-            register_number = register_offset + field.start - 1
-            response = client.read_holding_registers(register_number, field.size)
-            value = response.registers[0]
-            value = field.type(value)
-
-            if field.type == int16:
-                value = decode_int16(value)
-
-            values[name] = value
-
-        # Now we have all the values, do the scaling
-        for name, field in self.fields.items():
-            if not field.scale_factor:
-                break
-            elif isinstance(field.scale_factor, str):
-                scale_factor = values[field.scale_factor]
-            else:
-                scale_factor = field.scale_factor
-
-            if scale_factor:
-                values[name] *= scale_factor
-
-        return self.structure(**values)
-
-    @property
-    @lru_cache()
-    def fields(self) -> Dict[str, Field]:
-        return {
-            name: getattr(self, name)
-            for name in dir(self)
-            if name != "fields" and isinstance(getattr(self, name), Field)
-        }
+class InverterSinglePhaseParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='UniquelyidentifiesthisasaSunSpecSingle PhaseInverter', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofmodelblock', units='Registers', scale_factor=None)
+    ac_current = Field(start=3, size=1, type=uint16, mode=Mode.R, description='ACTotalCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currenta = Field(start=4, size=1, type=uint16, mode=Mode.R, description='ACPhase-ACurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currentb = Field(start=5, size=1, type=uint16, mode=Mode.R, description='ACPhase-BCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currentc = Field(start=6, size=1, type=uint16, mode=Mode.R, description='ACPhase-CCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_current_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='ACCurrentScalefactor', units='SF', scale_factor=None)
+    ac_voltageab = Field(start=8, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhase-ABvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagebc = Field(start=9, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseBCvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltageca = Field(start=10, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseCAvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagean = Field(start=11, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhase-A-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagebn = Field(start=12, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseB-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagecn = Field(start=13, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseC-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltage_scale_factor = Field(start=14, size=1, type=int16, mode=Mode.R, description='ACVoltageScalefactor', units='SF', scale_factor=None)
+    ac_power = Field(start=15, size=1, type=int16, mode=Mode.R, description='ACPowervalue', units='Watts', scale_factor='ac_power_scale_factor')
+    ac_power_scale_factor = Field(start=16, size=1, type=int16, mode=Mode.R, description='ACPowerScalefactor', units='SF', scale_factor=None)
+    ac_frequency = Field(start=17, size=1, type=uint16, mode=Mode.R, description='ACFrequencyvalue', units='Hertz', scale_factor='ac_frequency_scale_factor')
+    ac_frequency_scale_factor = Field(start=18, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_va = Field(start=19, size=1, type=int16, mode=Mode.R, description='ApparentPower', units='VA', scale_factor='ac_va_scale_factor')
+    ac_va_scale_factor = Field(start=20, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_var = Field(start=21, size=1, type=int16, mode=Mode.R, description='ReactivePower', units='VAR', scale_factor='ac_var_scale_factor')
+    ac_var_scale_factor = Field(start=22, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_pf = Field(start=23, size=1, type=int16, mode=Mode.R, description='PowerFactor', units='%', scale_factor='ac_pf_scale_factor')
+    ac_pf_scale_factor = Field(start=24, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_energy_wh = Field(start=25, size=2, type=uint32, mode=Mode.R, description='ACLifetimeEnergyproduction', units='WattHours', scale_factor='ac_energy_wh_scale_factor')
+    ac_energy_wh_scale_factor = Field(start=27, size=1, type=uint16, mode=Mode.R, description='ACLifetimeEnergyproductionscalefactor', units='SF', scale_factor=None)
+    dc_current = Field(start=28, size=1, type=uint16, mode=Mode.R, description='DCCurrentvalue', units='Amps', scale_factor='dc_current_scale_factor')
+    dc_current_scale_factor = Field(start=29, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    dc_voltage = Field(start=30, size=1, type=uint16, mode=Mode.R, description='DCVoltagevalue', units='Volts', scale_factor='dc_voltage_scale_factor')
+    dc_voltage_scale_factor = Field(start=31, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    dc_power = Field(start=32, size=1, type=int16, mode=Mode.R, description='DCPowervalue', units='Watts', scale_factor='dc_power_scale_factor')
+    dc_power_scale_factor = Field(start=33, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    temperature_cab = Field(start=34, size=1, type=int16, mode=Mode.R, description='CabinetTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_sink = Field(start=35, size=1, type=int16, mode=Mode.R, description='CoolantorHeatSinkTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_trans = Field(start=36, size=1, type=int16, mode=Mode.R, description='TransformerTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_other = Field(start=37, size=1, type=int16, mode=Mode.R, description='OtherTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_scale_factor = Field(start=38, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    status = Field(start=39, size=1, type=uint16, mode=Mode.R, description='OperatingState', units='Enumerated', scale_factor=None)
+    status_vendor = Field(start=40, size=1, type=uint16, mode=Mode.R, description='VendorDefinedOperatingState', units='Enumerated', scale_factor=None)
+    event_1 = Field(start=41, size=2, type=uint32, mode=Mode.R, description='EventFlags(bits0-31)', units='Bitfield', scale_factor=None)
+    event_2 = Field(start=43, size=2, type=uint32, mode=Mode.R, description='EventFlags(bits32-63)FutureUse,setto0', units='Bitfield', scale_factor=None)
+    event_1_vendor = Field(start=45, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits0-31)', units='Bitfield', scale_factor=None)
+    event_2_vendor = Field(start=47, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits32-63) FutureUse', units='Bitfield', scale_factor=None)
+    event_3_vendor = Field(start=49, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits64-95) FutureUse', units='Bitfield', scale_factor=None)
+    event_4_vendor = Field(start=51, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits96-127) FutureUse', units='Bitfield', scale_factor=None)
 
 
-class ChargeControllerParser(BaseParser):
-    did = Field(
-        start=1,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="N/A",
-        description="Uniquely identifies this as a SunSpec Basic Charge Controller",
-    )
-    length = Field(
-        start=2,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Registers",
-        description="Length of block in 16-bit registers",
-    )
-    port_number = Field(
-        start=3,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="N/A",
-        description="Port number on Outback network",
-    )
-    voltage_sf = Field(
-        start=4,
-        size=1,
-        mode=R,
-        type=int16,
-        units="N/A",
-        description="DC Voltage Scale Factor",
-    )
-    current_sf = Field(
-        start=5,
-        size=1,
-        mode=R,
-        type=int16,
-        units="N/A",
-        description="DC Current Scale Factor",
-    )
-    power_sf = Field(
-        start=6,
-        size=1,
-        mode=R,
-        type=int16,
-        units="N/A",
-        description="DC Power Scale Factor",
-    )
-    ah_sf = Field(
-        start=7,
-        size=1,
-        mode=R,
-        type=int16,
-        units="N/A",
-        description="DC Amp Hours Scale Factor",
-    )
-    kwh_sf = Field(
-        start=8,
-        size=1,
-        mode=R,
-        type=int16,
-        units="N/A",
-        description="DC kWH Scale Factor",
-    )
-    batt_voltage = Field(
-        start=9,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="Battery Voltage",
-    )
-    array_voltage = Field(
-        start=10,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="DC Source Voltage",
-    )
-    batt_current = Field(
-        start=11,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Amps",
-        scale_factor="current_sf",
-        description="Battery Current",
-    )
-    array_current = Field(
-        start=12,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Amps",
-        scale_factor="power_sf",
-        description="DC Source Current",
-    )
-    charger_state = Field(
-        start=13,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Enumerated",
-        description="0 = Silent; 1 = Float; 2 = Bulk; 3 = Absorb; 4 = EQ",
-    )
-    watts = Field(
-        start=14,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Watts",
-        scale_factor="power_sf",
-        description="CC Wattage Output",
-    )
-    todays_min_battery_volts = Field(
-        start=15,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="Minimum Voltage for battery today",
-    )
-    todays_max_battery_volts = Field(
-        start=16,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="Maximum Voltage for battery today",
-    )
-    voc = Field(
-        start=17,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="Last Open Circuit Voltage (array)",
-    )
-    todays_peak_voc = Field(
-        start=18,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        description="Highest VOC today",
-    )
-    todays_kwh = Field(
-        start=19,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="KWH",
-        scale_factor="kwh_sf",
-        description="Daily accumulated Kwatt hours output",
-    )
-    todays_ah = Field(
-        start=20,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="AH",
-        scale_factor="ah_sf",
-        description="Daily accumulated amp hours output",
-    )
-    lifetime_kwh_hours = Field(
-        start=21,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="KWH",
-        description="Lifetime Total Kwatt Hours",
-    )
-    lifetime_kamp_hours = Field(
-        start=22,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Amps",
-        scale_factor="kwh_sf",
-        description="Lifetime Total K-Amp Hours",
-    )
-    lifetime_max_watts = Field(
-        start=23,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Watts",
-        scale_factor="power_sf",
-        description="Lifetime Maximum Wattage",
-    )
-    lifetime_max_battery_volts = Field(
-        start=24,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="Lifetime Maximum Battery Voltage",
-    )
-    lifetime_max_voc = Field(
-        start=25,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="Volts",
-        scale_factor="voltage_sf",
-        description="Lifetime Maximum VOC",
-    )
-    temp_sf = Field(
-        start=26,
-        size=1,
-        mode=R,
-        type=uint16,
-        units="N/A",
-        description="FM80 Extreme Temperature scale factor",
-    )
-    temp_output_fets = Field(
-        start=27,
-        size=1,
-        mode=R,
-        type=int16,
-        units="Degrees C",
-        scale_factor="power_sf",
-        description="FM80 Extreme Output FET Temperature",
-    )
-    temp_enclosure = Field(
-        start=28,
-        size=1,
-        mode=R,
-        type=int16,
-        units="Degrees C",
-        scale_factor="power_sf",
-        description="FM80 Extreme Enclosure Temperature",
-    )
-
-    structure = ChargeControllerBlock
+class InverterSplitPhaseParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='UniquelyidentifiesthisasaSunSpecSplit PhaseInverter', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofmodelblock', units='Registers', scale_factor=None)
+    ac_current = Field(start=3, size=1, type=uint16, mode=Mode.R, description='ACTotalCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currenta = Field(start=4, size=1, type=uint16, mode=Mode.R, description='ACPhase-ACurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currentb = Field(start=5, size=1, type=uint16, mode=Mode.R, description='ACPhase-BCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currentc = Field(start=6, size=1, type=uint16, mode=Mode.R, description='ACPhase-CCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_current_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='ACCurrentScalefactor', units='SF', scale_factor=None)
+    ac_voltageab = Field(start=8, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhase-ABvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagebc = Field(start=9, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseBCvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltageca = Field(start=10, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseCAvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagean = Field(start=11, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhase-A-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagebn = Field(start=12, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseB-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagecn = Field(start=13, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseC-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltage_scale_factor = Field(start=14, size=1, type=int16, mode=Mode.R, description='ACVoltageScalefactor', units='SF', scale_factor=None)
+    ac_power = Field(start=15, size=1, type=int16, mode=Mode.R, description='ACPowervalue', units='Watts', scale_factor='ac_power_scale_factor')
+    ac_power_scale_factor = Field(start=16, size=1, type=int16, mode=Mode.R, description='ACPowerScalefactor', units='SF', scale_factor=None)
+    ac_frequency = Field(start=17, size=1, type=uint16, mode=Mode.R, description='ACFrequencyvalue', units='Hertz', scale_factor='ac_frequency_scale_factor')
+    ac_frequency_scale_factor = Field(start=18, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_va = Field(start=19, size=1, type=int16, mode=Mode.R, description='ApparentPower', units='VA', scale_factor='ac_va_scale_factor')
+    ac_va_scale_factor = Field(start=20, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_var = Field(start=21, size=1, type=int16, mode=Mode.R, description='ReactivePower', units='VAR', scale_factor='ac_var_scale_factor')
+    ac_var_scale_factor = Field(start=22, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_pf = Field(start=23, size=1, type=int16, mode=Mode.R, description='PowerFactor', units='%', scale_factor='ac_pf_scale_factor')
+    ac_pf_scale_factor = Field(start=24, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_energy_wh = Field(start=25, size=2, type=uint32, mode=Mode.R, description='ACLifetimeEnergyproduction', units='WattHours', scale_factor='ac_energy_wh_scale_factor')
+    ac_energy_wh_scale_factor = Field(start=27, size=1, type=uint16, mode=Mode.R, description='ACLifetimeEnergyproductionscalefactor', units='SF', scale_factor=None)
+    dc_current = Field(start=28, size=1, type=uint16, mode=Mode.R, description='DCCurrentvalue', units='Amps', scale_factor='dc_current_scale_factor')
+    dc_current_scale_factor = Field(start=29, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    dc_voltage = Field(start=30, size=1, type=uint16, mode=Mode.R, description='DCVoltagevalue', units='Volts', scale_factor='dc_voltage_scale_factor')
+    dc_voltage_scale_factor = Field(start=31, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    dc_power = Field(start=32, size=1, type=int16, mode=Mode.R, description='DCPowervalue', units='Watts', scale_factor='dc_power_scale_factor')
+    dc_power_scale_factor = Field(start=33, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    temperature_cab = Field(start=34, size=1, type=int16, mode=Mode.R, description='CabinetTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_sink = Field(start=35, size=1, type=int16, mode=Mode.R, description='CoolantorHeatSinkTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_trans = Field(start=36, size=1, type=int16, mode=Mode.R, description='TransformerTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_other = Field(start=37, size=1, type=int16, mode=Mode.R, description='OtherTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_scale_factor = Field(start=38, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    status = Field(start=39, size=1, type=uint16, mode=Mode.R, description='OperatingState', units='Enumerated', scale_factor=None)
+    status_vendor = Field(start=40, size=1, type=uint16, mode=Mode.R, description='VendorDefinedOperatingState', units='Enumerated', scale_factor=None)
+    event_1 = Field(start=41, size=2, type=uint32, mode=Mode.R, description='EventFlags(bits0-31)', units='Bitfield', scale_factor=None)
+    event_2 = Field(start=43, size=2, type=uint32, mode=Mode.R, description='EventFlags(bits32-63);FutureUse,setto0', units='Bitfield', scale_factor=None)
+    event_1_vendor = Field(start=45, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits0-31)', units='Bitfield', scale_factor=None)
+    event_2_vendor = Field(start=47, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits32-63) FutureUse', units='Bitfield', scale_factor=None)
+    event_3_vendor = Field(start=49, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits64-95) FutureUse', units='Bitfield', scale_factor=None)
+    event_4_vendor = Field(start=51, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits96-127) FutureUse', units='Bitfield', scale_factor=None)
 
 
-def parse_single_inverter_block(client: ModbusClient, reg: int):
-    response = client.read_holding_registers(reg + 2, 1)
-    port_number = int(response.registers[0])
-
-    # Inverter Output current
-    response = client.read_holding_registers(reg + 7, 1)
-    output_current = int(response.registers[0])
-
-    response = client.read_holding_registers(reg + 8, 1)
-    charge_current = int(response.registers[0])
-
-    response = client.read_holding_registers(reg + 9, 1)
-    buy_current = int(response.registers[0])
-
-    response = client.read_holding_registers(reg + 13, 1)
-    output_ac_voltage = int(response.registers[0])
-
-    response = client.read_holding_registers(reg + 14, 1)
-    operating_mode = int(response.registers[0])
-
-    response = client.read_holding_registers(reg + 17, 1)
-    battery_voltage = int(response.registers[0]) * 0.1
-
-    response = client.read_holding_registers(reg + 18, 1)
-    temp_compensated_target_voltage = int(response.registers[0]) * 0.1
-
-    response = client.read_holding_registers(reg + 27, 1)
-    battery_temperature = decode_int16(int(response.registers[0]))
-
-    response = client.read_holding_registers(reg + 30, 1)
-    ac_input_voltage = int(response.registers[0])
-
-    response = client.read_holding_registers(reg + 31, 1)
-    ac_input_state = int(response.registers[0])
-
-    return SingleInverterBlock(
-        port_number=port_number,
-        output_current=output_current,
-        charge_current=charge_current,
-        buy_current=buy_current,
-        output_ac_voltage=output_ac_voltage,
-        operating_mode=operating_mode,
-        battery_voltage=battery_voltage,
-        temp_compensated_target_voltage=temp_compensated_target_voltage,
-        battery_temperature=battery_temperature,
-        ac_input_voltage=ac_input_voltage,
-        ac_input_state=ac_input_state,
-    )
+class InverterThreePhaseParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='UniquelyidentifiesthisasaSunSpecThree PhaseInverter', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofmodelblock', units='Registers', scale_factor=None)
+    ac_current = Field(start=3, size=1, type=uint16, mode=Mode.R, description='ACTotalCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currenta = Field(start=4, size=1, type=uint16, mode=Mode.R, description='ACPhase-ACurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currentb = Field(start=5, size=1, type=uint16, mode=Mode.R, description='ACPhase-BCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_currentc = Field(start=6, size=1, type=uint16, mode=Mode.R, description='ACPhase-CCurrentvalue', units='Amps', scale_factor='ac_current_scale_factor')
+    ac_current_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='ACCurrentScalefactor', units='SF', scale_factor=None)
+    ac_voltageab = Field(start=8, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhase-ABvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagebc = Field(start=9, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseBCvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltageca = Field(start=10, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseCAvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagean = Field(start=11, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhase-A-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagebn = Field(start=12, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseB-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltagecn = Field(start=13, size=1, type=uint16, mode=Mode.R, description='ACVoltagePhaseC-to-neutralvalue', units='Volts', scale_factor='ac_voltage_scale_factor')
+    ac_voltage_scale_factor = Field(start=14, size=1, type=int16, mode=Mode.R, description='ACVoltageScalefactor', units='SF', scale_factor=None)
+    ac_power = Field(start=15, size=1, type=int16, mode=Mode.R, description='ACPowervalue', units='Watts', scale_factor='ac_power_scale_factor')
+    ac_power_scale_factor = Field(start=16, size=1, type=int16, mode=Mode.R, description='ACPowerScalefactor', units='SF', scale_factor=None)
+    ac_frequency = Field(start=17, size=1, type=uint16, mode=Mode.R, description='ACFrequencyvalue', units='Hertz', scale_factor='ac_frequency_scale_factor')
+    ac_frequency_scale_factor = Field(start=18, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_va = Field(start=19, size=1, type=int16, mode=Mode.R, description='ApparentPower', units='VA', scale_factor='ac_va_scale_factor')
+    ac_va_scale_factor = Field(start=20, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_var = Field(start=21, size=1, type=int16, mode=Mode.R, description='ReactivePower', units='VAR', scale_factor='ac_var_scale_factor')
+    ac_var_scale_factor = Field(start=22, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_pf = Field(start=23, size=1, type=int16, mode=Mode.R, description='PowerFactor', units='%', scale_factor='ac_pf_scale_factor')
+    ac_pf_scale_factor = Field(start=24, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    ac_energy_wh = Field(start=25, size=2, type=uint32, mode=Mode.R, description='ACLifetimeEnergyproduction', units='WattHours', scale_factor='ac_energy_wh_scale_factor')
+    ac_energy_wh_scale_factor = Field(start=27, size=1, type=uint16, mode=Mode.R, description='ACLifetimeEnergyproductionscalefactor', units='SF', scale_factor=None)
+    dc_current = Field(start=28, size=1, type=uint16, mode=Mode.R, description='DCCurrentvalue', units='Amps', scale_factor='dc_current_scale_factor')
+    dc_current_scale_factor = Field(start=29, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    dc_voltage = Field(start=30, size=1, type=uint16, mode=Mode.R, description='DCVoltagevalue', units='Volts', scale_factor='dc_voltage_scale_factor')
+    dc_voltage_scale_factor = Field(start=31, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    dc_power = Field(start=32, size=1, type=int16, mode=Mode.R, description='DCPowervalue', units='Watts', scale_factor='dc_power_scale_factor')
+    dc_power_scale_factor = Field(start=33, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    temperature_cab = Field(start=34, size=1, type=int16, mode=Mode.R, description='CabinetTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_sink = Field(start=35, size=1, type=int16, mode=Mode.R, description='CoolantorHeatSinkTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_trans = Field(start=36, size=1, type=int16, mode=Mode.R, description='TransformerTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_other = Field(start=37, size=1, type=int16, mode=Mode.R, description='OtherTemperature', units='DegreesC', scale_factor='temperature_scale_factor')
+    temperature_scale_factor = Field(start=38, size=1, type=int16, mode=Mode.R, description='Scalefactor', units='SF', scale_factor=None)
+    status = Field(start=39, size=1, type=uint16, mode=Mode.R, description='OperatingState', units='Enumerated', scale_factor=None)
+    status_vendor = Field(start=40, size=1, type=uint16, mode=Mode.R, description='VendorDefinedOperatingState', units='Enumerated', scale_factor=None)
+    event_1 = Field(start=41, size=2, type=uint32, mode=Mode.R, description='EventFlags(bits0-31)', units='Bitfield', scale_factor=None)
+    event_2 = Field(start=43, size=2, type=uint32, mode=Mode.R, description='EventFlags(bits32-63);FutureUse,setto0', units='Bitfield', scale_factor=None)
+    event_1_vendor = Field(start=45, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits0-31)', units='Bitfield', scale_factor=None)
+    event_2_vendor = Field(start=47, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits32-63) FutureUse', units='Bitfield', scale_factor=None)
+    event_3_vendor = Field(start=49, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits64-95) FutureUse', units='Bitfield', scale_factor=None)
+    event_4_vendor = Field(start=51, size=2, type=uint32, mode=Mode.R, description='VendorDefinedEventFlags(bits96-127) FutureUse', units='Bitfield', scale_factor=None)
 
 
-def parse_charge_controller_block(client: ModbusClient, reg: int):
-    return ChargeControllerParser().parse(client, reg)
+class Parser(BaseParser):
+    ags_quiet_time_weekday_stop_hour = Field(start=322, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekdayStopHour0-23', units='Hour', scale_factor=None)
+    ags_quiet_time_weekday_stop_minute = Field(start=323, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekdayStopMinute0-59', units='Minute', scale_factor=None)
+    ags_quiet_time_weekend_start_hour = Field(start=324, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekendStartHour0-23', units='Hour', scale_factor=None)
+    ags_quiet_time_weekend_start_minute = Field(start=325, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekendStartMinute0-59', units='Minute', scale_factor=None)
+    ags_quiet_time_weekend_stop_hour = Field(start=326, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekendStopHour0-23', units='Hour', scale_factor=None)
+    ags_quiet_time_weekend_stop_minute = Field(start=327, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekendStopMinute0-59', units='Minute', scale_factor=None)
+    ags_total_generator_run_time = Field(start=328, size=2, type=uint32, mode=Mode.RW, description='AGSGeneratorTotalRunTimeinSeconds', units='Hours', scale_factor=None)
+    hbx_mode = Field(start=330, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=VoltageOnly,2=SOCOnly, 3=Both', units='Enumerated', scale_factor=None)
+    hbx_grid_connect_voltage = Field(start=331, size=1, type=uint16, mode=Mode.RW, description='HBXGridConnectVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    hbx_grid_connect_delay = Field(start=332, size=1, type=uint16, mode=Mode.RW, description='HBXGridConnectDelay', units='Hours', scale_factor='hour_scale_factor')
+    hbx_grid_disconnect_voltage = Field(start=333, size=1, type=uint16, mode=Mode.RW, description='HBXGridDisconnectVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    hbx_grid_disconnect_delay = Field(start=334, size=1, type=uint16, mode=Mode.RW, description='HBXGridDisconnectDelay', units='Hours', scale_factor='hour_scale_factor')
+    hbx_grid_connect_soc = Field(start=335, size=1, type=uint16, mode=Mode.RW, description='HBXGridConnectSOCPercentage', units='Percent', scale_factor=None)
+    hbx_grid_disconnect_soc = Field(start=336, size=1, type=uint16, mode=Mode.RW, description='HBXGridDisconnectSOCPercentage', units='Percent', scale_factor=None)
+    grid_use_interval_1_mode = Field(start=337, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    grid_use_interval_1_weekday_start_hour = Field(start=338, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekdayStartHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekday_start_minute = Field(start=339, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekdayStartMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekday_stop_hour = Field(start=340, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekdayStopHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekday_stop_minute = Field(start=341, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekdayStopMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekend_start_hour = Field(start=342, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekendStartHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekend_start_minute = Field(start=343, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekendStartMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekend_stop_hour = Field(start=344, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekendStopHour| 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_1_weekend_stop_minute = Field(start=345, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval1WeekendStopMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_2_mode = Field(start=346, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    grid_use_interval_2_weekday_start_hour = Field(start=347, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval2WeekdayStartHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_2_weekday_start_minute = Field(start=348, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval2WeekdayStartMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_2_weekday_stop_hour = Field(start=349, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval2WeekdayStopHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_2_weekday_stop_minute = Field(start=350, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval2WeekdayStopMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_3_mode = Field(start=351, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    grid_use_interval_3_weekday_start_hour = Field(start=352, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval3WeekdayStartHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_3_weekday_start_minute = Field(start=353, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval3WeekdayStartMinute 0-59', units='Hour', scale_factor=None)
+    grid_use_interval_3_weekday_stop_hour = Field(start=354, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval3WeekdayStopHour 0-23', units='Hour', scale_factor=None)
+    grid_use_interval_3_weekday_stop_minute = Field(start=355, size=1, type=uint16, mode=Mode.RW, description='GridUseInterval3WeekdayStopMinute 0-59', units='Hour', scale_factor=None)
+    load_grid_transfer_mode = Field(start=356, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    load_grid_transfer_threshold = Field(start=357, size=1, type=uint16, mode=Mode.RW, description='LoadGridTransferThresholdkW', units='kWatts', scale_factor='voltage_scale_factor')
+    load_grid_transfer_connect_delay = Field(start=358, size=1, type=uint16, mode=Mode.RW, description='LoadGridTransferConnectDelaySeconds', units='Seconds', scale_factor=None)
+    load_grid_transfer_disconnect_delay = Field(start=359, size=1, type=uint16, mode=Mode.RW, description='LoadGridTransferDisconnectDelay Seconds', units='Seconds', scale_factor=None)
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='UniquelyidentifiesthisasaSunSpec OutbackInterface', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    major_firmware_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='OutBackMajorfirmwarerevision', units=None, scale_factor=None)
+    mid_firmware_number = Field(start=4, size=1, type=uint16, mode=Mode.R, description='OutBackMidfirmwarerevision', units=None, scale_factor=None)
+    minor_firmware_number = Field(start=5, size=1, type=uint16, mode=Mode.R, description='OutBackMinorfirmwarerevision', units=None, scale_factor=None)
+    encryption_key = Field(start=6, size=1, type=uint16, mode=Mode.R, description='Encryptionkeyforcurrentsession(0= Encryptionnotenabled)', units=None, scale_factor=None)
+    mac_address = Field(start=7, size=7, type=str, mode=Mode.R, description='EthernetMACaddress', units=None, scale_factor=None)
+    write_password = Field(start=14, size=8, type=str, mode=Mode.W, description='Passwordrequiredtowritetoanyregister', units=None, scale_factor=None)
+    enable_dhcp = Field(start=22, size=1, type=uint16, mode=Mode.RW, description='0=DHCPDisabled,useconfigurednetwork parameter;1=DHCPEnabled', units='Enumerated', scale_factor=None)
+    tcpip_address = Field(start=23, size=2, type=uint32, mode=Mode.RW, description='TCP/IPAddressxxx.xxx.xxx.xxx', units='Address', scale_factor=None)
+    tcpip_gateway_msw = Field(start=25, size=2, type=uint32, mode=Mode.RW, description='TCP/IPGatewayxxx.xxx.xxx.xxx', units='Address', scale_factor=None)
+    tcpip_netmask_msw = Field(start=27, size=2, type=uint32, mode=Mode.RW, description='TCP/IPNetmaskxxx.xxx.xxx.xxx', units='Address', scale_factor=None)
+    tcpip_dns_1_msw = Field(start=29, size=2, type=uint32, mode=Mode.RW, description='TCP/IPDNS1xxx.xxx.xxx.xxx', units='Address', scale_factor=None)
+    tcpip_dns_2_msw = Field(start=31, size=2, type=uint32, mode=Mode.RW, description='TCP/IPDNS2xxx.xxx.xxx.xxx', units='Address', scale_factor=None)
+    modbus_port = Field(start=33, size=1, type=uint16, mode=Mode.RW, description='OutbackMODBUSIPport,default502', units=None, scale_factor=None)
+    smtp_server_name = Field(start=34, size=20, type=str, mode=Mode.RW, description='Emailservername', units=None, scale_factor=None)
+    smtp_account_name = Field(start=54, size=16, type=str, mode=Mode.RW, description='Emailaccountname', units=None, scale_factor=None)
+    smtp_ssl_enable = Field(start=70, size=1, type=uint16, mode=Mode.RW, description='0=SSLDisabled;1=SSLEnabled(not implemented)', units='Enumerated', scale_factor=None)
+    smtp_email_password = Field(start=71, size=8, type=str, mode=Mode.W, description='Emailaccountpassword', units=None, scale_factor=None)
+    smtp_email_user_name = Field(start=79, size=20, type=str, mode=Mode.RW, description='EmailaccountUserName', units=None, scale_factor=None)
+    status_email_interval = Field(start=99, size=1, type=uint16, mode=Mode.RW, description='0=StatusEmailDisabled,1-23StatusEmail everynhours', units=None, scale_factor=None)
+    status_email_status_time = Field(start=100, size=1, type=uint16, mode=Mode.RW, description='Houroffirststatusemailoftheday', units=None, scale_factor=None)
+    status_email_subject_line = Field(start=101, size=25, type=str, mode=Mode.RW, description='StatusEmailSubjectLine', units=None, scale_factor=None)
+    status_email_to_address_1 = Field(start=126, size=20, type=str, mode=Mode.RW, description='StatusEmailtoAddress1', units=None, scale_factor=None)
+    status_email_to_address_2 = Field(start=146, size=20, type=str, mode=Mode.RW, description='StatusEmailtoAddress2', units=None, scale_factor=None)
+    alarm_email_enable = Field(start=166, size=1, type=uint16, mode=Mode.RW, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    alarm_email_subject_line = Field(start=167, size=25, type=str, mode=Mode.RW, description='StatusAlarm_SubjectLine', units=None, scale_factor=None)
+    alarm_email_to_address_1 = Field(start=192, size=20, type=str, mode=Mode.RW, description='StatusAlarmtoAddress1', units=None, scale_factor=None)
+    alarm_email_to_address_2 = Field(start=212, size=20, type=str, mode=Mode.RW, description='StatusAlarmtoAddress2', units=None, scale_factor=None)
+    ftp_password = Field(start=232, size=8, type=str, mode=Mode.W, description='FTPpassword', units=None, scale_factor=None)
+    telnet_password = Field(start=240, size=8, type=str, mode=Mode.W, description='Telnetpassword(notimplemented)', units=None, scale_factor=None)
+    sd_card_data_log_write_interval = Field(start=248, size=1, type=uint16, mode=Mode.RW, description='0=SD-CardDataLoggingdisabled, 1-60seconds', units=None, scale_factor=None)
+    sd_card_data_log_retain_days = Field(start=249, size=1, type=uint16, mode=Mode.RW, description='0=LoguntilSD-Cardisfulltheneraseoldest, 1-731Numberofdaystoretaindatalogs', units=None, scale_factor=None)
+    sd_card_data_logging_mode = Field(start=250, size=1, type=uint16, mode=Mode.RW, description='0=Disabled;1=ExcelFormat; 2=CompactFormat', units='Enumerated', scale_factor=None)
+    time_server_name = Field(start=251, size=20, type=str, mode=Mode.RW, description='Timeserverdomainname', units=None, scale_factor=None)
+    enable_time_server = Field(start=271, size=1, type=uint16, mode=Mode.RW, description='0=TimeServerDisabled,useconfigured timeparameters;1=TimeServerEnabled', units='Enumerated', scale_factor=None)
+    set_time_zone = Field(start=272, size=1, type=int16, mode=Mode.RW, description='TimeZone-12-11', units='Hours', scale_factor=None)
+    enable_float_coordination = Field(start=273, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units=None, scale_factor=None)
+    enable_fndc_charge_termination = Field(start=274, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units=None, scale_factor=None)
+    enable_fndc_grid_tie_control = Field(start=275, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units=None, scale_factor=None)
+    voltage_scale_factor = Field(start=276, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    hour_scale_factor = Field(start=277, size=1, type=int16, mode=Mode.R, description='HoursScaleFactor', units=None, scale_factor=None)
+    ags_mode = Field(start=278, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_port = Field(start=279, size=1, type=uint16, mode=Mode.RW, description='AGSdeviceportnumber0-10', units=None, scale_factor=None)
+    ags_port_type = Field(start=280, size=1, type=uint16, mode=Mode.RW, description='0=RadianAUXRelay,1=RadianAUXOutput', units='Enumerated', scale_factor=None)
+    load_grid_transfer_connect_battery_voltage = Field(start=360, size=1, type=uint16, mode=Mode.RW, description='LoadGridTransferLowBatteryConnect Voltage', units='Volts', scale_factor='voltage_scale_factor')
+    load_grid_transfer_re_connect_battery_voltage = Field(start=361, size=1, type=uint16, mode=Mode.RW, description='LoadGridTransferLowBatteryRe-Connect Voltage', units='Volts', scale_factor='voltage_scale_factor')
+    global_charger_control_mode = Field(start=362, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    global_charger_control_output_limit = Field(start=363, size=1, type=uint16, mode=Mode.RW, description='GlobalChargerOutputLimitAmps', units='Amps', scale_factor=None)
+    radian_ac_coupled_control_mode = Field(start=364, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    radian_ac_coupled_aux_port = Field(start=365, size=1, type=uint16, mode=Mode.RW, description='RadianInverterPortNumberforAUX Control0-10', units='Port', scale_factor=None)
+    url_update_lock = Field(start=366, size=2, type=uint32, mode=Mode.W, description='UnlockKey', units='key', scale_factor=None)
+    web_reporting_base_url = Field(start=368, size=20, type=str, mode=Mode.RW, description='WEBReportingBaseURL', units=None, scale_factor=None)
+    web_user_logged_in_status = Field(start=388, size=1, type=uint16, mode=Mode.RW, description='0=WEBUserNOTloggedin,1=WEBuser loggedin', units='Enumerated', scale_factor=None)
+    hub_type = Field(start=389, size=1, type=uint16, mode=Mode.R, description='0=LegacyHUB,4=HUB4,10=HUB10.3, 11=HUB3PH', units='Enumerated', scale_factor=None)
+    hub_major_firmware_number = Field(start=390, size=1, type=uint16, mode=Mode.R, description='HUBMajorfirmwarerevision', units=None, scale_factor=None)
+    hub_mid_firmware_number = Field(start=391, size=1, type=uint16, mode=Mode.R, description='HUBMidfirmwarerevision', units=None, scale_factor=None)
+    hub_minor_firmware_number = Field(start=392, size=1, type=uint16, mode=Mode.R, description='HUBMinorfirmwarerevision', units=None, scale_factor=None)
+    year = Field(start=393, size=1, type=uint16, mode=Mode.RW, description='Clockyear(4digit)', units=None, scale_factor=None)
+    month = Field(start=394, size=1, type=uint16, mode=Mode.RW, description='ClockMonth(1-12)', units=None, scale_factor=None)
+    day = Field(start=395, size=1, type=uint16, mode=Mode.RW, description='ClockDay(1-31)', units=None, scale_factor=None)
+    hour = Field(start=396, size=1, type=uint16, mode=Mode.RW, description='ClockHour(0-23)', units=None, scale_factor=None)
+    minute = Field(start=397, size=1, type=uint16, mode=Mode.RW, description='ClockMinute(0-59)', units=None, scale_factor=None)
+    second = Field(start=398, size=1, type=uint16, mode=Mode.RW, description='ClockSecond(0-59)', units=None, scale_factor=None)
+    temperature_batt = Field(start=399, size=1, type=int16, mode=Mode.R, description='BatterytempindegreesC', units='DegreesC', scale_factor=None)
+    temperature_ambient = Field(start=400, size=1, type=int16, mode=Mode.R, description='Ambienttempfromtempsensor connectedtodevice,indegreesC', units='DegreesC', scale_factor=None)
+    temperature_scale_factor = Field(start=401, size=1, type=int16, mode=Mode.R, description='TemperatureScaleFactor', units=None, scale_factor=None)
+    error = Field(start=402, size=1, type=uint16, mode=Mode.R, description='Bitfieldforerrors.SeeOutback_ErrorTable', units='Bitfield', scale_factor=None)
+    status = Field(start=403, size=1, type=uint16, mode=Mode.R, description='Bitfieldforstatus.SeeOutback_StatusTable', units='Bitfield', scale_factor=None)
+    update_device_firmware_port = Field(start=404, size=1, type=uint16, mode=Mode.RW, description='DeviceFirmwareupdateSee Device_FW_Update', units='Bitfield', scale_factor=None)
+    gateway_type = Field(start=405, size=1, type=uint16, mode=Mode.R, description='1=AXSPort,2=MATE3', units='Enumerated', scale_factor=None)
+    system_voltage = Field(start=406, size=1, type=uint16, mode=Mode.R, description='12,24,26,48or60VDC', units='Volts', scale_factor=None)
+    measured_system_voltage = Field(start=407, size=1, type=uint16, mode=Mode.R, description='Currentsystembatteryvoltagecomputed bygateway', units='Volts', scale_factor='voltage_scale_factor')
+    ags_ac_reconnect_delay = Field(start=408, size=1, type=uint16, mode=Mode.RW, description='AGSACReconnectDelay', units='Minute', scale_factor=None)
+    multi_phase_coordination = Field(start=409, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    sched_1_ac_mode = Field(start=410, size=1, type=int16, mode=Mode.RW, description='ScheduledInputMode:-1=Disable, 0=Generator,1=Support,2=GridTied, 3=UPS,4=Backup,5=MiniGrid,6=GridZero', units='Enumerated', scale_factor=None)
+    sched_1_ac_mode_hour = Field(start=411, size=1, type=uint16, mode=Mode.RW, description='StartHourforACInputModeschedule1', units='Hour', scale_factor=None)
+    sched_1_ac_mode_minute = Field(start=412, size=1, type=uint16, mode=Mode.RW, description='StartMinuteforACInputModeschedule1', units='Minute', scale_factor=None)
+    sched_2_ac_mode = Field(start=413, size=1, type=int16, mode=Mode.RW, description='ScheduledInputMode:-1=Disable, 0=Generator,1=Support,2=GridTied, 3=UPS,4=Backup,5=MiniGrid,6=GridZero', units='Enumerated', scale_factor=None)
+    sched_2_ac_mode_hour = Field(start=414, size=1, type=uint16, mode=Mode.RW, description='StartHourforACInputModeschedule2', units='Hour', scale_factor=None)
+    sched_2_ac_mode_minute = Field(start=415, size=1, type=uint16, mode=Mode.RW, description='StartMinuteforACInputModeschedule2', units='Minute', scale_factor=None)
+    sched_3_ac_mode = Field(start=416, size=1, type=int16, mode=Mode.RW, description='ScheduledInputMode:-1=Disable, 0=Generator,1=Support,2=GridTied, 3=UPS,4=Backup,5=MiniGrid,6=GridZero', units='Enumerated', scale_factor=None)
+    sched_3_ac_mode_hour = Field(start=417, size=1, type=uint16, mode=Mode.RW, description='StartHourforACInputModeschedule3', units='Hour', scale_factor=None)
+    sched_3_ac_mode_minute = Field(start=418, size=1, type=uint16, mode=Mode.RW, description='StartMinuteforACInputModeschedule3', units='Minute', scale_factor=None)
+    auto_reboot = Field(start=419, size=1, type=uint16, mode=Mode.RW, description='OPTICSautorebootevery24hours 0=Disable,1=24,2=20,3=16,4=12,5=8, 6=4(hours)', units='Enumerated', scale_factor=None)
+    spare_reg_2 = Field(start=420, size=1, type=uint16, mode=Mode.RW, description='SpareRegister2', units=None, scale_factor=None)
+    spare_reg_3 = Field(start=421, size=1, type=uint16, mode=Mode.RW, description='SpareRegister3', units=None, scale_factor=None)
+    spare_reg_4 = Field(start=422, size=1, type=uint16, mode=Mode.RW, description='SpareRegister4', units=None, scale_factor=None)
+    ags_generator_type = Field(start=281, size=1, type=uint16, mode=Mode.RW, description='0=ACGen,1=DCGen,2=NoGen', units='Enumerated', scale_factor=None)
+    ags_dc_gen_absorb_voltage = Field(start=282, size=1, type=uint16, mode=Mode.RW, description='DCGeneratorAbsorbVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    ags_dc_gen_absorb_time = Field(start=283, size=1, type=uint16, mode=Mode.RW, description='DCGeneratorAbsorbTime', units='Hour', scale_factor='hour_scale_factor')
+    ags_fault_time = Field(start=284, size=1, type=uint16, mode=Mode.RW, description='AGSGeneratorfaulttimedelay', units='Minutes', scale_factor=None)
+    ags_gen_cool_down_time = Field(start=285, size=1, type=uint16, mode=Mode.RW, description='AGSGeneratorCoolDownTime', units='Minutes', scale_factor=None)
+    ags_gen_warm_up_time = Field(start=286, size=1, type=uint16, mode=Mode.RW, description='AGSGeneratorWarmUpTime', units='Minutes', scale_factor=None)
+    ags_generator_exercise_mode = Field(start=287, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_exercise_start_hour = Field(start=288, size=1, type=uint16, mode=Mode.RW, description='ExerciseStartHour0-23', units='Hour', scale_factor=None)
+    ags_exercise_start_minute = Field(start=289, size=1, type=uint16, mode=Mode.RW, description='ExerciseStartMinute0-59', units='Minutes', scale_factor=None)
+    ags_exercise_day = Field(start=290, size=1, type=uint16, mode=Mode.RW, description='0=Sun,1=Mon,2=Tue,3=Wed,4=Thr, 5=Fri,6=Sat', units='Enumerated', scale_factor=None)
+    ags_exercise_period = Field(start=291, size=1, type=uint16, mode=Mode.RW, description='ExercisePeriod1-240minutes', units='Minutes', scale_factor=None)
+    ags_exercise_interval = Field(start=292, size=1, type=uint16, mode=Mode.RW, description='Exerciseinterval1-8Weeks', units='Weeks', scale_factor=None)
+    ags_sell_mode = Field(start=293, size=1, type=uint16, mode=Mode.RW, description='SellDuringGeneratorExercisePeriod, 0=SellingEnabled,1=SellingDisabled', units='Enumerated', scale_factor=None)
+    ags_2_min_start_mode = Field(start=294, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_2_min_start_voltage = Field(start=295, size=1, type=uint16, mode=Mode.RW, description='TwoMinuteAGSStartVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    ags_2_hour_start_mode = Field(start=296, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_2_hour_start_voltage = Field(start=297, size=1, type=uint16, mode=Mode.RW, description='TwoHourAGSStartVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    ags_24_hour_start_mode = Field(start=298, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_24_hour_start_voltage = Field(start=299, size=1, type=uint16, mode=Mode.RW, description='TwentyFourHourAGSStartVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    ags_load_start_mode = Field(start=300, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_load_start_kw = Field(start=301, size=1, type=uint16, mode=Mode.RW, description='LoadStartkWatts', units='kWatts', scale_factor=None)
+    ags_load_start_delay = Field(start=302, size=1, type=uint16, mode=Mode.RW, description='LoadStartDelay', units='Minutes', scale_factor=None)
+    ags_load_stop_kw = Field(start=303, size=1, type=uint16, mode=Mode.RW, description='LoadStopkWatts', units='kWatts', scale_factor=None)
+    ags_load_stop_delay = Field(start=304, size=1, type=uint16, mode=Mode.RW, description='LoadStopDelay', units='Minutes', scale_factor=None)
+    ags_soc_start_mode = Field(start=305, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_soc_start_percentage = Field(start=306, size=1, type=uint16, mode=Mode.RW, description='AGSSOCStartPercentage', units='Percent', scale_factor=None)
+    ags_soc_stop_percentage = Field(start=307, size=1, type=uint16, mode=Mode.RW, description='AGSSOCStopPercentage', units='Percent', scale_factor=None)
+    ags_enable_full_charge_mode = Field(start=308, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_full_charge_interval = Field(start=309, size=1, type=uint16, mode=Mode.RW, description='AGSSOCFullChargeInterval', units='Days', scale_factor=None)
+    ags_must_run_mode = Field(start=310, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_must_run_weekday_start_hour = Field(start=311, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekdayStartHour0-23', units='Hour', scale_factor=None)
+    ags_must_run_weekday_start_minute = Field(start=312, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekdayStartMinute0-59', units='Minute', scale_factor=None)
+    ags_must_run_weekday_stop_hour = Field(start=313, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekdayStopHour0-23', units='Hour', scale_factor=None)
+    ags_must_run_weekday_stop_minute = Field(start=314, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekdayStopMinute0-59', units='Minute', scale_factor=None)
+    ags_must_run_weekend_start_hour = Field(start=315, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekendStartHour0-23', units='Hour', scale_factor=None)
+    ags_must_run_weekend_start_minute = Field(start=316, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekendStartMinute0-59', units='Minute', scale_factor=None)
+    ags_must_run_weekend_stop_hour = Field(start=317, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekendStopHour0-23', units='Hour', scale_factor=None)
+    ags_must_run_weekend_stop_minute = Field(start=318, size=1, type=uint16, mode=Mode.RW, description='AGSMustRunWeekendStopMinute0-59', units='Minute', scale_factor=None)
+    ags_quiet_time_mode = Field(start=319, size=1, type=uint16, mode=Mode.RW, description='0=Disabled,1=Enabled', units='Enumerated', scale_factor=None)
+    ags_quiet_time_weekday_start_hour = Field(start=320, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekdayStartHour0-23', units='Hour', scale_factor=None)
+    ags_quiet_time_weekday_start_minute = Field(start=321, size=1, type=uint16, mode=Mode.RW, description='AGSQuietTimeWeekdayStartMinute0-59', units='Minute', scale_factor=None)
 
 
-def parse_flexnet_dc_block(client: ModbusClient, reg: int):
-    response = client.read_holding_registers(reg + 2, 1)
-    shunt_a_port = int(response.registers[0])
+class ControllerParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='UniquelyidentifiesthisasaSunSpecBasic ChargeController', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='DCCurrentScaleFactor', units=None, scale_factor=None)
+    power_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='DCPowerScaleFactor', units=None, scale_factor=None)
+    ah_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='DCAmpHoursScaleFactor', units=None, scale_factor=None)
+    kwh_scale_factor = Field(start=8, size=1, type=int16, mode=Mode.R, description='DCkWHScaleFactor', units=None, scale_factor=None)
+    battery_voltage = Field(start=9, size=1, type=uint16, mode=Mode.R, description='BatteryVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    array_voltage = Field(start=10, size=1, type=uint16, mode=Mode.R, description='DCSourceVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    battery_current = Field(start=11, size=1, type=uint16, mode=Mode.R, description='BatteryCurrent', units='Amps', scale_factor='current_scale_factor')
+    array_current = Field(start=12, size=1, type=uint16, mode=Mode.R, description='DCSourceCurrent', units='Amps', scale_factor='power_scale_factor')
+    charger_state = Field(start=13, size=1, type=uint16, mode=Mode.R, description='0=Silent;1=Float;2=Bulk;3=Absorb; 4=EQ', units='Enumerated', scale_factor=None)
+    watts = Field(start=14, size=1, type=uint16, mode=Mode.R, description='CCWattageOutput', units='Watts', scale_factor='power_scale_factor')
+    todays_min_battery_volts = Field(start=15, size=1, type=uint16, mode=Mode.R, description='MinimumVoltageforbatterytoday', units='Volts', scale_factor='voltage_scale_factor')
+    todays_max_battery_volts = Field(start=16, size=1, type=uint16, mode=Mode.R, description='MaximumVoltageforbatterytoday', units='Volts', scale_factor='voltage_scale_factor')
+    voc = Field(start=17, size=1, type=uint16, mode=Mode.R, description='LastOpenCircuitVoltage(array)', units='Volts', scale_factor='voltage_scale_factor')
+    todays_peak_voc = Field(start=18, size=1, type=uint16, mode=Mode.R, description='HighestVOCtoday', units='Volts', scale_factor=None)
+    todays_kwh = Field(start=19, size=1, type=uint16, mode=Mode.R, description='DailyaccumulatedKwatthoursoutput', units='KWH', scale_factor='kwh_scale_factor')
+    todays_ah = Field(start=20, size=1, type=uint16, mode=Mode.R, description='Dailyaccumulatedamphoursoutput', units='AH', scale_factor='ah_scale_factor')
+    lifetime_kwh_hours = Field(start=21, size=1, type=uint16, mode=Mode.R, description='LifetimeTotalKwattHours', units='KWH', scale_factor=None)
+    lifetime_kamp_hours = Field(start=22, size=1, type=uint16, mode=Mode.R, description='LifetimeTotalK-AmpHours', units='Amps', scale_factor='kwh_scale_factor')
+    lifetime_max_watts = Field(start=23, size=1, type=uint16, mode=Mode.R, description='LifetimeMaximumWattage', units='Watts', scale_factor='power_scale_factor')
+    lifetime_max_battery_volts = Field(start=24, size=1, type=uint16, mode=Mode.R, description='LifetimeMaximumBatteryVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    lifetime_max_voc = Field(start=25, size=1, type=uint16, mode=Mode.R, description='LifetimeMaximumVOC', units='Volts', scale_factor='voltage_scale_factor')
+    temperature_scale_factor = Field(start=26, size=1, type=uint16, mode=Mode.R, description='FM80ExtremeTemperaturescalefactor', units=None, scale_factor=None)
+    temperature_output_fets = Field(start=27, size=1, type=int16, mode=Mode.R, description='FM80ExtremeOutputFETTemperature', units='DegreesC', scale_factor='power_scale_factor')
+    temperature_enclosure = Field(start=28, size=1, type=int16, mode=Mode.R, description='FM80ExtremeEnclosureTemperature', units='DegreesC', scale_factor='power_scale_factor')
 
-    response = client.read_holding_registers(reg + 8, 1)
-    shunt_a_current = decode_int16(int(response.registers[0])) * 0.1
 
-    response = client.read_holding_registers(reg + 9, 1)
-    shunt_b_current = decode_int16(int(response.registers[0])) * 0.1
+class ControllerConfigurationParser(BaseParser):
+    night_light_on_hours = Field(start=44, size=1, type=uint16, mode=Mode.RW, description='NightLightONTime', units='Hours', scale_factor=None)
+    night_light_on_hyst_time = Field(start=45, size=1, type=uint16, mode=Mode.RW, description='NightLightONHystTime', units='Mins', scale_factor=None)
+    night_light_off_hyst_time = Field(start=46, size=1, type=uint16, mode=Mode.RW, description='NightLightOFFHystTime', units='Mins', scale_factor=None)
+    aux_error_battery_volts = Field(start=47, size=1, type=uint16, mode=Mode.RW, description='BatteryvoltageatwhichAuxErroroccurs', units='Volts', scale_factor='voltage_scale_factor')
+    aux_divert_hold_time = Field(start=48, size=1, type=uint16, mode=Mode.RW, description='AUXDiverHoldTime', units='Seconds', scale_factor='hours_scale_factor')
+    aux_divert_delay_time = Field(start=49, size=1, type=uint16, mode=Mode.RW, description='AUXDivertDelay', units='Secs', scale_factor=None)
+    aux_divert_relative_volts = Field(start=50, size=1, type=int16, mode=Mode.RW, description='AUXDivertRelativeVolts', units='Volts', scale_factor='voltage_scale_factor')
+    aux_divert_hyst_volts = Field(start=51, size=1, type=uint16, mode=Mode.RW, description='AUXDivertHystVolts', units='Volts', scale_factor='voltage_scale_factor')
+    major_firmware_number = Field(start=52, size=1, type=uint16, mode=Mode.R, description='ChargeControllerMajorfirmwarerevision', units=None, scale_factor=None)
+    mid_firmware_number = Field(start=53, size=1, type=uint16, mode=Mode.R, description='ChargeControllerMidfirmwarerevision', units=None, scale_factor=None)
+    minor_firmware_number = Field(start=54, size=1, type=uint16, mode=Mode.R, description='ChargeControllerMinorfirmwarerevision', units=None, scale_factor=None)
+    set_data_log_day_offset = Field(start=55, size=1, type=uint16, mode=Mode.RW, description='Dayoffset0-128,0=Today,1=-1day…', units='Days', scale_factor=None)
+    get_current_data_log_day_offset = Field(start=56, size=1, type=uint16, mode=Mode.R, description='CurrentDataLogDayOffset', units='Days', scale_factor=None)
+    data_log_daily_ah = Field(start=57, size=1, type=uint16, mode=Mode.R, description='DataLogAH', units='AH', scale_factor='ah_scale_factor')
+    data_log_daily_kwh = Field(start=58, size=1, type=uint16, mode=Mode.R, description='DataLogkWH', units='KWH', scale_factor='kwh_scale_factor')
+    data_log_daily_max_output_amps = Field(start=59, size=1, type=uint16, mode=Mode.R, description='DataLogmaximumOutputAmps', units='Amps', scale_factor='voltage_scale_factor')
+    data_log_daily_max_output_watts = Field(start=60, size=1, type=uint16, mode=Mode.R, description='DataLogmaximumOutputWattage', units='Watts', scale_factor='power_scale_factor')
+    data_log_daily_absorb_time = Field(start=61, size=1, type=uint16, mode=Mode.R, description='DataLogAbsorbTimeMinutes', units='Mins', scale_factor=None)
+    data_log_daily_float_time = Field(start=62, size=1, type=uint16, mode=Mode.R, description='DataLogFloatTimeMinutes', units='Mins', scale_factor=None)
+    data_log_daily_min_battery_volts = Field(start=63, size=1, type=uint16, mode=Mode.R, description='DataLogminimumdailybatteryvoltage', units='Volts', scale_factor='voltage_scale_factor')
+    data_log_daily_max_battery_volts = Field(start=64, size=1, type=uint16, mode=Mode.R, description='DataLogmaximumdailybatteryvoltage', units='Volts', scale_factor='voltage_scale_factor')
+    data_log_daily_max_input_volts = Field(start=65, size=1, type=uint16, mode=Mode.R, description='DataLogmaximumdailyinputvoltage', units='Volts', scale_factor=None)
+    clear_data_log_read = Field(start=66, size=1, type=uint16, mode=Mode.R, description='Readvalueneededtocleardatalog', units=None, scale_factor=None)
+    clear_data_log_write_complement = Field(start=67, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtocleardatalog", units=None, scale_factor=None)
+    stats_maximum_reset_read = Field(start=68, size=1, type=uint16, mode=Mode.R, description='ReadvalueneededtoclearStats Maximums', units=None, scale_factor=None)
+    stats_maximum_write_complement = Field(start=69, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtoclearStats Maximums", units=None, scale_factor=None)
+    stats_totals_reset_read = Field(start=70, size=1, type=uint16, mode=Mode.R, description='ReadvaluennededtoclearStatsTotals', units=None, scale_factor=None)
+    stats_totals_write_complement = Field(start=71, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtoclearStats Totals", units=None, scale_factor=None)
+    battery_voltage_calibrate_offset = Field(start=72, size=1, type=int16, mode=Mode.RW, description='Batteryvoltagecalibrationoffset', units='DCVolts', scale_factor='voltage_scale_factor')
+    serial_number = Field(start=73, size=9, type=str, mode=Mode.R, description='Deviceserialnumber', units=None, scale_factor=None)
+    model_number = Field(start=82, size=9, type=str, mode=Mode.R, description='Devicemodel', units=None, scale_factor=None)
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackFMSeries ChargeControllers', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='DCCurrentScaleFactor', units=None, scale_factor=None)
+    hours_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='TimeinHoursScaleFactor', units=None, scale_factor=None)
+    power_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='PowerScaleFactor', units=None, scale_factor=None)
+    ah_scale_factor = Field(start=8, size=1, type=int16, mode=Mode.R, description='AmpHoursScaleFactor', units=None, scale_factor=None)
+    kwh_scale_factor = Field(start=9, size=1, type=int16, mode=Mode.R, description='DCkWHScaleFactor', units=None, scale_factor=None)
+    faults = Field(start=10, size=1, type=uint16, mode=Mode.R, description='CCErrorFlags:0x0080=HighVOC, 0x0040=OverTemp,0x0020=ShortedBattery TempSensor,0x0010=FaultInputActive', units='Bitfield', scale_factor=None)
+    absorb_volts = Field(start=11, size=1, type=uint16, mode=Mode.RW, description='AbsorbVoltageTarget', units='Volts', scale_factor='voltage_scale_factor')
+    absorb_time_hours = Field(start=12, size=1, type=uint16, mode=Mode.RW, description='AbsorbTimeHours', units='Hours', scale_factor='hours_scale_factor')
+    absorb_end_amps = Field(start=13, size=1, type=uint16, mode=Mode.RW, description='AmperagetoendAbsorbing', units='Amps', scale_factor=None)
+    rebulk_volts = Field(start=14, size=1, type=uint16, mode=Mode.RW, description='Voltagetore-initiateBulkcharge', units='Volts', scale_factor='voltage_scale_factor')
+    float_volts = Field(start=15, size=1, type=uint16, mode=Mode.RW, description='FloatVoltageTarget', units='Volts', scale_factor='voltage_scale_factor')
+    bulk_current = Field(start=16, size=1, type=uint16, mode=Mode.RW, description='MaxOutputCurrentLimit', units='Amps', scale_factor='current_scale_factor')
+    eq_volts = Field(start=17, size=1, type=uint16, mode=Mode.RW, description='TargetVoltageforEqualize', units='Volts', scale_factor='voltage_scale_factor')
+    eq_time_hours = Field(start=18, size=1, type=uint16, mode=Mode.RW, description='EQTimeHours', units='Hours', scale_factor=None)
+    auto_eq_days = Field(start=19, size=1, type=uint16, mode=Mode.RW, description='AutoEQIntervalDays', units='Days', scale_factor=None)
+    mppt_mode = Field(start=20, size=1, type=uint16, mode=Mode.RW, description='0=Auto;1=U-Pick', units='Enumerated', scale_factor=None)
+    sweep_width = Field(start=21, size=1, type=uint16, mode=Mode.RW, description='0=Full;1=Half', units='Enumerated', scale_factor=None)
+    sweep_max_percentage = Field(start=22, size=1, type=uint16, mode=Mode.RW, description='0=80;1=85;2=90;3=99', units='Enumerated', scale_factor=None)
+    u_pick_pwm_duty_cycle = Field(start=23, size=1, type=uint16, mode=Mode.RW, description='ParkDutyCycle(%)(40%-90%)', units='Percentage', scale_factor='voltage_scale_factor')
+    grid_tie_mode = Field(start=24, size=1, type=uint16, mode=Mode.RW, description='0=GridTieModedisabled;1=GridTie Modeenabled', units='Enumerated', scale_factor=None)
+    temperature_comp_mode = Field(start=25, size=1, type=uint16, mode=Mode.RW, description='0=Wide;1=UserLimited', units='Enumerated', scale_factor=None)
+    temperature_comp_lower_limit_volts = Field(start=26, size=1, type=uint16, mode=Mode.RW, description='RTScompensationlowervoltagelimit', units='Volts', scale_factor='voltage_scale_factor')
+    temperature_comp_upper_limit_volts = Field(start=27, size=1, type=uint16, mode=Mode.RW, description='RTScompensationuppervoltagelimit', units='Volts', scale_factor='voltage_scale_factor')
+    temperature_comp_slope = Field(start=28, size=1, type=uint16, mode=Mode.RW, description='RTStempcompensationSlope2-6mVper DegreeC', units='MilliVolts', scale_factor=None)
+    auto_restart_mode = Field(start=29, size=1, type=uint16, mode=Mode.RW, description='0=Off;1=Restartevery90minutes;2= Restartevery90minutesifabsorbcharging orfloatcharging', units='Enumerated', scale_factor=None)
+    wakeup_voc = Field(start=30, size=1, type=uint16, mode=Mode.RW, description='VOCchangewhichcausesWakeupoccurs', units='Volts', scale_factor='voltage_scale_factor')
+    snooze_mode_amps = Field(start=31, size=1, type=uint16, mode=Mode.RW, description='SnoozeModeAmps', units='Amps', scale_factor='voltage_scale_factor')
+    wakeup_interval = Field(start=32, size=1, type=uint16, mode=Mode.RW, description='HowoftentocheckforWakeupcondition', units='Mins', scale_factor=None)
+    aux_mode = Field(start=33, size=1, type=uint16, mode=Mode.RW, description='0=Float;1=Diversion:Relay;2= Diversion:SolidSt;3=LowBattDisconnect; 4=Remote;5=VentFan;6=PVTrigger;7 =ErrorOutput;8=NightLight', units='Enumerated', scale_factor=None)
+    aux_control = Field(start=34, size=1, type=uint16, mode=Mode.RW, description='0=Off;1=Auto;2=On', units='Enumerated', scale_factor=None)
+    aux_state = Field(start=35, size=1, type=uint16, mode=Mode.R, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    aux_polarity = Field(start=36, size=1, type=uint16, mode=Mode.RW, description='0=Low;1=High', units='Enumerated', scale_factor=None)
+    aux_low_battery_disconnect = Field(start=37, size=1, type=uint16, mode=Mode.RW, description='LowBatteryDisconnectVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    aux_low_battery_reconnect = Field(start=38, size=1, type=uint16, mode=Mode.RW, description='LowBatteryReconnectVolts', units='Volts', scale_factor='voltage_scale_factor')
+    aux_low_battery_disconnect_delay = Field(start=39, size=1, type=uint16, mode=Mode.RW, description='LowBatteryDisconnectDelay(secs)', units='Secs', scale_factor=None)
+    aux_vent_fan_volts = Field(start=40, size=1, type=uint16, mode=Mode.RW, description='VentFanVoltage', units='Volts', scale_factor='voltage_scale_factor')
+    aux_pv_limit_volts = Field(start=41, size=1, type=uint16, mode=Mode.RW, description='VoltageatwhichPVdisconnectoccurs', units='Volts', scale_factor='voltage_scale_factor')
+    aux_pv_limit_hold_time = Field(start=42, size=1, type=uint16, mode=Mode.RW, description='AUXPVTriggerHoldTime', units='Secs', scale_factor='hours_scale_factor')
+    aux_night_light_thres_volts = Field(start=43, size=1, type=uint16, mode=Mode.RW, description='VoltageThresholdforAUXNightLight', units='Volts', scale_factor='voltage_scale_factor')
 
-    response = client.read_holding_registers(reg + 10, 1)
-    shunt_c_current = decode_int16(int(response.registers[0])) * 0.1
 
-    response = client.read_holding_registers(reg + 11, 1)
-    battery_voltage = int(response.registers[0]) * 0.1
+class InverterParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackFXSeries InverterStatusBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    ac_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='ACCurrentScaleFactor', units=None, scale_factor=None)
+    ac_voltage_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='ACVoltageScaleFactor', units=None, scale_factor=None)
+    ac_frequency_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='ACFrequencyScaleFactor', units=None, scale_factor=None)
+    inverter_output_current = Field(start=8, size=1, type=uint16, mode=Mode.R, description='Inverteroutputcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    inverter_charge_current = Field(start=9, size=1, type=uint16, mode=Mode.R, description='Inverterchargercurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    inverter_buy_current = Field(start=10, size=1, type=uint16, mode=Mode.R, description='Inverterbuycurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    inverter_sell_current = Field(start=11, size=1, type=uint16, mode=Mode.R, description='Invertersellcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    output_ac_voltage = Field(start=12, size=1, type=uint16, mode=Mode.R, description='OutputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    inverter_operating_mode = Field(start=13, size=1, type=uint16, mode=Mode.R, description='0=Off,1=Searching,2=Inverting, 3=Charging,4=Silent,5=Float,6=EQ, 7=ChargerOff,8=Support,9=Selling, 10=Passthrough,14=Offsetting', units='Enumerated', scale_factor=None)
+    error_flags = Field(start=14, size=1, type=uint16, mode=Mode.R, description='Bitfieldforerrors(seeFX_ErrorTable)', units='Bitfield', scale_factor=None)
+    warning_flags = Field(start=15, size=1, type=uint16, mode=Mode.R, description='Bitfieldforwarnings(seeFX_WarningTable)', units='Bitfield', scale_factor=None)
+    battery_voltage = Field(start=16, size=1, type=uint16, mode=Mode.R, description='BatteryVoltage', units='VoltsDC', scale_factor='dc_voltage_scale_factor')
+    temperature_compensated_target_voltage = Field(start=17, size=1, type=uint16, mode=Mode.R, description='Temperaturecompensatedtargetbattery voltage', units='VoltsDC', scale_factor='dc_voltage_scale_factor')
+    aux_output_state = Field(start=18, size=1, type=uint16, mode=Mode.R, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    transformer_temperature = Field(start=19, size=1, type=int16, mode=Mode.R, description='TransformertempindegreesC', units='DegreesC', scale_factor=None)
+    capacitor_temperature = Field(start=20, size=1, type=int16, mode=Mode.R, description='CapacitortempindegreesC', units='DegreesC', scale_factor=None)
+    fet_temperature = Field(start=21, size=1, type=int16, mode=Mode.R, description='FETtempindegreesC', units='DegreesC', scale_factor=None)
+    ac_input_frequency = Field(start=22, size=1, type=uint16, mode=Mode.R, description='SelectedACInputfrequencyHZ', units='Hz', scale_factor='ac_frequency_scale_factor')
+    ac_input_voltage = Field(start=23, size=1, type=uint16, mode=Mode.R, description='SelectedInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    ac_input_state = Field(start=24, size=1, type=uint16, mode=Mode.R, description='1=ACUse,0=AC_Drop', units='Enumerated', scale_factor=None)
+    minimum_ac_input_voltage = Field(start=25, size=1, type=uint16, mode=Mode.R, description='MinimumInputACVoltage (Writetoclearvalue)', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    maximum_ac_input_voltage = Field(start=26, size=1, type=uint16, mode=Mode.R, description='MaximumInputACVoltage (Writetoclearvalue)', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    sell_status = Field(start=27, size=1, type=uint16, mode=Mode.R, description='Bitfieldforsellstatus (seeFX_Sell_StatusTable)', units='Bitfield', scale_factor=None)
+    kwh_scale_factor = Field(start=28, size=1, type=int16, mode=Mode.R, description='ACkWhscalefactor', units=None, scale_factor=None)
+    buy_kwh = Field(start=29, size=1, type=uint16, mode=Mode.R, description='DailyBuykWh', units='kWh', scale_factor='kwh_scale_factor')
+    sell_kwh = Field(start=30, size=1, type=uint16, mode=Mode.R, description='DailySellkWh', units='kWh', scale_factor='kwh_scale_factor')
+    output_kwh = Field(start=31, size=1, type=uint16, mode=Mode.R, description='DailyOutputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    charger_kwh = Field(start=32, size=1, type=uint16, mode=Mode.R, description='DailyOutputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    output_kw = Field(start=33, size=1, type=uint16, mode=Mode.R, description='OutputkW', units='kWh', scale_factor='kwh_scale_factor')
+    buy_kw = Field(start=34, size=1, type=uint16, mode=Mode.R, description='BuykW', units='kWh', scale_factor='kwh_scale_factor')
+    sell_kw = Field(start=35, size=1, type=uint16, mode=Mode.R, description='SellkW', units='kWh', scale_factor='kwh_scale_factor')
+    charge_kw = Field(start=36, size=1, type=uint16, mode=Mode.R, description='ChargerkW', units='kWh', scale_factor='kwh_scale_factor')
+    load_kw = Field(start=37, size=1, type=uint16, mode=Mode.R, description='LoadkW', units='kWh', scale_factor='kwh_scale_factor')
+    ac_couple_kw = Field(start=38, size=1, type=uint16, mode=Mode.R, description='ACCoupledkW', units='kWh', scale_factor='kwh_scale_factor')
 
-    response = client.read_holding_registers(reg + 13, 1)
-    battery_temperature = decode_int16(int(response.registers[0]))
 
-    response = client.read_holding_registers(reg + 27, 1)
-    state_of_charge = int(response.registers[0])
+class InverterConfigurationParser(BaseParser):
+    grid_ac_input_current_limit = Field(start=23, size=1, type=uint16, mode=Mode.RW, description='GridACinputcurrentlimit', units='Amps', scale_factor='ac_current_scale_factor')
+    gen_ac_input_current_limit = Field(start=24, size=1, type=uint16, mode=Mode.RW, description='GenACinputcurrentlimit', units='Amps', scale_factor='ac_current_scale_factor')
+    charger_ac_input_current_limit = Field(start=25, size=1, type=uint16, mode=Mode.RW, description='ChargerACinputcurrentlimit', units='Amps', scale_factor='ac_current_scale_factor')
+    charger_operating_mode = Field(start=26, size=1, type=uint16, mode=Mode.RW, description='0=ChargerOff,1=ChargerAuto,2=Charger On', units='Enumerated', scale_factor=None)
+    grid_lower_input_voltage_limit = Field(start=27, size=1, type=uint16, mode=Mode.RW, description='GridInputACvoltagelowerlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    grid_upper_input_voltage_limit = Field(start=28, size=1, type=uint16, mode=Mode.RW, description='GridInputACvoltageupperlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    grid_transfer_delay = Field(start=29, size=1, type=uint16, mode=Mode.RW, description='GridInputACconnectdelay', units='Minutes', scale_factor=None)
+    gen_lower_input_voltage_limit = Field(start=30, size=1, type=uint16, mode=Mode.RW, description='GenInputACvoltagelowerlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    gen_upper_input_voltage_limit = Field(start=31, size=1, type=uint16, mode=Mode.RW, description='GenInputACvoltageupperlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    gen_transfer_delay = Field(start=32, size=1, type=uint16, mode=Mode.RW, description='GenInputACtransferdelay', units='Cycles', scale_factor=None)
+    gen_connect_delay = Field(start=33, size=1, type=uint16, mode=Mode.RW, description='GenInputACconnectdelay', units='Minutes', scale_factor='time_scale_factor')
+    ac_output_voltage = Field(start=34, size=1, type=uint16, mode=Mode.RW, description='ACoutputVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    low_battery_cut_out_voltage = Field(start=35, size=1, type=uint16, mode=Mode.RW, description='Batterycut-outvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    low_battery_cut_in_voltage = Field(start=36, size=1, type=uint16, mode=Mode.RW, description='Batterycut-involtage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_mode = Field(start=37, size=1, type=uint16, mode=Mode.RW, description='0=Remote,1=LoadShed,2=GenAlert, 3=Fault,4=VentFan,5=CoolFan,6=Divert DC,7=DivertAC,8=ACDrop', units='Enumerated', scale_factor=None)
+    aux_control = Field(start=38, size=1, type=uint16, mode=Mode.RW, description='0=Off;1=Auto;2=On', units='Enumerated', scale_factor=None)
+    aux_load_shed_enable_voltage = Field(start=39, size=1, type=uint16, mode=Mode.RW, description='LoadShedenablevoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_gen_alert_on_voltage = Field(start=40, size=1, type=uint16, mode=Mode.RW, description='GenAlertOnvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_gen_alert_on_delay = Field(start=41, size=1, type=uint16, mode=Mode.RW, description='GenAlertOndelayminutes', units='Minutes', scale_factor=None)
+    aux_gen_alert_off_voltage = Field(start=42, size=1, type=uint16, mode=Mode.RW, description='GenAlertOffvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_gen_alert_off_delay = Field(start=43, size=1, type=uint16, mode=Mode.RW, description='GenAlertOffdelayminutes', units='Minutes', scale_factor=None)
+    aux_vent_fan_enable_voltage = Field(start=44, size=1, type=uint16, mode=Mode.RW, description='VentFanenablevoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_vent_fan_off_period = Field(start=45, size=1, type=uint16, mode=Mode.RW, description='VanFanOffdelayminutes', units='Minutes', scale_factor=None)
+    aux_divert_enable_voltage = Field(start=46, size=1, type=uint16, mode=Mode.RW, description='DCDivertenablevoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_divert_off_delay = Field(start=47, size=1, type=uint16, mode=Mode.RW, description='DivertOffdelayminutes', units='Minutes', scale_factor=None)
+    stacking_mode = Field(start=48, size=1, type=uint16, mode=Mode.R, description='0=1-2phaseMaster,1=ClassicSlave,2=OB SlaveL1,3=OBSlaveL2,4=3phaseMaster, 5=3phaseSlave,10=Master,11=Classic Slave,12=OBSlaveL1,13=OBSlaveL2, 14=3phaseOBSlaveA,15=3phaseOBSlave B,16=3phaseOBSlaveC,17=3phase ClassicB,18=3phaseClassicC, 19=Independent', units='Enumerated', scale_factor=None)
+    master_power_save_level = Field(start=49, size=1, type=uint16, mode=Mode.RW, description='Masterinverterpowersavelevel', units=None, scale_factor=None)
+    slave_power_save_level = Field(start=50, size=1, type=uint16, mode=Mode.RW, description='Slaveinverterpowersavelevel', units=None, scale_factor=None)
+    sell_volts = Field(start=51, size=1, type=uint16, mode=Mode.RW, description='SellVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    grid_tie_window = Field(start=52, size=1, type=uint16, mode=Mode.RW, description='0=IEEE,1=User', units='Enumerated', scale_factor=None)
+    grid_tie_enable = Field(start=53, size=1, type=uint16, mode=Mode.RW, description='1=Yes,0=No', units='Enumerated', scale_factor=None)
+    ac_input_voltage_calibrate_factor = Field(start=54, size=1, type=int16, mode=Mode.RW, description='ACinputvoltagecalibrationfactor', units='VoltsAC', scale_factor=None)
+    ac_output_voltage_calibrate_factor = Field(start=55, size=1, type=int16, mode=Mode.RW, description='ACoutputvoltagecalibrationfactor', units='VoltsAC', scale_factor=None)
+    battery_voltage_calibrate_factor = Field(start=56, size=1, type=int16, mode=Mode.RW, description='Batteryvoltagecalibrationfactor', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    serial_number = Field(start=57, size=9, type=str, mode=Mode.R, description='Deviceserialnumber', units=None, scale_factor=None)
+    model_number = Field(start=66, size=9, type=str, mode=Mode.R, description='Devicemodel', units=None, scale_factor=None)
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackFXSeries InverterConfigurationBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    ac_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='ACCurrentScaleFactor', units=None, scale_factor=None)
+    ac_voltage_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='ACVoltageScaleFactor', units=None, scale_factor=None)
+    time_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='TimeScaleFactor', units=None, scale_factor=None)
+    major_firmware_number = Field(start=8, size=1, type=uint16, mode=Mode.R, description='InverterMajorfirmwarerevision', units=None, scale_factor=None)
+    mid_firmware_number = Field(start=9, size=1, type=uint16, mode=Mode.R, description='InverterMidfirmwarerevision', units=None, scale_factor=None)
+    minor_firmware_number = Field(start=10, size=1, type=uint16, mode=Mode.R, description='InverterMinorfirmwarerevision', units=None, scale_factor=None)
+    absorb_volts = Field(start=11, size=1, type=uint16, mode=Mode.RW, description='AbsorbVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    absorb_time_hours = Field(start=12, size=1, type=uint16, mode=Mode.RW, description='AbsorbTimeHours', units='Hours', scale_factor='time_scale_factor')
+    float_volts = Field(start=13, size=1, type=uint16, mode=Mode.RW, description='FloatVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    float_time_hours = Field(start=14, size=1, type=uint16, mode=Mode.RW, description='FloatTimeHours', units='Hours', scale_factor='time_scale_factor')
+    refloat_volts = Field(start=15, size=1, type=uint16, mode=Mode.RW, description='ReFloatVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    eq_volts = Field(start=16, size=1, type=uint16, mode=Mode.RW, description='EQVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    eq_time_hours = Field(start=17, size=1, type=uint16, mode=Mode.RW, description='EQTimeHours', units='Hours', scale_factor='time_scale_factor')
+    search_sensitivity = Field(start=18, size=1, type=uint16, mode=Mode.RW, description='Searchsensitivity', units=None, scale_factor=None)
+    search_pulse_length = Field(start=19, size=1, type=uint16, mode=Mode.RW, description='Searchpulselength', units='Cycles', scale_factor=None)
+    search_pulse_spacing = Field(start=20, size=1, type=uint16, mode=Mode.RW, description='Searchpulsespacing', units='Cycles', scale_factor=None)
+    ac_input_type = Field(start=21, size=1, type=uint16, mode=Mode.RW, description='0=Grid,1=Gen,2=GridZero', units='Enumerated', scale_factor=None)
+    input_support = Field(start=22, size=1, type=uint16, mode=Mode.RW, description='1=Yes,0=No(onlyvalidifACInputTypeis Gen)', units='Enumerated', scale_factor=None)
 
-    return FlexnetDcBlock(
-        shunt_a_port=shunt_a_port,
-        shunt_a_current=shunt_a_current,
-        shunt_b_current=shunt_b_current,
-        shunt_c_current=shunt_c_current,
-        battery_voltage=battery_voltage,
-        battery_temperature=battery_temperature,
-        state_of_charge=state_of_charge,
-    )
+
+class PhaseRadianInverterParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackRadianSeries SplitPhaseInverterStatusBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    ac_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='ACCurrentScaleFactor', units=None, scale_factor=None)
+    ac_voltage_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='ACVoltageScaleFactor', units=None, scale_factor=None)
+    ac_frequency_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='ACFrequencyScaleFactor', units=None, scale_factor=None)
+    l1_inverter_output_current = Field(start=8, size=1, type=int16, mode=Mode.R, description='L1inverteroutputcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l1_inverter_charge_current = Field(start=9, size=1, type=int16, mode=Mode.R, description='L1inverterchargercurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l1_inverter_buy_current = Field(start=10, size=1, type=int16, mode=Mode.R, description='L1inverterbuycurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l1_inverter_sell_current = Field(start=11, size=1, type=int16, mode=Mode.R, description='L1invertersellcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l1_grid_input_ac_voltage = Field(start=12, size=1, type=int16, mode=Mode.R, description='L1GridInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    l1_gen_input_ac_voltage = Field(start=13, size=1, type=int16, mode=Mode.R, description='L1GenInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    l1_output_ac_voltage = Field(start=14, size=1, type=int16, mode=Mode.R, description='L1OutputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    l2_inverter_output_current = Field(start=15, size=1, type=int16, mode=Mode.R, description='L2inverteroutputcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l2_inverter_charge_current = Field(start=16, size=1, type=int16, mode=Mode.R, description='L2inverterchargercurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l2_inverter_buy_current = Field(start=17, size=1, type=int16, mode=Mode.R, description='L2inverterbuycurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l2_inverter_sell_current = Field(start=18, size=1, type=int16, mode=Mode.R, description='L2invertersellcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    l2_grid_input_ac_voltage = Field(start=19, size=1, type=int16, mode=Mode.R, description='L2GridInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    l2_gen_input_ac_voltage = Field(start=20, size=1, type=int16, mode=Mode.R, description='L2GenInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    l2_output_ac_voltage = Field(start=21, size=1, type=int16, mode=Mode.R, description='L2OutputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    inverter_operating_mode = Field(start=22, size=1, type=int16, mode=Mode.R, description='0=Off,1=Searching,2=Inverting, 3=Charging,4=Silent,5=Float,6=EQ, 7=ChargerOff,8=Support,9=Selling, 10=Passthrough,14=Offsetting', units='Enumerated', scale_factor=None)
+    error_flags = Field(start=23, size=1, type=int16, mode=Mode.R, description='Bitfieldforerrors.SeeGS_Errortable', units='Bitfield', scale_factor=None)
+    warning_flags = Field(start=24, size=1, type=int16, mode=Mode.R, description='BitfieldforwarningsSeeGS_Warningtable', units='Bitfield', scale_factor=None)
+    battery_voltage = Field(start=25, size=1, type=int16, mode=Mode.R, description='BatteryVoltage', units='VoltsDC', scale_factor='dc_voltage_scale_factor')
+    temperature_compensated_target_voltage = Field(start=26, size=1, type=int16, mode=Mode.R, description='Temperaturecompensatedtargetbattery voltage', units='VoltsDC', scale_factor='dc_voltage_scale_factor')
+    aux_output_state = Field(start=27, size=1, type=int16, mode=Mode.R, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    aux_relay_output_state = Field(start=28, size=1, type=int16, mode=Mode.R, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    l_module_transformer_temperature = Field(start=29, size=1, type=int16, mode=Mode.R, description='LeftmoduletransformertempindegreesC', units='DegreesC', scale_factor=None)
+    l_module_capacitor_temperature = Field(start=30, size=1, type=int16, mode=Mode.R, description='LeftmodulecapacitortempindegreesC', units='DegreesC', scale_factor=None)
+    l_module_fet_temperature = Field(start=31, size=1, type=int16, mode=Mode.R, description='LeftmoduleFETtempindegreesC', units='DegreesC', scale_factor=None)
+    r_module_transformer_temperature = Field(start=32, size=1, type=int16, mode=Mode.R, description='Rightmoduletransformertempindegrees C', units='DegreesC', scale_factor=None)
+    r_module_capacitor_temperature = Field(start=33, size=1, type=int16, mode=Mode.R, description='RightmodulecapacitortempindegreesC', units='DegreesC', scale_factor=None)
+    r_module_fet_temperature = Field(start=34, size=1, type=int16, mode=Mode.R, description='RightmoduleFETtempindegreesC', units='DegreesC', scale_factor=None)
+    battery_temperature = Field(start=35, size=1, type=int16, mode=Mode.R, description='BatterytempindegreesC', units='DegreesC', scale_factor=None)
+    ac_input_selection = Field(start=36, size=1, type=int16, mode=Mode.R, description='0=Grid,1=Gen', units='Enumerated', scale_factor=None)
+    ac_input_frequency = Field(start=37, size=1, type=int16, mode=Mode.R, description='SelectedACInputfrequencyHZ', units='Hz', scale_factor='ac_frequency_scale_factor')
+    ac_input_voltage = Field(start=38, size=1, type=int16, mode=Mode.R, description='SelectedInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    ac_input_state = Field(start=39, size=1, type=int16, mode=Mode.R, description='1=ACUse,0=AC_Drop', units='Enumerated', scale_factor=None)
+    minimum_ac_input_voltage = Field(start=40, size=1, type=int16, mode=Mode.R, description='MinimumInputACVoltage(Writetoclear storedvalue)', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    maximum_ac_input_voltage = Field(start=41, size=1, type=int16, mode=Mode.R, description='MaximumInputACVoltage(Writetoclear storedvalue)', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    sell_status = Field(start=42, size=1, type=int16, mode=Mode.R, description='Bitfieldforsellstatus (SeeGS_Sell_Statustable)', units='Bitfield', scale_factor=None)
+    kwh_scale_factor = Field(start=43, size=1, type=int16, mode=Mode.R, description='ACkWhscalefactor', units=None, scale_factor=None)
+    ac1_l1_buy_kwh = Field(start=44, size=1, type=uint16, mode=Mode.R, description='DailyAC1BuyL1kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac2_l1_buy_kwh = Field(start=45, size=1, type=uint16, mode=Mode.R, description='DailyAC2BuyL1kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac1_l1_sell_kwh = Field(start=46, size=1, type=uint16, mode=Mode.R, description='DailyAC1SellL1kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac2_l1_sell_kwh = Field(start=47, size=1, type=uint16, mode=Mode.R, description='DailyAC2SellL1kWh', units='kWh', scale_factor='kwh_scale_factor')
+    l1_output_kwh = Field(start=48, size=1, type=uint16, mode=Mode.R, description='DailyOutputL1kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac1_l2_buy_kwh = Field(start=49, size=1, type=uint16, mode=Mode.R, description='DailyAC1BuyL2kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac2_l2_buy_kwh = Field(start=50, size=1, type=uint16, mode=Mode.R, description='DailyAC1SellL2kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac1_l2_sell_kwh = Field(start=51, size=1, type=uint16, mode=Mode.R, description='DailyAC1SellL2kWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac2_l2_sell_kwh = Field(start=52, size=1, type=uint16, mode=Mode.R, description='DailyAC2SellL2kWh', units='kWh', scale_factor='kwh_scale_factor')
+    l2_output_kwh = Field(start=53, size=1, type=uint16, mode=Mode.R, description='DailyOutputL2kWh', units='kWh', scale_factor='kwh_scale_factor')
+    charger_kwh = Field(start=54, size=1, type=uint16, mode=Mode.R, description='DailyChargerkWh', units='kWh', scale_factor='kwh_scale_factor')
+    output_kw = Field(start=55, size=1, type=uint16, mode=Mode.R, description='OutputkW', units='kW', scale_factor='kwh_scale_factor')
+    buy_kw = Field(start=56, size=1, type=uint16, mode=Mode.R, description='BuykW', units='kW', scale_factor='kwh_scale_factor')
+    sell_kw = Field(start=57, size=1, type=uint16, mode=Mode.R, description='SellkW', units='kW', scale_factor='kwh_scale_factor')
+    charge_kw = Field(start=58, size=1, type=uint16, mode=Mode.R, description='ChargekW', units='kW', scale_factor='kwh_scale_factor')
+    load_kw = Field(start=59, size=1, type=uint16, mode=Mode.R, description='LoadkW', units='kW', scale_factor='kwh_scale_factor')
+    ac_couple_kw = Field(start=60, size=1, type=uint16, mode=Mode.R, description='ACCoupledkW', units='kW', scale_factor='kwh_scale_factor')
+
+
+class InverterConfigurationParser(BaseParser):
+    aux_on_battery_voltage = Field(start=42, size=1, type=uint16, mode=Mode.RW, description='AUXONbatteryvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_on_delay_time = Field(start=43, size=1, type=uint16, mode=Mode.RW, description='AUXONDelay', units='Minutes', scale_factor='time_scale_factor')
+    aux_off_battery_voltage = Field(start=44, size=1, type=uint16, mode=Mode.RW, description='AUXOFFbatteryvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_off_delay_time = Field(start=45, size=1, type=uint16, mode=Mode.RW, description='AUXOFFDelay', units='Minutes', scale_factor='time_scale_factor')
+    aux_relay_mode = Field(start=46, size=1, type=uint16, mode=Mode.RW, description='1=LoadShed,2=GenAlert,3=Fault,4=Vent Fan,5=CoolFan,6=DCDivert,7=Grid Limit/IEEE,8=ACSourceStatus,9=ACDivert', units='Enumerated', scale_factor=None)
+    aux_relay_control = Field(start=47, size=1, type=uint16, mode=Mode.RW, description='0=Off;1=On;2=Auto', units='Enumerated', scale_factor=None)
+    aux_relay_on_battery_voltage = Field(start=48, size=1, type=uint16, mode=Mode.RW, description='AUXRelayONbatteryvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_relay_on_delay_time = Field(start=49, size=1, type=uint16, mode=Mode.RW, description='AUXRelayONDelay', units='Minutes', scale_factor='time_scale_factor')
+    aux_relay_off_battery_voltage = Field(start=50, size=1, type=uint16, mode=Mode.RW, description='AUXRelayOFFbatteryvoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_relay_off_delay_time = Field(start=51, size=1, type=uint16, mode=Mode.RW, description='AUXRelayOFFDelay', units='Minutes', scale_factor='time_scale_factor')
+    stacking_mode = Field(start=52, size=1, type=uint16, mode=Mode.R, description='10=Master,12=Slave,17=BPhaseMaster, 18=CPhaseMaster', units='Enumerated', scale_factor=None)
+    master_power_save_level = Field(start=53, size=1, type=uint16, mode=Mode.RW, description='Masterinverterpowersavelevel', units=None, scale_factor=None)
+    slave_power_save_level = Field(start=54, size=1, type=uint16, mode=Mode.RW, description='Slaveinverterpowersavelevel', units=None, scale_factor=None)
+    sell_volts = Field(start=55, size=1, type=uint16, mode=Mode.RW, description='SellVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    grid_tie_window = Field(start=56, size=1, type=uint16, mode=Mode.RW, description='0=IEEE,1=User(GS8048Only)', units='Enumerated', scale_factor=None)
+    grid_tie_enable = Field(start=57, size=1, type=uint16, mode=Mode.RW, description='1=Yes,0=No', units='Enumerated', scale_factor=None)
+    grid_ac_input_voltage_calibrate_factor = Field(start=58, size=1, type=int16, mode=Mode.RW, description='GridACinputvoltagecalibrationfactor', units='VoltsAC', scale_factor=None)
+    gen_ac_input_voltage_calibrate_factor = Field(start=59, size=1, type=int16, mode=Mode.RW, description='GenACinputvoltagecalibrationfactor', units='VoltsAC', scale_factor=None)
+    ac_output_voltage_calibrate_factor = Field(start=60, size=1, type=int16, mode=Mode.RW, description='ACoutputvoltagecalibrationfactor', units='VoltsAC', scale_factor=None)
+    battery_voltage_calibrate_factor = Field(start=61, size=1, type=int16, mode=Mode.RW, description='Batteryvoltagecalibrationfactor', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    rebulk_volts = Field(start=62, size=1, type=uint16, mode=Mode.RW, description='ReBulkVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    mini_grid_lbx_volts = Field(start=63, size=1, type=uint16, mode=Mode.RW, description='MiniGridLBXreconnecttoGridBattery Voltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    mini_grid_lbx_delay = Field(start=64, size=1, type=uint16, mode=Mode.RW, description='MiniGridLBXreconnecttoGridDelayTime', units='Hours', scale_factor=None)
+    grid_zero_dod_volts = Field(start=65, size=1, type=uint16, mode=Mode.RW, description='GridZeroDoDVoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    grid_zero_dod_max_offset_ac_amps = Field(start=66, size=1, type=uint16, mode=Mode.RW, description='GridZeroMaximumOffsetACAmps', units='Amps', scale_factor='ac_current_scale_factor')
+    serial_number = Field(start=67, size=9, type=str, mode=Mode.RW, description='Deviceserialnumber', units=None, scale_factor=None)
+    model_number = Field(start=76, size=9, type=str, mode=Mode.R, description='Devicemodel', units=None, scale_factor=None)
+    module_control = Field(start=85, size=1, type=uint16, mode=Mode.RW, description='ModuleControl:0=Auto,1=Left,2= Right,3=Both', units='Enumerated', scale_factor=None)
+    model_select = Field(start=86, size=1, type=uint16, mode=Mode.RW, description='ModelSelect:0=DualModule,1=Single Module', units='Enumerated', scale_factor=None)
+    low_battery_cut_out_delay = Field(start=87, size=1, type=uint16, mode=Mode.RW, description='Secondsdelaybeforeinvertershutdown uponlowbatteryvoltage', units='Seconds', scale_factor='dc_voltage_scale_factor')
+    high_battery_cut_out_voltage = Field(start=88, size=1, type=uint16, mode=Mode.RW, description='HighBatteryVoltageCutOut', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    high_battery_cut_in_voltage = Field(start=89, size=1, type=uint16, mode=Mode.RW, description='HighBatteryVoltageCutIn', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    high_battery_cut_out_delay = Field(start=90, size=1, type=uint16, mode=Mode.RW, description='Secondsdelaybeforeinvertershutdown uponhighbatteryvoltage', units='Seconds', scale_factor='dc_voltage_scale_factor')
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackRadianSeries SplitPhaseInverterConfigurationBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    ac_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='ACCurrentScaleFactor', units=None, scale_factor=None)
+    ac_voltage_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='ACVoltageScaleFactor', units=None, scale_factor=None)
+    time_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='TimeScaleFactor', units=None, scale_factor=None)
+    major_firmware_number = Field(start=8, size=1, type=uint16, mode=Mode.R, description='InverterMajorfirmwarerevision', units=None, scale_factor=None)
+    mid_firmware_number = Field(start=9, size=1, type=uint16, mode=Mode.R, description='InverterMidfirmwarerevision', units=None, scale_factor=None)
+    minor_firmware_number = Field(start=10, size=1, type=uint16, mode=Mode.R, description='InverterMinorfirmwarerevision', units=None, scale_factor=None)
+    absorb_volts = Field(start=11, size=1, type=uint16, mode=Mode.RW, description='AbsorbVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    absorb_time_hours = Field(start=12, size=1, type=uint16, mode=Mode.RW, description='AbsorbTimeHours', units='Hours', scale_factor='time_scale_factor')
+    float_volts = Field(start=13, size=1, type=uint16, mode=Mode.RW, description='FloatVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    float_time_hours = Field(start=14, size=1, type=uint16, mode=Mode.RW, description='FloatTimeHours', units='Hours', scale_factor='time_scale_factor')
+    refloat_volts = Field(start=15, size=1, type=uint16, mode=Mode.RW, description='ReFloatVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    eq_volts = Field(start=16, size=1, type=uint16, mode=Mode.RW, description='EQVoltageTarget', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    eq_time_hours = Field(start=17, size=1, type=uint16, mode=Mode.RW, description='EQTimeHours', units='Hours', scale_factor='time_scale_factor')
+    search_sensitivity = Field(start=18, size=1, type=uint16, mode=Mode.RW, description='Searchsensitivity', units=None, scale_factor=None)
+    search_pulse_length = Field(start=19, size=1, type=uint16, mode=Mode.RW, description='Searchpulselength', units='Cycles', scale_factor=None)
+    search_pulse_spacing = Field(start=20, size=1, type=uint16, mode=Mode.RW, description='Searchpulsespacing', units='Cycles', scale_factor=None)
+    ac_input_select_priority = Field(start=21, size=1, type=uint16, mode=Mode.RW, description='0=Grid,1=Gen', units='Enumerated', scale_factor=None)
+    grid_ac_input_current_limit = Field(start=22, size=1, type=uint16, mode=Mode.RW, description='GridACinputcurrentlimit', units='Amps', scale_factor='ac_current_scale_factor')
+    gen_ac_input_current_limit = Field(start=23, size=1, type=uint16, mode=Mode.RW, description='GenACinputcurrentlimit', units='Amps', scale_factor='ac_current_scale_factor')
+    charger_ac_input_current_limit = Field(start=24, size=1, type=uint16, mode=Mode.RW, description='ChargerACinputcurrentlimit', units='Amps', scale_factor='ac_current_scale_factor')
+    charger_operating_mode = Field(start=25, size=1, type=uint16, mode=Mode.RW, description='0=AllInverterChargingDisabled,1=Bulk andFloatChargingEnabled', units='Enumerated', scale_factor=None)
+    ac_coupled = Field(start=26, size=1, type=uint16, mode=Mode.RW, description='0=No,1=Yes(notimplemented)', units='Enumerated', scale_factor=None)
+    grid_input_mode = Field(start=27, size=1, type=uint16, mode=Mode.RW, description='GridInputMode:0=Generator,1=Support, 2=GridTied,3=UPS,4=Backup,5=MiniGrid, 6=GridZero', units='Enumerated', scale_factor=None)
+    grid_lower_input_voltage_limit = Field(start=28, size=1, type=uint16, mode=Mode.RW, description='GridInputACvoltagelowerlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    grid_upper_input_voltage_limit = Field(start=29, size=1, type=uint16, mode=Mode.RW, description='GridInputACvoltageupperlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    grid_transfer_delay = Field(start=30, size=1, type=uint16, mode=Mode.RW, description='GridInputACtransferdelay', units='msecs', scale_factor=None)
+    grid_connect_delay = Field(start=31, size=1, type=uint16, mode=Mode.RW, description='GridInputACconnectdelay', units='Minutes', scale_factor='time_scale_factor')
+    gen_input_mode = Field(start=32, size=1, type=uint16, mode=Mode.RW, description='GridInputMode:0=Generator,1=Support, 2=GridTied,3=UPS,4=Backup,5=MiniGrid, 6=GridZero', units='Enumerated', scale_factor=None)
+    gen_lower_input_voltage_limit = Field(start=33, size=1, type=uint16, mode=Mode.RW, description='GenInputACvoltagelowerlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    gen_upper_input_voltage_limit = Field(start=34, size=1, type=uint16, mode=Mode.RW, description='GenInputACvoltageupperlimit', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    gen_transfer_delay = Field(start=35, size=1, type=uint16, mode=Mode.RW, description='GenInputACtransferdelay', units='msecs', scale_factor=None)
+    gen_connect_delay = Field(start=36, size=1, type=uint16, mode=Mode.RW, description='GenInputACconnectdelay', units='Minutes', scale_factor='time_scale_factor')
+    ac_output_voltage = Field(start=37, size=1, type=uint16, mode=Mode.RW, description='ACoutputVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    low_battery_cut_out_voltage = Field(start=38, size=1, type=uint16, mode=Mode.RW, description='LowBatteryVoltageCutOut', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    low_battery_cut_in_voltage = Field(start=39, size=1, type=uint16, mode=Mode.RW, description='LowBatteryVoltageCutIn', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    aux_mode = Field(start=40, size=1, type=uint16, mode=Mode.RW, description='1=LoadShed,2=GenAlert,3=Fault,4=Vent Fan,5=CoolFan,6=DCDivert,7=Grid Limit/IEEE,8=ACSourceStatus,9=ACDivert', units='Enumerated', scale_factor=None)
+    aux_control = Field(start=41, size=1, type=uint16, mode=Mode.RW, description='0=Off;1=Auto;2=On', units='Enumerated', scale_factor=None)
+
+
+class PhaseRadianInverterParser(BaseParser):
+    output_kw = Field(start=43, size=1, type=uint16, mode=Mode.R, description='OutputkW', units='kW', scale_factor='kwh_scale_factor')
+    buy_kw = Field(start=44, size=1, type=uint16, mode=Mode.R, description='BuykW', units='kW', scale_factor='kwh_scale_factor')
+    sell_kw = Field(start=45, size=1, type=uint16, mode=Mode.R, description='SellkW', units='kW', scale_factor='kwh_scale_factor')
+    charge_kw = Field(start=46, size=1, type=uint16, mode=Mode.R, description='ChargerkW', units='kW', scale_factor='kwh_scale_factor')
+    load_kw = Field(start=47, size=1, type=uint16, mode=Mode.R, description='LoadkW', units='kW', scale_factor='kwh_scale_factor')
+    ac_couple_kw = Field(start=48, size=1, type=uint16, mode=Mode.R, description='ACCoupledkW', units='kW', scale_factor='kwh_scale_factor')
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackRadianSeries SplitPhaseInverterStatusBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    ac_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='ACCurrentScaleFactor', units=None, scale_factor=None)
+    ac_voltage_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='ACVoltageScaleFactor', units=None, scale_factor=None)
+    ac_frequency_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='ACFrequencyScaleFactor', units=None, scale_factor=None)
+    inverter_output_current = Field(start=8, size=1, type=uint16, mode=Mode.R, description='Inverteroutputcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    inverter_charge_current = Field(start=9, size=1, type=uint16, mode=Mode.R, description='Inverterchargercurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    inverter_buy_current = Field(start=10, size=1, type=uint16, mode=Mode.R, description='Inverterbuycurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    inverter_sell_current = Field(start=11, size=1, type=uint16, mode=Mode.R, description='Invertersellcurrent', units='Amps', scale_factor='ac_current_scale_factor')
+    grid_input_ac_voltage = Field(start=12, size=1, type=uint16, mode=Mode.R, description='GridInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    gen_input_ac_voltage = Field(start=13, size=1, type=uint16, mode=Mode.R, description='GenInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    output_ac_voltage = Field(start=14, size=1, type=uint16, mode=Mode.R, description='OutputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    inverter_operating_mode = Field(start=15, size=1, type=uint16, mode=Mode.R, description='0=Off,1=Searching,2=Inverting, 3=Charging,4=Silent,5=Float,6=EQ, 7=ChargerOff,8=Support,9=Selling, 10=Passthrough,14=Offsetting', units='Enumerated', scale_factor=None)
+    error_flags = Field(start=16, size=1, type=uint16, mode=Mode.R, description='Bitfieldforerrors(SeeGS_ErrorTable)', units='Bitfield', scale_factor=None)
+    warning_flags = Field(start=17, size=1, type=uint16, mode=Mode.R, description='Bitfieldforwarnings(SeeGS_WarningTable)', units='Bitfield', scale_factor=None)
+    battery_voltage = Field(start=18, size=1, type=uint16, mode=Mode.R, description='BatteryVoltage', units='VoltsDC', scale_factor='dc_voltage_scale_factor')
+    temperature_compensated_target_voltage = Field(start=19, size=1, type=uint16, mode=Mode.R, description='Temperaturecompensatedtargetbattery voltage', units='VoltsDC', scale_factor='dc_voltage_scale_factor')
+    aux_output_state = Field(start=20, size=1, type=uint16, mode=Mode.R, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    aux_relay_output_state = Field(start=21, size=1, type=uint16, mode=Mode.R, description='0=Disabled;1=Enabled', units='Enumerated', scale_factor=None)
+    l_module_transformer_temperature = Field(start=22, size=1, type=int16, mode=Mode.R, description='LeftmoduletransformertempindegreesC', units='DegreesC', scale_factor=None)
+    l_module_capacitor_temperature = Field(start=23, size=1, type=int16, mode=Mode.R, description='LeftmodulecapacitortempindegreesC', units='DegreesC', scale_factor=None)
+    l_module_fet_temperature = Field(start=24, size=1, type=int16, mode=Mode.R, description='LeftmoduleFETtempindegreesC', units='DegreesC', scale_factor=None)
+    r_module_transformer_temperature = Field(start=25, size=1, type=int16, mode=Mode.R, description='RightmoduletransformertempindegreesC', units='DegreesC', scale_factor=None)
+    r_module_capacitor_temperature = Field(start=26, size=1, type=int16, mode=Mode.R, description='RightmodulecapacitortempindegreesC', units='DegreesC', scale_factor=None)
+    r_module_fet_temperature = Field(start=27, size=1, type=int16, mode=Mode.R, description='RightmoduleFETtempindegreesC', units='DegreesC', scale_factor=None)
+    battery_temperature = Field(start=28, size=1, type=int16, mode=Mode.R, description='BatterytempindegreesC', units='DegreesC', scale_factor=None)
+    ac_input_selection = Field(start=29, size=1, type=uint16, mode=Mode.R, description='0=Grid,1=Gen', units='Enumerated', scale_factor=None)
+    ac_input_frequency = Field(start=30, size=1, type=uint16, mode=Mode.R, description='SelectedACInputfrequencyHZ', units='Hz', scale_factor='ac_frequency_scale_factor')
+    ac_input_voltage = Field(start=31, size=1, type=uint16, mode=Mode.R, description='SelectedInputACVoltage', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    ac_input_state = Field(start=32, size=1, type=uint16, mode=Mode.R, description='1=ACUse,0=AC_Drop', units='Enumerated', scale_factor=None)
+    minimum_ac_input_voltage = Field(start=33, size=1, type=uint16, mode=Mode.R, description='MinimumInputACVoltage (Writetoclearvalue)', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    maximum_ac_input_voltage = Field(start=34, size=1, type=uint16, mode=Mode.R, description='MaximumInputACVoltage (Writetoclearvalue)', units='VoltsAC', scale_factor='ac_voltage_scale_factor')
+    sell_status = Field(start=35, size=1, type=uint16, mode=Mode.R, description='Bitfieldforsellstatus (SeeGS_Sell_StatusTable)', units='Bitfield', scale_factor=None)
+    kwh_scale_factor = Field(start=36, size=1, type=int16, mode=Mode.R, description='ACkWhscalefactor', units=None, scale_factor=None)
+    ac1_buy_kwh = Field(start=37, size=1, type=uint16, mode=Mode.R, description='DailyAC1BuykWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac2_buy_kwh = Field(start=38, size=1, type=uint16, mode=Mode.R, description='DailyAC2BuykWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac1_sell_kwh = Field(start=39, size=1, type=uint16, mode=Mode.R, description='DailyAC1SellkWh', units='kWh', scale_factor='kwh_scale_factor')
+    ac2_sell_kwh = Field(start=40, size=1, type=uint16, mode=Mode.R, description='DailyAC2SellkWh', units='kWh', scale_factor='kwh_scale_factor')
+    output_kwh = Field(start=41, size=1, type=uint16, mode=Mode.R, description='DailyOutputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    charger_kwh = Field(start=42, size=1, type=uint16, mode=Mode.R, description='DailyChargerkWh', units='kWh', scale_factor='kwh_scale_factor')
+
+
+class DcParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackFLEXnetDC BatteryMonitorStatusBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutbacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    dc_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='DCCurrentScaleFactor', units=None, scale_factor=None)
+    time_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='TimeScaleFactor', units=None, scale_factor=None)
+    kwh_scale_factor = Field(start=7, size=1, type=int16, mode=Mode.R, description='KiloWattHoursScaleFactor', units=None, scale_factor=None)
+    kw_scale_factor = Field(start=8, size=1, type=int16, mode=Mode.R, description='KiloWattScaleFactor', units=None, scale_factor=None)
+    shunt_a_current = Field(start=9, size=1, type=int16, mode=Mode.R, description='ShuntAcurrent', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_b_current = Field(start=10, size=1, type=int16, mode=Mode.R, description='ShuntBcurrent', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_c_current = Field(start=11, size=1, type=int16, mode=Mode.R, description='ShuntCcurrent', units='Amps', scale_factor='dc_current_scale_factor')
+    battery_voltage = Field(start=12, size=1, type=uint16, mode=Mode.R, description='BatteryVoltage', units='Volts', scale_factor='dc_voltage_scale_factor')
+    battery_current = Field(start=13, size=1, type=int16, mode=Mode.R, description='BatteryCurrent', units='Amps', scale_factor='dc_current_scale_factor')
+    battery_temperature = Field(start=14, size=1, type=int16, mode=Mode.R, description='BatteryTemperatureC', units='DegreesC', scale_factor=None)
+    status_flags = Field(start=15, size=1, type=uint16, mode=Mode.R, description='SeeFNStatusTable', units='Bitfield', scale_factor=None)
+    shunt_a_accumulated_ah = Field(start=16, size=1, type=int16, mode=Mode.R, description='ShuntAAccumulated_AH', units='AH', scale_factor=None)
+    shunt_a_accumulated_kwh = Field(start=17, size=1, type=int16, mode=Mode.R, description='ShuntAAccumulated_kWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_b_accumulated_ah = Field(start=18, size=1, type=int16, mode=Mode.R, description='ShuntBAccumulated_AH', units='AH', scale_factor=None)
+    shunt_b_accumulated_kwh = Field(start=19, size=1, type=int16, mode=Mode.R, description='ShuntBAccumulated_kWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_c_accumulated_ah = Field(start=20, size=1, type=int16, mode=Mode.R, description='ShuntCAccumulated_AH', units='AH', scale_factor=None)
+    shunt_c_accumulated_kwh = Field(start=21, size=1, type=int16, mode=Mode.R, description='ShuntCAccumulated_kWh', units='kWh', scale_factor='kwh_scale_factor')
+    input_current = Field(start=22, size=1, type=uint16, mode=Mode.R, description='Total_input_current', units='Amps', scale_factor='dc_current_scale_factor')
+    output_current = Field(start=23, size=1, type=uint16, mode=Mode.R, description='Total_output_current', units='Amps', scale_factor='dc_current_scale_factor')
+    input_kw = Field(start=24, size=1, type=uint16, mode=Mode.R, description='Total_input_kWatts', units='kW', scale_factor='kw_scale_factor')
+    output_kw = Field(start=25, size=1, type=uint16, mode=Mode.R, description='Total_output_kWatts', units='kW', scale_factor='kw_scale_factor')
+    net_kw = Field(start=26, size=1, type=int16, mode=Mode.R, description='Total_net_kWatts', units='kW', scale_factor='kw_scale_factor')
+    days_since_charge_parameters_met = Field(start=27, size=1, type=uint16, mode=Mode.R, description='DaysSinceChargeParametersMet', units='Days', scale_factor='time_scale_factor')
+    state_of_charge = Field(start=28, size=1, type=uint16, mode=Mode.R, description='CurrentBatteryStateofCharge', units='Percent', scale_factor=None)
+    todays_minimum_soc = Field(start=29, size=1, type=uint16, mode=Mode.R, description='TodaysminimumSOC', units='Percent', scale_factor=None)
+    todays_maximum_soc = Field(start=30, size=1, type=uint16, mode=Mode.R, description='TodaysmaximumSOC', units='Percent', scale_factor=None)
+    todays_net_input_ah = Field(start=31, size=1, type=uint16, mode=Mode.R, description='TodaysNETinputAH', units='AH', scale_factor=None)
+    todays_net_input_kwh = Field(start=32, size=1, type=uint16, mode=Mode.R, description='TodaysNETinputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    todays_net_output_ah = Field(start=33, size=1, type=uint16, mode=Mode.R, description='TodaysNEToutputAH', units='AH', scale_factor=None)
+    todays_net_output_kwh = Field(start=34, size=1, type=uint16, mode=Mode.R, description='TodaysNEToutputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    todays_net_battery_ah = Field(start=35, size=1, type=int16, mode=Mode.R, description='TodaysNETbatteryAH', units='AH', scale_factor=None)
+    todays_net_battery_kwh = Field(start=36, size=1, type=int16, mode=Mode.R, description='TodaysNETbatterykWh', units='kWh', scale_factor='kwh_scale_factor')
+    charge_factor_corrected_net_battery_ah = Field(start=37, size=1, type=int16, mode=Mode.R, description='ChargefactorcorrectedNETbatteryAH', units='AH', scale_factor=None)
+    charge_factor_corrected_net_battery_kwh = Field(start=38, size=1, type=int16, mode=Mode.R, description='ChargefactorcorrectedNETbatterykWh', units='kWh', scale_factor='kwh_scale_factor')
+    todays_minimum_battery_voltage = Field(start=39, size=1, type=uint16, mode=Mode.R, description='Todaysminimumbatteryvoltage', units='Volts', scale_factor='dc_voltage_scale_factor')
+    todays_minimum_battery_time = Field(start=40, size=2, type=uint32, mode=Mode.R, description='TodaysminimumbatteryvoltagetimeUTC', units='Seconds', scale_factor=None)
+    todays_maximum_battery_voltage = Field(start=42, size=1, type=uint16, mode=Mode.R, description='Todaysmaximumbatteryvoltage', units='Volts', scale_factor='dc_voltage_scale_factor')
+    todays_maximum_battery_time = Field(start=43, size=2, type=uint32, mode=Mode.R, description='TodaysmaximumbatteryvoltagetimeUTC', units='Seconds', scale_factor=None)
+    cycle_charge_factor = Field(start=45, size=1, type=uint16, mode=Mode.R, description='CycleChargeFactor', units='Percent', scale_factor=None)
+    cycle_kwh_charge_efficiency = Field(start=46, size=1, type=uint16, mode=Mode.R, description='CyclekWhChargeEfficiency', units='Percent', scale_factor=None)
+    total_days_at_100_percent = Field(start=47, size=1, type=uint16, mode=Mode.R, description='Totaldaysat100%charged', units='Days', scale_factor='time_scale_factor')
+    lifetime_kah_removed = Field(start=48, size=1, type=uint16, mode=Mode.R, description='LifetimekAHremovedfrombattery', units='AH', scale_factor=None)
+    shunt_a_historical_returned_to_battery_ah = Field(start=49, size=1, type=uint16, mode=Mode.R, description='ShuntAhistoricalreturnedtobatteryAH', units='AH', scale_factor=None)
+    shunt_a_historical_returned_to_battery_kwh = Field(start=50, size=1, type=uint16, mode=Mode.R, description='ShuntAhistoricalreturnedtobatterykWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_a_historical_removed_from_battery_ah = Field(start=51, size=1, type=uint16, mode=Mode.R, description='ShuntAhistoricalremovedfrombatteryAH', units='AH', scale_factor=None)
+    shunt_a_historical_removed_from_battery_kwh = Field(start=52, size=1, type=uint16, mode=Mode.R, description='ShuntAhistoricalremovedfrombattery kWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_a_maximum_charge_rate = Field(start=53, size=1, type=uint16, mode=Mode.R, description='ShuntAhistoricalmaximumchargerate Amps', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_a_maximum_charge_rate_kw = Field(start=54, size=1, type=uint16, mode=Mode.R, description='ShuntAhistoricalmaximumchargeratekW', units='kW', scale_factor='kwh_scale_factor')
+    shunt_a_maximum_discharge_rate = Field(start=55, size=1, type=int16, mode=Mode.R, description='ShuntAhistoricalmaximumdischargerate Amps', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_a_maximum_discharge_rate_kw = Field(start=56, size=1, type=int16, mode=Mode.R, description='ShuntAhistoricalmaximumdischargerate kW', units='kW', scale_factor='kwh_scale_factor')
+    shunt_b_historical_returned_to_battery_ah = Field(start=57, size=1, type=uint16, mode=Mode.R, description='ShuntBhistoricalreturnedtobatteryAH', units='AH', scale_factor=None)
+    shunt_b_historical_returned_to_battery_kwh = Field(start=58, size=1, type=uint16, mode=Mode.R, description='ShuntBhistoricalreturnedtobatterykWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_b_historical_removed_from_battery_ah = Field(start=59, size=1, type=uint16, mode=Mode.R, description='ShuntBhistoricalremovedfrombatteryAH', units='AH', scale_factor=None)
+    shunt_b_historical_removed_from_battery_kwh = Field(start=60, size=1, type=uint16, mode=Mode.R, description='ShuntBhistoricalremovedfrombattery kWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_b_maximum_charge_rate = Field(start=61, size=1, type=uint16, mode=Mode.R, description='ShuntBhistoricalmaximumchargerate Amps', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_b_maximum_charge_rate_kw = Field(start=62, size=1, type=uint16, mode=Mode.R, description='ShuntBhistoricalmaximumchargeratekW', units='kW', scale_factor='kwh_scale_factor')
+    shunt_b_maximum_discharge_rate = Field(start=63, size=1, type=int16, mode=Mode.R, description='ShuntBhistoricalmaximumdischargerate Amps', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_b_maximum_discharge_rate_kw = Field(start=64, size=1, type=int16, mode=Mode.R, description='ShuntBhistoricalmaximumdischargerate kW', units='kW', scale_factor='kwh_scale_factor')
+    shunt_c_historical_returned_to_battery_ah = Field(start=65, size=1, type=uint16, mode=Mode.R, description='ShuntChistoricalreturnedtobatteryAH', units='AH', scale_factor=None)
+    shunt_c_historical_returned_to_battery_kwh = Field(start=66, size=1, type=uint16, mode=Mode.R, description='ShuntChistoricalreturnedtobatterykWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_c_historical_removed_from_battery_ah = Field(start=67, size=1, type=uint16, mode=Mode.R, description='ShuntChistoricalremovedfrombatteryAH', units='AH', scale_factor=None)
+    shunt_c_historical_removed_from_battery_kwh = Field(start=68, size=1, type=uint16, mode=Mode.R, description='ShuntChistoricalremovedfrombattery kWh', units='kWh', scale_factor='kwh_scale_factor')
+    shunt_c_maximum_charge_rate = Field(start=69, size=1, type=uint16, mode=Mode.R, description='ShuntChistoricalmaximumchargerate Amps', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_c_maximum_charge_rate_kw = Field(start=70, size=1, type=uint16, mode=Mode.R, description='ShuntChistoricalmaximumchargeratekW', units='kW', scale_factor='kwh_scale_factor')
+    shunt_c_maximum_discharge_rate = Field(start=71, size=1, type=int16, mode=Mode.R, description='ShuntChistoricalmaximumdischargerate Amps', units='Amps', scale_factor='dc_current_scale_factor')
+    shunt_c_maximum_discharge_rate_kw = Field(start=72, size=1, type=int16, mode=Mode.R, description='ShuntChistoricalmaximumdischargerate kW', units='kW', scale_factor='kwh_scale_factor')
+    shunt_a_reset_maximum_data = Field(start=73, size=1, type=uint16, mode=Mode.R, description='ReadvalueneededtoresetshuntA maximumdata', units=None, scale_factor=None)
+    shunt_a_reset_maximum_data_write_complement = Field(start=74, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtoresetshuntA maximumdata", units=None, scale_factor=None)
+    shunt_b_reset_maximum_data = Field(start=75, size=1, type=uint16, mode=Mode.R, description='ReadvalueneededtoresetshuntB maximumdata', units=None, scale_factor=None)
+    shunt_b_reset_maximum_data_write_complement = Field(start=76, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtoresetshuntB maximumdata", units=None, scale_factor=None)
+    shunt_c_reset_maximum_data = Field(start=77, size=1, type=uint16, mode=Mode.R, description='ReadvalueneededtoresetshuntC maximumdata', units=None, scale_factor=None)
+    shunt_c_reset_maximum_data_write_complement = Field(start=78, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtoresetshuntC maximumdata", units=None, scale_factor=None)
+
+
+class DcConfigurationParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackFLEXnet-DC BatteryMonitorConfigurationBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    port_number = Field(start=3, size=1, type=uint16, mode=Mode.R, description='PortnumberonOutBacknetwork', units=None, scale_factor=None)
+    dc_voltage_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    dc_current_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='DCCurrentScaleFactor', units=None, scale_factor=None)
+    kwh_scale_factor = Field(start=6, size=1, type=int16, mode=Mode.R, description='KiloWattHoursScaleFactor', units=None, scale_factor=None)
+    major_firmware_number = Field(start=7, size=1, type=uint16, mode=Mode.R, description='FLEXnet-DCMajorfirmwarerevision', units=None, scale_factor=None)
+    mid_firmware_number = Field(start=8, size=1, type=uint16, mode=Mode.R, description='FLEXnet-DCMidfirmwarerevision', units=None, scale_factor=None)
+    minor_firmware_number = Field(start=9, size=1, type=uint16, mode=Mode.R, description='FLEXnet-DCMinorfirmwarerevision', units=None, scale_factor=None)
+    battery_capacity = Field(start=10, size=1, type=uint16, mode=Mode.RW, description='BatteryAHcapacity', units='AH', scale_factor=None)
+    charged_volts = Field(start=11, size=1, type=uint16, mode=Mode.RW, description='BatteryChargedVoltage', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    charged_time = Field(start=12, size=1, type=uint16, mode=Mode.RW, description='BatteryChargedTimeMinutes', units='Minutes', scale_factor=None)
+    battery_charged_amps = Field(start=13, size=1, type=uint16, mode=Mode.RW, description='BatteryChargedReturnAmps', units='Amps', scale_factor='dc_current_scale_factor')
+    charge_factor = Field(start=14, size=1, type=uint16, mode=Mode.RW, description='BatteryChargeFactor', units='Percent', scale_factor=None)
+    shunt_a_enabled = Field(start=15, size=1, type=uint16, mode=Mode.RW, description='0=Enabled,1=Disabled', units='Enumerated', scale_factor=None)
+    shunt_b_enabled = Field(start=16, size=1, type=uint16, mode=Mode.RW, description='0=Enabled,1=Disabled', units='Enumerated', scale_factor=None)
+    shunt_c_enabled = Field(start=17, size=1, type=uint16, mode=Mode.RW, description='0=Enabled,1=Disabled', units='Enumerated', scale_factor=None)
+    relay_control = Field(start=18, size=1, type=uint16, mode=Mode.RW, description='0=Off;1=Auto;2=On', units='Enumerated', scale_factor=None)
+    relay_invert_logic = Field(start=19, size=1, type=uint16, mode=Mode.RW, description='0=InvertLogic,1=Normal', units='Enumerated', scale_factor=None)
+    relay_high_voltage = Field(start=20, size=1, type=uint16, mode=Mode.RW, description='Relayhighvoltageenable', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    relay_low_voltage = Field(start=21, size=1, type=uint16, mode=Mode.RW, description='Relaylowvoltageenable', units='DCVolts', scale_factor='dc_voltage_scale_factor')
+    relay_soc_high = Field(start=22, size=1, type=uint16, mode=Mode.RW, description='RelayhighSOCenable', units='Percent', scale_factor=None)
+    relay_soc_low = Field(start=23, size=1, type=uint16, mode=Mode.RW, description='RelaylowSOCenable', units='Percent', scale_factor=None)
+    relay_high_enable_delay = Field(start=24, size=1, type=uint16, mode=Mode.RW, description='RelayHighEnableDelay', units='Minutes', scale_factor=None)
+    relay_low_enable_delay = Field(start=25, size=1, type=uint16, mode=Mode.RW, description='RelayLowEnableDelay', units='Minutes', scale_factor=None)
+    set_data_log_day_offset = Field(start=26, size=1, type=uint16, mode=Mode.RW, description='Dayoffset0-400,0=Today,1=-1day…', units='Days', scale_factor=None)
+    get_current_data_log_day_offset = Field(start=27, size=1, type=uint16, mode=Mode.R, description='CurrentDataLogDayOffset', units='Days', scale_factor=None)
+    datalog_minimum_soc = Field(start=28, size=1, type=uint16, mode=Mode.R, description='DatalogminimumSOC', units='Percent', scale_factor=None)
+    datalog_input_ah = Field(start=29, size=1, type=uint16, mode=Mode.R, description='DataloginputAH', units='AH', scale_factor=None)
+    datalog_input_kwh = Field(start=30, size=1, type=uint16, mode=Mode.R, description='DataloginputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    datalog_output_ah = Field(start=31, size=1, type=uint16, mode=Mode.R, description='DatalogoutputAH', units='AH', scale_factor=None)
+    datalog_output_kwh = Field(start=32, size=1, type=uint16, mode=Mode.R, description='DatalogoutputkWh', units='kWh', scale_factor='kwh_scale_factor')
+    datalog_net_ah = Field(start=33, size=1, type=uint16, mode=Mode.R, description='DatalogNETAH', units='AH', scale_factor=None)
+    datalog_net_kwh = Field(start=34, size=1, type=uint16, mode=Mode.R, description='DatalogNETkWh', units='kWh', scale_factor='kwh_scale_factor')
+    clear_data_log_read = Field(start=35, size=1, type=uint16, mode=Mode.R, description='Readvalueneededtocleardatalog', units=None, scale_factor=None)
+    clear_data_log_write_complement = Field(start=36, size=1, type=uint16, mode=Mode.W, description="Writevalue'scomplementtocleardatalog", units=None, scale_factor=None)
+    serial_number = Field(start=37, size=9, type=str, mode=Mode.R, description='Deviceserialnumber', units=None, scale_factor=None)
+    model_number = Field(start=46, size=9, type=str, mode=Mode.R, description='Devicemodel', units=None, scale_factor=None)
+
+
+class SystemControlParser(BaseParser):
+    did = Field(start=1, size=1, type=uint16, mode=Mode.R, description='VendorExtensionforOutBackSystem ControlBlock', units=None, scale_factor=None)
+    length = Field(start=2, size=1, type=uint16, mode=Mode.R, description='Lengthofblockin16-bitregisters', units='Registers', scale_factor=None)
+    dc_voltage_scale_factor = Field(start=3, size=1, type=int16, mode=Mode.R, description='DCVoltageScaleFactor', units=None, scale_factor=None)
+    ac_current_scale_factor = Field(start=4, size=1, type=int16, mode=Mode.R, description='ACCurrentScaleFactor', units=None, scale_factor=None)
+    time_scale_factor = Field(start=5, size=1, type=int16, mode=Mode.R, description='ChargeTimeScaleFactor', units=None, scale_factor=None)
+    bulk_charge_enable_disable = Field(start=6, size=1, type=uint16, mode=Mode.W, description='1=StartBulk,2=StopBulk,3=StartEQ Charge,4=StopEQCharge', units='Enumerated', scale_factor=None)
+    inverter_ac_drop_use = Field(start=7, size=1, type=uint16, mode=Mode.W, description='1=Use,2=Drop', units='Enumerated', scale_factor=None)
+    set_inverter_mode = Field(start=8, size=1, type=uint16, mode=Mode.W, description='1=Off,2=Search,3=On', units='Enumerated', scale_factor=None)
+    grid_tie_mode = Field(start=9, size=1, type=uint16, mode=Mode.W, description='1=Enable,2=Disable', units='Enumerated', scale_factor=None)
+    set_inverter_charger_mode = Field(start=10, size=1, type=uint16, mode=Mode.W, description='1=Off,2=Auto,3=On', units='Enumerated', scale_factor=None)
+    control_status = Field(start=11, size=1, type=uint16, mode=Mode.R, description='Bitfieldforstatus (SeeOB_Control_StatusTable)', units='Bitfield', scale_factor=None)
+    set_sell_voltage = Field(start=12, size=1, type=uint16, mode=Mode.RW, description='GlobalSellVoltage', units='Volts', scale_factor='dc_voltage_scale_factor')
+    set_radian_inverter_sell_current_limit = Field(start=13, size=1, type=uint16, mode=Mode.RW, description='RadianInverterSellCurrentLimit', units='Amps', scale_factor='ac_current_scale_factor')
+    set_absorb_voltage = Field(start=14, size=1, type=uint16, mode=Mode.RW, description='GlobalAbsorbVoltage', units='Volts', scale_factor='dc_voltage_scale_factor')
+    set_absorb_time = Field(start=15, size=1, type=uint16, mode=Mode.RW, description='Timeintenthsofhour', units='Hours', scale_factor='time_scale_factor')
+    set_float_voltage = Field(start=16, size=1, type=uint16, mode=Mode.RW, description='GlobalFloatVoltage', units='Volts', scale_factor='dc_voltage_scale_factor')
+    set_float_time = Field(start=17, size=1, type=uint16, mode=Mode.RW, description='Timeintenthsofhour', units='Hours', scale_factor='time_scale_factor')
+    set_inverter_charger_current_limit = Field(start=18, size=1, type=uint16, mode=Mode.RW, description='InverterChargerCurrentLimit', units='Amps', scale_factor='ac_current_scale_factor')
+    set_inverter_ac1_current_limit = Field(start=19, size=1, type=uint16, mode=Mode.RW, description='InverterAC1inputCurrentLimit', units='Amps', scale_factor='ac_current_scale_factor')
+    set_inverter_ac2_current_limit = Field(start=20, size=1, type=uint16, mode=Mode.RW, description='InverterAC2inputCurrentLimit', units='Amps', scale_factor='ac_current_scale_factor')
+    set_ags_op_mode = Field(start=21, size=1, type=uint16, mode=Mode.RW, description='AGSOperatingMode:0=Off,1=On,2=Auto', units='Enumerated', scale_factor=None)
+    ags_operational_state = Field(start=22, size=1, type=uint16, mode=Mode.R, description='GEN_STOP=0,GEN_STARTING=1, GEN_RUNNING=2,GEN_WARMUP=3, GEN_COOLDOWN=4,GEN_AWAITING_AC=5', units='Enumerated', scale_factor=None)
+    ags_operational_state_timer = Field(start=23, size=1, type=uint16, mode=Mode.R, description='NumberofsecondsOB_AGS_Operational_State hasbeenincurrentstate;ifOperationalStateis 0thentimer=0', units='Seconds', scale_factor=None)
+    gen_last_run_start_time_gmt = Field(start=24, size=2, type=uint32, mode=Mode.R, description='GeneratorlaststarttimeinGMTseconds', units='Seconds', scale_factor=None)
+    gen_last_start_run_duration = Field(start=26, size=2, type=uint32, mode=Mode.R, description='LastGeneratorStartRunDurationSeconds', units='Seconds', scale_factor=None)
+    set_ac_output_freq_offline_mode = Field(start=28, size=1, type=uint16, mode=Mode.RW, description='Notimplemented', units='NA', scale_factor=None)
+    set_ac_output_offline_freq = Field(start=29, size=1, type=uint16, mode=Mode.RW, description='SetACOutputFrequencywhenACInputis disconnected:Range60Hz:55.8…64.9Hz, 50Hz:46.5…54.1Hz', units='Hz', scale_factor='dc_voltage_scale_factor')
+
+

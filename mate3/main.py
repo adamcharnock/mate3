@@ -10,6 +10,7 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 # Setup logging
 from mate3.io import read_sun_spec_header, read_block
 from mate3.base_parser import parse
+from mate3.base_structures import Device
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S"
@@ -21,13 +22,6 @@ mate3_ip = "192.168.1.246"
 mate3_modbus_port = 502
 
 SUNSPEC_REGISTER_OFFSET = 40000
-
-
-@contextlib.contextmanager
-def get_db_connection():
-    connection = pool.getconn()
-    yield connection
-    pool.putconn(connection)
 
 
 def main():
@@ -59,6 +53,10 @@ def main():
         reg = base_reg
         for block in range(0, 30):
             block_size, device = read_block(_client, reg)
+
+            if device is Device.end_of_sun_spec:
+                # No more blacks to read
+                break
 
             if not device:
                 # Unknown device

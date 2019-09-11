@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mate3"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = ["Adam Charnock <adam@adamcharnock.com>"]
 
@@ -13,9 +13,9 @@ pytest = "^3.0"
 camelot-py = "^0.7.3"
 excalibur-py = "^0.4.2"
 black = {version = "^18.3-alpha.0", allows-prereleases = true}
+[tool.poetry.scripts]
+mate3 = 'mate3.main:main'
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
-[tool.poetry.scripts]
-mate3 = 'mate3.main:main'

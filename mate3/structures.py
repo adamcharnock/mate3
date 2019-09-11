@@ -6,6 +6,8 @@ from typing import NamedTuple
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecCommonModelBlock(NamedTuple):
+    device: Device
+
     sunspec_did: uint16
     sunspec_length: uint16
     manufacturer: str
@@ -18,6 +20,8 @@ class SunspecCommonModelBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecInverterSinglePhaseBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     ac_current: uint16
@@ -67,6 +71,8 @@ class SunspecInverterSinglePhaseBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecInverterSplitPhaseBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     ac_current: uint16
@@ -116,6 +122,8 @@ class SunspecInverterSplitPhaseBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecInverterThreePhaseBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     ac_current: uint16
@@ -165,6 +173,8 @@ class SunspecInverterThreePhaseBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class Mate3Block(NamedTuple):
+    device: Device
+
     ags_quiet_time_weekday_stop_hour: uint16
     ags_quiet_time_weekday_stop_minute: uint16
     ags_quiet_time_weekend_start_hour: uint16
@@ -335,6 +345,8 @@ class Mate3Block(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class ChargeControllerBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     port_number: uint16
@@ -367,6 +379,8 @@ class ChargeControllerBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class ChargeControllerConfigurationBlock(NamedTuple):
+    device: Device
+
     night_light_on_hours: uint16
     night_light_on_hyst_time: uint16
     night_light_off_hyst_time: uint16
@@ -445,6 +459,8 @@ class ChargeControllerConfigurationBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FxInverterBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     port_number: uint16
@@ -487,6 +503,8 @@ class FxInverterBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FxInverterConfigurationBlock(NamedTuple):
+    device: Device
+
     grid_ac_input_current_limit: uint16
     gen_ac_input_current_limit: uint16
     charger_ac_input_current_limit: uint16
@@ -549,6 +567,8 @@ class FxInverterConfigurationBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SplitPhaseRadianInverterBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     port_number: uint16
@@ -613,6 +633,8 @@ class SplitPhaseRadianInverterBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class RadianInverterConfigurationBlock(NamedTuple):
+    device: Device
+
     aux_on_battery_voltage: uint16
     aux_on_delay_time: uint16
     aux_off_battery_voltage: uint16
@@ -691,6 +713,8 @@ class RadianInverterConfigurationBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SinglePhaseRadianInverterBlock(NamedTuple):
+    device: Device
+
     output_kw: uint16
     buy_kw: uint16
     sell_kw: uint16
@@ -743,6 +767,8 @@ class SinglePhaseRadianInverterBlock(NamedTuple):
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FlexnetDcBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     port_number: uint16
@@ -821,7 +847,10 @@ class FlexnetDcBlock(NamedTuple):
     shunt_c_reset_maximum_data_write_complement: uint16
 
 
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FlexnetDcConfigurationBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     port_number: uint16
@@ -860,11 +889,12 @@ class FlexnetDcConfigurationBlock(NamedTuple):
     clear_data_log_write_complement: uint16
     serial_number: str
     model_number: str
-# This file is auto generated, do not edit. The generation code can be found in code_generator.py
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class OutbackSystemControlBlock(NamedTuple):
+    device: Device
+
     did: uint16
     length: uint16
     dc_voltage_scale_factor: int16

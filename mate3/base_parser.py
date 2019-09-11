@@ -33,7 +33,7 @@ class BaseParser(object):
     device: Device = None
 
     def parse(self, client: ModbusClient, register_offset: int):
-        values = {}
+        values = {'device': self.device}
         for name, field in self.fields.items():
             register_number = register_offset + field.start - 1
             response = client.read_holding_registers(register_number, field.size)
@@ -93,6 +93,7 @@ def parse(device: Device, client: ModbusClient, register_offset: int):
 
 
 class SunspecHeaderBlock(NamedTuple):
+    device: Device
     sunspec_id: uint32
     model_id: uint16
     total_subsequent_registers: uint16

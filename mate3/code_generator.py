@@ -220,14 +220,15 @@ def generate_parser(device: Device, lines: List[Line]):
     code = (
         f"# {WARNING}\n"
         f"class {class_name}(BaseParser):\n"
-        f"    structure = {to_camel_case(device.name)}Block\n"
-        f"    device = Device.{device.name}\n\n"
     )
 
     for line in lines:
         code += generate_field(line, prefixes_to_strip=common_prefixes, other_lines=lines)
 
-    code += "\n\n"
+    code += "\n"
+    code += f"    structure = {to_camel_case(device.name)}Block\n"
+    code += f"    device = Device.{device.name}\n\n"
+
     return code
 
 
@@ -246,6 +247,7 @@ def generate_structure(device: Device, lines: List[Line]):
     class_name = f"{to_camel_case(device.name)}Block"
     code = f"# {WARNING}\n"
     code += f"class {class_name}(NamedTuple):\n"
+    code += f"    device: Device\n\n"
 
     for line in lines:
         name = strip_prefixes(register_name=line.python_name, prefixes=common_prefixes)
@@ -256,7 +258,8 @@ def generate_structure(device: Device, lines: List[Line]):
 
         code += f'    {name}: {type}\n'
 
-    code += "\n"
+    print("\n")
+
     return code
 
 

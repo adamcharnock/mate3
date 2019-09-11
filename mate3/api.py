@@ -28,7 +28,7 @@ AnyBlock = Union[
 
 class Mate3Factory(object):
 
-    def __init__(self, host: str='127.0.0.1', port: int=Defaults.Port):
+    def __init__(self, host: str, port: int=Defaults.Port):
         self.host = host
         self.port = port
 

@@ -11,7 +11,7 @@ Tested on Python 3.7. May work on 3.6.
 
 TBA. System -> opticsre -> Modbus?
 
-## Using this library
+## Using the library
 
 Example use:
 
@@ -30,6 +30,31 @@ with mate3_connection(host, port) as client:
         time.sleep(3)
 ```
 
+## Using the command line interface (CLI)
+
+A simple CLI is available which will read all available values from the Mate3:
+
+```
+$ mate3 -h
+usage: mate3 [-h] [--host HOST] [--port PORT]
+             [--format {text,prettyjson,json}]
+
+Read all available data from the Mate3 controller
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --host HOST, -H HOST  The host name or IP address of the Mate3
+  --port PORT, -p PORT  The port number address of the Mate3
+  --format {text,prettyjson,json}, -f {text,prettyjson,json}
+                        Output format
+```
+
+Example use:
+
+```
+$ mate3 --host 192.168.0.123
+```
+
 ## Various notes
 
 The `structures.py` and `parsers.py` files are *auto generated* 
@@ -43,7 +68,6 @@ PDF provided by OutBack. This process is handled by two python files:
 
 ## Future work
 
-* Create a command line interface
 * Support the writing of values back to the Mate3
 * Web interface?
 

@@ -7,9 +7,6 @@ from mate3.structures import *
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecCommonModelParser(BaseParser):
-    structure = SunspecCommonModelBlock
-    device = Device.sunspec_common_model
-
     sunspec_did = Field(
         start=1,
         size=1,
@@ -83,12 +80,12 @@ class SunspecCommonModelParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = SunspecCommonModelBlock
+    device = Device.sunspec_common_model
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecInverterSinglePhaseParser(BaseParser):
-    structure = SunspecInverterSinglePhaseBlock
-    device = Device.sunspec_inverter_single_phase
-
     did = Field(
         start=1,
         size=1,
@@ -495,12 +492,12 @@ class SunspecInverterSinglePhaseParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = SunspecInverterSinglePhaseBlock
+    device = Device.sunspec_inverter_single_phase
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecInverterSplitPhaseParser(BaseParser):
-    structure = SunspecInverterSplitPhaseBlock
-    device = Device.sunspec_inverter_split_phase
-
     did = Field(
         start=1,
         size=1,
@@ -907,12 +904,12 @@ class SunspecInverterSplitPhaseParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = SunspecInverterSplitPhaseBlock
+    device = Device.sunspec_inverter_split_phase
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SunspecInverterThreePhaseParser(BaseParser):
-    structure = SunspecInverterThreePhaseBlock
-    device = Device.sunspec_inverter_three_phase
-
     did = Field(
         start=1,
         size=1,
@@ -1319,12 +1316,12 @@ class SunspecInverterThreePhaseParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = SunspecInverterThreePhaseBlock
+    device = Device.sunspec_inverter_three_phase
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class Mate3Parser(BaseParser):
-    structure = Mate3Block
-    device = Device.mate3
-
     ags_quiet_time_weekday_stop_hour = Field(
         start=322,
         size=1,
@@ -2820,12 +2817,12 @@ class Mate3Parser(BaseParser):
         scale_factor=None,
     )
 
+    structure = Mate3Block
+    device = Device.mate3
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class ChargeControllerParser(BaseParser):
-    structure = ChargeControllerBlock
-    device = Device.charge_controller
-
     did = Field(
         start=1,
         size=1,
@@ -3079,12 +3076,12 @@ class ChargeControllerParser(BaseParser):
         scale_factor="power_scale_factor",
     )
 
+    structure = ChargeControllerBlock
+    device = Device.charge_controller
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class ChargeControllerConfigurationParser(BaseParser):
-    structure = ChargeControllerConfigurationBlock
-    device = Device.charge_controller_configuration
-
     night_light_on_hours = Field(
         start=44,
         size=1,
@@ -3752,12 +3749,12 @@ class ChargeControllerConfigurationParser(BaseParser):
         scale_factor="voltage_scale_factor",
     )
 
+    structure = ChargeControllerConfigurationBlock
+    device = Device.charge_controller_configuration
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FxInverterParser(BaseParser):
-    structure = FxInverterBlock
-    device = Device.fx_inverter
-
     did = Field(
         start=1,
         size=1,
@@ -4101,12 +4098,12 @@ class FxInverterParser(BaseParser):
         scale_factor="kwh_scale_factor",
     )
 
+    structure = FxInverterBlock
+    device = Device.fx_inverter
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FxInverterConfigurationParser(BaseParser):
-    structure = FxInverterConfigurationBlock
-    device = Device.fx_inverter_configuration
-
     grid_ac_input_current_limit = Field(
         start=23,
         size=1,
@@ -4630,12 +4627,12 @@ class FxInverterConfigurationParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = FxInverterConfigurationBlock
+    device = Device.fx_inverter_configuration
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SplitPhaseRadianInverterParser(BaseParser):
-    structure = SplitPhaseRadianInverterBlock
-    device = Device.split_phase_radian_inverter
-
     did = Field(
         start=1,
         size=1,
@@ -5177,12 +5174,12 @@ class SplitPhaseRadianInverterParser(BaseParser):
         scale_factor="kwh_scale_factor",
     )
 
+    structure = SplitPhaseRadianInverterBlock
+    device = Device.split_phase_radian_inverter
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class RadianInverterConfigurationParser(BaseParser):
-    structure = RadianInverterConfigurationBlock
-    device = Device.radian_inverter_configuration
-
     aux_on_battery_voltage = Field(
         start=42,
         size=1,
@@ -5850,12 +5847,12 @@ class RadianInverterConfigurationParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = RadianInverterConfigurationBlock
+    device = Device.radian_inverter_configuration
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class SinglePhaseRadianInverterParser(BaseParser):
-    structure = SinglePhaseRadianInverterBlock
-    device = Device.single_phase_radian_inverter
-
     output_kw = Field(
         start=43,
         size=1,
@@ -6289,12 +6286,12 @@ class SinglePhaseRadianInverterParser(BaseParser):
         scale_factor="kwh_scale_factor",
     )
 
+    structure = SinglePhaseRadianInverterBlock
+    device = Device.single_phase_radian_inverter
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FlexnetDcParser(BaseParser):
-    structure = FlexnetDcBlock
-    device = Device.flexnet_dc
-
     did = Field(
         start=1,
         size=1,
@@ -6980,12 +6977,12 @@ class FlexnetDcParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = FlexnetDcBlock
+    device = Device.flexnet_dc
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FlexnetDcConfigurationParser(BaseParser):
-    structure = FlexnetDcConfigurationBlock
-    device = Device.flexnet_dc_configuration
-
     did = Field(
         start=1,
         size=1,
@@ -7329,12 +7326,12 @@ class FlexnetDcConfigurationParser(BaseParser):
         scale_factor=None,
     )
 
+    structure = FlexnetDcConfigurationBlock
+    device = Device.flexnet_dc_configuration
+
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class OutbackSystemControlParser(BaseParser):
-    structure = OutbackSystemControlBlock
-    device = Device.outback_system_control
-
     did = Field(
         start=1,
         size=1,
@@ -7578,3 +7575,6 @@ class OutbackSystemControlParser(BaseParser):
         units="Hz",
         scale_factor="dc_voltage_scale_factor",
     )
+
+    structure = OutbackSystemControlBlock
+    device = Device.outback_system_control

@@ -8,6 +8,8 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from mate3.base_structures import int16, Device, uint32, uint16
 from mate3.io import decode_int16, combine_ints, int16s_to_str, int_to_ip_address
 
+logger = logging.getLogger(__name__)
+
 
 class Mode(Enum):
     R = "r"
@@ -84,7 +86,7 @@ def parse(device: Device, client: ModbusClient, register_offset: int):
             parser = value
 
     if not parser:
-        logging.warning(f"No parser found for device {device}, DID {device.value}")
+        logger.warning(f"No parser found for device {device}, DID {device.value}")
         return
 
     return parser().parse(client, register_offset)

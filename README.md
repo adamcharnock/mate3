@@ -13,7 +13,22 @@ TBA. System -> opticsre -> Modbus?
 
 ## Using this library
 
-Still in development, so for now open `main.py` and take a look
+Example use:
+
+```python
+from mate3 import mate3_connection
+import time
+
+host = '192.168.0.123'
+port = 502
+
+with mate3_connection(host, port) as client:
+    while True:
+        for block in client.all_blocks():
+            print(block)
+
+        time.sleep(3)
+```
 
 ## Various notes
 
@@ -28,7 +43,6 @@ PDF provided by OutBack. This process is handled by two python files:
 
 ## Future work
 
-* Support use as a Python library (I want to get this data into Timescale DB)
 * Create a command line interface
 * Support the writing of values back to the Mate3
 * Web interface?

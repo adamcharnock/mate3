@@ -4,10 +4,12 @@ import struct
 from typing import Tuple, Optional
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
-from pymodbus.constants import Endian
-from pymodbus.payload import BinaryPayloadDecoder
 
 from mate3.base_structures import Device
+
+logger = logging.getLogger(__name__)
+
+SUNSPEC_REGISTER_OFFSET = 40000
 
 
 def decode_int16(signed_value):
@@ -59,7 +61,7 @@ def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[D
     try:
         device = Device(device_id)
     except ValueError:
-        logging.warning(f"Unknown device type with device ID {device_id}")
+        logger.warning(f"Unknown device type with device ID {device_id}")
         return None, None
 
     if device == Device.sunspec_header:

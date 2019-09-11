@@ -821,7 +821,6 @@ class FlexnetDcBlock(NamedTuple):
     shunt_c_reset_maximum_data_write_complement: uint16
 
 
-# This file is auto generated, do not edit. The generation code can be found in code_generator.py
 class FlexnetDcConfigurationBlock(NamedTuple):
     did: uint16
     length: uint16
@@ -861,6 +860,7 @@ class FlexnetDcConfigurationBlock(NamedTuple):
     clear_data_log_write_complement: uint16
     serial_number: str
     model_number: str
+# This file is auto generated, do not edit. The generation code can be found in code_generator.py
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py

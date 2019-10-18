@@ -23,6 +23,7 @@ def main():
         "--host", "-H",
         dest="host",
         help="The host name or IP address of the Mate3",
+        required=True,
     )
     parser.add_argument(
         "--port", "-p",

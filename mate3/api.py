@@ -7,6 +7,7 @@ from mate3.base_parser import parse
 from mate3.io import read_block, SUNSPEC_REGISTER_OFFSET
 from mate3.structures import *
 
+
 AnyBlock = Union[
     SunspecCommonModelBlock,
     SunspecInverterSinglePhaseBlock,

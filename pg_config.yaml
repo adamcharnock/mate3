@@ -1,0 +1,36 @@
+tables:
+  my_database_table:
+    - port: 1
+      device: "single_phase_radian_inverter"
+      field: "battery_voltage"
+      db_column: "battery_voltage"
+    - port: 1
+      device: "single_phase_radian_inverter"
+      field: "output_kw"
+      db_column: "output_kw"
+    - port: 1
+      device: "single_phase_radian_inverter"
+      field: "buy_kw"
+      db_column: "buy_kw"
+    - port: 1
+      device: "single_phase_radian_inverter"
+      field: "load_kw"
+      db_column: "load_kw"
+
+    - port: 2
+      device: "charge_controller"
+      field: "watts"
+      db_column: "cc1_watts"
+    - port: 2
+      device: "charge_controller"
+      field: "battery_current"
+      db_column: "cc1_battery_current"
+
+    - port: 3
+      device: "charge_controller"
+      field: "watts"
+      db_column: "cc2_watts"
+    - port: 3
+      device: "charge_controller"
+      field: "battery_current"
+      db_column: "cc2_battery_current"

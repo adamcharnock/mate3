@@ -13,8 +13,11 @@ pytest = "^3.0"
 camelot-py = "^0.7.3"
 excalibur-py = "^0.4.2"
 black = {version = "^18.3-alpha.0", allows-prereleases = true}
+
 [tool.poetry.scripts]
 mate3 = 'mate3.main:main'
+mate3_pg = 'mate3.mate3_pg:main'
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"

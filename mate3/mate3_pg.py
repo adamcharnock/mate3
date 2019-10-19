@@ -1,13 +1,19 @@
 import argparse
 from sys import argv
 from typing import NamedTuple, List, Type, Iterable
+import logging
 
 from pymodbus.constants import Defaults
+from pymodbus.exceptions import ModbusIOException, ConnectionException
 
 from mate3 import mate3_connection
 import time
 
 from mate3.api import AnyBlock, Device
+
+
+logger = logging.getLogger('mate3.mate3_pg')
+
 
 try:
     from yaml import load, FullLoader
@@ -37,6 +43,7 @@ class Definition(NamedTuple):
 
 
 def read_definitions(f) -> List[Table]:
+    logger.info(f"Reading field definitions from {f.name}")
     in_yaml = load(f, Loader=FullLoader)
     tables = []
 
@@ -55,10 +62,12 @@ def read_definitions(f) -> List[Table]:
             Table(table_name, definitions)
         )
 
+    logger.debug(f"Found definitions: {tables}")
     return tables
 
 
 def create_tables(conn, tables: List[Table], hypertables: bool):
+    logger.info("Creating tables (if needed)")
     with conn.cursor() as curs:
         for table in tables:
             sql = (
@@ -70,13 +79,17 @@ def create_tables(conn, tables: List[Table], hypertables: bool):
             sql = sql.rstrip(',')
             sql += '\n)'
 
+            logger.debug(f"Executing: {sql}")
             curs.execute(sql)
+
             if hypertables:
                 try:
-                    curs.execute("SELECT create_hypertable(%s, 'timestamp')", [table.name])
+                    sql = f"SELECT create_hypertable('{table.name}', 'timestamp')"
+                    logger.debug(f"Executing: {sql}")
+                    curs.execute(sql, [table.name])
                 except psycopg2.DatabaseError as e:
                     if 'already a hypertable' in str(e):
-                        pass
+                        logger.debug("Table is already a hypertable")
                     else:
                         raise
 
@@ -107,7 +120,9 @@ def insert(conn, tables: List[Table], blocks: List[AnyBlock]):
                 f"(timestamp, {', '.join(column_names)}) "
                 f"VALUES (NOW(), {', '.join(placeholders)})"
             )
-            curs.execute(sql, list(insert_kv.values()))
+            values = list(insert_kv.values())
+            logger.debug(f"Executing: {sql}; With values {values}")
+            curs.execute(sql, values)
 
 
 def main():
@@ -152,24 +167,56 @@ def main():
         help="Should we create tables as hypertables? Use only if you are using TimescaleDB",
         action='store_true',
     )
+    parser.add_argument(
+        "--quiet", "-q",
+        dest="quiet",
+        help="Hide status output. Only errors will be shown",
+        action='store_true',
+    )
+    parser.add_argument(
+        "--debug",
+        dest="debug",
+        help="Show debug logging",
+        action='store_true',
+    )
 
     args = parser.parse_args(argv[1:])
+
+    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", level=logging.ERROR)
+    root_logger = logging.getLogger()
+    mate3_logger = logging.getLogger('mate3')
+
+    if args.debug:
+        root_logger.setLevel(logging.DEBUG)
+    elif args.quiet:
+        mate3_logger.setLevel(logging.ERROR)
+    else:
+        mate3_logger.setLevel(logging.INFO)
+
     tables = read_definitions(args.definitions)
 
+    logger.info(f"Connecting to Postgres at {args.database_url}")
     with psycopg2.connect(args.database_url) as conn:
         conn.autocommit = True
-
+        logger.debug(f"Connected to Postgres")
         create_tables(conn, tables, hypertables=args.hypertables)
-        with mate3_connection(args.host, args.port) as client:
-            while True:
-                start = time.time()
 
-                insert(conn, tables, list(client.all_blocks()))
+        while True:  # Reconnect loop
+            try:
+                logger.info(f"Connecting to mate3 at {args.host}:{args.port}")
+                with mate3_connection(args.host, args.port) as client:
+                    while True:
+                        start = time.time()
 
-                total = time.time() - start
-                sleep_time = args.interval - total
-                if sleep_time > 0:
-                    time.sleep(args.interval - total)
+                        insert(conn, tables, list(client.all_blocks()))
+
+                        total = time.time() - start
+                        sleep_time = args.interval - total
+                        if sleep_time > 0:
+                            time.sleep(args.interval - total)
+            except (ModbusIOException, ConnectionException) as e:
+                logger.error(f"Communication error: {e}. Will try to reconnect in {args.interval} seconds")
+                time.sleep(args.interval)
 
 
 if __name__ == '__main__':

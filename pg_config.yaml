@@ -1,9 +1,19 @@
 tables:
+
+  # Replace 'my_database_table' the desired table name
   my_database_table:
+
+    # The entries below specify the fields which will be recorded, and the column names the vales
+    # will be stored in
     - port: 1
+      # The device name as specified in mate3/base_structures.py
       device: "single_phase_radian_inverter"
+      # The field you wish to store (use the `mate3` command to see the available options)
       field: "battery_voltage"
+      # The name of the column to store this value in. Must be unique for this table
       db_column: "battery_voltage"
+
+    # The above section repeats below for different fields
     - port: 1
       device: "single_phase_radian_inverter"
       field: "output_kw"

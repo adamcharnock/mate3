@@ -26,6 +26,10 @@ tables:
       device: "single_phase_radian_inverter"
       field: "load_kw"
       db_column: "load_kw"
+    - port: 1
+      device: "single_phase_radian_inverter"
+      field: "aux_output_state"
+      db_column: "aux_output_state"
 
     - port: 2
       device: "charge_controller"
@@ -35,6 +39,10 @@ tables:
       device: "charge_controller"
       field: "battery_current"
       db_column: "cc1_battery_current"
+    - port: 2
+      device: "charge_controller"
+      field: "charger_state"
+      db_column: "cc1_charger_state"
 
     - port: 3
       device: "charge_controller"
@@ -44,3 +52,7 @@ tables:
       device: "charge_controller"
       field: "battery_current"
       db_column: "cc2_battery_current"
+    - port: 3
+      device: "charge_controller"
+      field: "charger_state"
+      db_column: "cc2_charger_state"

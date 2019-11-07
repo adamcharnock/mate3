@@ -10,7 +10,7 @@ from mate3 import mate3_connection
 import time
 
 from mate3.api import AnyBlock, Device
-
+from mate3.base_structures import get_parser
 
 logger = logging.getLogger('mate3.mate3_pg')
 
@@ -66,32 +66,50 @@ def read_definitions(f) -> List[Table]:
     return tables
 
 
+def create_table(conn, table: Table, hypertables: bool):
+    with conn.cursor() as curs:
+        # Create the table in case it does not already exist
+        sql = (
+            f"CREATE TABLE IF NOT EXISTS {quote_ident(table.name, curs)} (\n"
+            f"    timestamp TIMESTAMPTZ NOT NULL\n"
+            f")"
+        )
+        logger.debug(f"Executing: {sql}")
+        curs.execute(sql)
+
+        # Get existing columns
+        sql = (
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = 'public' "
+            "AND table_name = %s"
+        )
+        curs.execute(sql, [table.name])
+        column_names = {row[0] for row in curs.fetchall()}
+
+        for definition in table.definitions:
+            if definition.db_column not in column_names:
+                parser = get_parser(definition.device)
+                field = getattr(parser, definition.field)
+                column_type = 'VARCHAR(100)' if field.type == str else 'INTEGER'
+                sql = f'ALTER TABLE {quote_ident(table.name, curs)} ADD COLUMN {quote_ident(definition.db_column, curs)} {column_type} NULL'
+                logger.debug(f"Executing: {sql}")
+                curs.execute(sql)
+
+        if hypertables:
+            try:
+                sql = f"SELECT create_hypertable('{table.name}', 'timestamp')"
+                logger.debug(f"Executing: {sql}")
+                curs.execute(sql, [table.name])
+            except psycopg2.DatabaseError as e:
+                if 'already a hypertable' in str(e):
+                    logger.debug("Table is already a hypertable")
+                else:
+                    raise
+
 def create_tables(conn, tables: List[Table], hypertables: bool):
     logger.info("Creating tables (if needed)")
-    with conn.cursor() as curs:
-        for table in tables:
-            sql = (
-                f"CREATE TABLE IF NOT EXISTS {quote_ident(table.name, curs)} (\n"
-                f"    timestamp TIMESTAMPTZ NOT NULL,"
-            )
-            for definition in table.definitions:
-                sql += f'\n    {quote_ident(definition.db_column, curs)} INT NULL,'
-            sql = sql.rstrip(',')
-            sql += '\n)'
-
-            logger.debug(f"Executing: {sql}")
-            curs.execute(sql)
-
-            if hypertables:
-                try:
-                    sql = f"SELECT create_hypertable('{table.name}', 'timestamp')"
-                    logger.debug(f"Executing: {sql}")
-                    curs.execute(sql, [table.name])
-                except psycopg2.DatabaseError as e:
-                    if 'already a hypertable' in str(e):
-                        logger.debug("Table is already a hypertable")
-                    else:
-                        raise
+    for table in tables:
+        create_table(conn, table, hypertables)
 
 
 def _get_value(blocks: List[AnyBlock], definition: Definition) -> ...:

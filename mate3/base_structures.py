@@ -30,3 +30,19 @@ class Device(Enum):
     sunspec_inverter_three_phase: int = 103
     opticsre_statistics: int = 64255
     end_of_sun_spec: int = 65535
+
+
+def get_parser(device: Device):
+    from mate3 import parsers
+    from mate3.base_parser import BaseParser
+
+    for attr in parsers.__dict__.values():
+        try:
+            is_subclass = issubclass(attr, BaseParser)
+        except TypeError:
+            is_subclass = False
+
+        if is_subclass and attr.device == device:
+            return attr
+
+    raise Exception(f"No parser found for this device ({device.name})")

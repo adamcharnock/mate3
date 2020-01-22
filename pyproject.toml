@@ -5,7 +5,7 @@ to = {format = "setuppy", path = "setup.py"}
 [tool.poetry]
 name = "mate3"
 readme = "README.md"
-version = "0.2.1"
+version = "0.3.0"
 description = ""
 authors = ["Adam Charnock <adam@adamcharnock.com>"]
 

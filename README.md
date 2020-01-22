@@ -7,6 +7,36 @@ This data is accessed though the Mate3's Modbus interface.
 
 Tested on Python 3.7. May work on 3.6.
 
+## Installation
+
+The recommended installation is as follows:
+
+```
+pip install mate3
+```
+
+After this you should be able to run the `mate3` command.
+
+---
+
+If you wish to edit the mate3 source (contributions are gladly received!), 
+then you can get the project directly from GitHub:
+
+```
+# Install poetry if you don't have it already (if you're unsure, you don't have it)
+pip install poetry
+
+# Get the source
+git clone https://github.com/adamcharnock/mate3.git
+cd mate3
+
+# Install mate3 and its dependencies. This also makes the mate3 command available.
+poetry install
+```
+
+After this you should be able to run the `mate3` command and edit the 
+project's source code.
+
 ## Enabling the Modbus interface on your Mate 3
 
 TBA. System -> opticsre -> Modbus?

@@ -25,9 +25,21 @@ class Field(NamedTuple):
     description: str = ""
     units: Optional[str] = None
     scale_factor: Union[None, str, float] = None
+    # Set dynamically by parser
+    name: Optional[str] = None
 
 
-class BaseParser(object):
+class BaseParserMetaclass(type):
+    """Metaclass to set the name for all Field objects on the parser"""
+    def __init__(cls, name, bases, attrs):
+        for field_name, field in attrs.items():
+            if not isinstance(field, Field):
+                continue
+
+            setattr(cls, field_name, field._replace(name=field_name))
+
+
+class BaseParser(object, metaclass=BaseParserMetaclass):
 
     structure = None
     device: Device = None

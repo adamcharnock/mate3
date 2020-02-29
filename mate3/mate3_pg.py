@@ -227,7 +227,7 @@ def main():
 
                     # Read data from mate3s
                     # We keep the connection open for the minimum time possible
-                    # as the mate3s cannot only sustain one modbus connection at a once.
+                    # as the mate3s can only sustain one modbus connection at a once.
                     with mate3_connection(args.host, args.port) as client:
                         blocks = list(client.all_blocks())
 

@@ -107,7 +107,7 @@ Example use:
 ```
 $ mate3_pg \
     -H 192.168.0.123 \ 
-    --definitions /path/to/my/pg_config.yaml \
+    --definitions /path/to/my/definitions.yaml \
     --database-url postgres://username:password@host:5432/database_name \
     --debug
 ```

@@ -48,7 +48,8 @@ Example use:
 
 ```python
 from mate3 import mate3_connection
-import time
+from mate3.parsers import ChargeControllerParser
+from mate3.base_structures import Device
 
 # IP address of your Mate3s
 host = '192.168.0.123'
@@ -58,14 +59,26 @@ port = 502
 
 # Connect to the Mate3s
 with mate3_connection(host, port) as client:
-    # Loop forever
-    while True:
-        # Get all blocks of fields from the Mate3s 
-        # and print each one out.
-        for block in client.all_blocks():
-            print(block)
+    # Get all blocks of fields from the Mate3s 
+    # and print each one out.
+    all_blocks = client.all_blocks()
+    for block in all_blocks:
+        print(block)
+    
+    # Get all values for a specific device
+    values = client.get_device_blocks(Device.charge_controller)
+    print(list(values))
 
-        time.sleep(3)
+    # Or get specific fields
+    values = client.get_values(
+        ChargeControllerParser.battery_current, 
+        ChargeControllerParser.battery_voltage
+    )
+    # Prints a list of currents, one for each of your charge controllers
+    print(values[ChargeControllerParser.battery_current]) 
+    # Prints a list of voltages, one for each of your charge controllers
+    print(values[ChargeControllerParser.battery_voltage])
+
 ```
 
 ## Using the command line interface (CLI)

@@ -26,8 +26,10 @@ class Field(NamedTuple):
     description: str = ""
     units: Optional[str] = None
     scale_factor: Union[None, str, float] = None
+
     # Set dynamically by parser
     name: Optional[str] = None
+    device: Optional[Device] = None
 
     @property
     def end(self):
@@ -56,7 +58,7 @@ class BaseParserMetaclass(type):
             if not isinstance(field, Field):
                 continue
 
-            setattr(cls, field_name, field._replace(name=field_name))
+            setattr(cls, field_name, field._replace(name=field_name, device=attrs['device']))
 
 
 class BaseParser(object, metaclass=BaseParserMetaclass):
@@ -64,18 +66,33 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
     structure = None
     device: Device = None
 
-    def parse(self, client: ModbusClient, register_offset: int):
+    def parse(self, client: ModbusClient, register_offset: int, only_fields: Optional[List[Field]] = None):
         values = {'device': self.device}
 
-        ranges = self.get_reading_ranges(list(self.fields.values()))
+        if only_fields is None:
+            fields = list(self.fields.values())
+        else:
+            for field in only_fields:
+                assert field.device == self.device
+            fields = only_fields
+
+        # Order fields by start registry, as this is the order in which we will receive the values
+        fields = sorted(fields, key=lambda f: f.start)
+
+        # Get register values in large ranges, as this drastically improves performance
+        # and isn't so demanding of the mate3
+        ranges = self.get_reading_ranges(fields)
+
         for range in ranges:
             logger.debug(f"Reading range {range.start} -> {range.end}, of {len(range.fields)} fields")
             register_number = register_offset + range.start - 1
             response = client.read_holding_registers(register_number, range.size)
             raise_modbus_exception(response)
+            all_registers: List = response.registers
 
             for field in range.fields:
-                registers = response.registers[field.start-1:field.end-1]
+                registers = all_registers[:field.size]
+                all_registers = all_registers[field.size:]
 
                 if field.type == str:
                     value = int16s_to_str(registers)
@@ -102,6 +119,11 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
 
             if scale_factor:
                 values[name] *= scale_factor
+
+        # If only_fields has been specified then we are going to be missing some values.
+        # Therefore set all values to a default of None
+        for field_name in self.structure._fields:
+            values.setdefault(field_name, None)
 
         return self.structure(**values)
 
@@ -144,7 +166,7 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
         return ranges
 
 
-def parse(device: Device, client: ModbusClient, register_offset: int):
+def parse(device: Device, client: ModbusClient, register_offset: int, only_fields: Optional[List[Field]] = None):
     # Find the parser for this device
     import mate3.parsers
 
@@ -157,7 +179,7 @@ def parse(device: Device, client: ModbusClient, register_offset: int):
         logger.warning(f"No parser found for device {device}, DID {device.value}")
         return
 
-    return parser().parse(client, register_offset)
+    return parser().parse(client, register_offset, only_fields)
 
 
 class SunspecHeaderBlock(NamedTuple):

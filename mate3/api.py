@@ -1,9 +1,9 @@
-from typing import Union, Iterable, List, Tuple
+from typing import Union, Iterable, List, Tuple, Dict
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
-from mate3.base_parser import parse
+from mate3.base_parser import parse, Field
 from mate3.io import read_block_information, SUNSPEC_REGISTER_OFFSET
 from mate3.structures import *
 
@@ -82,4 +82,34 @@ class Mate3(object):
             structure = parse(device, self.client, start_register)
             if structure:
                 yield structure
+
+    def get_device_blocks(self, device: Device):
+        """Get all blocks for the given device"""
+        for device, start_register in self._block_information():
+            if device != device:
+                continue
+
+            structure = parse(device, self.client, start_register)
+            if structure:
+                yield structure
+
+    def get_values(self, *fields: Field) -> Dict[Field, List]:
+        fields_by_device: Dict[Device, List[Field]] = {}
+        values_by_field: Dict[Field, List] = {}
+
+        for field in fields:
+            fields_by_device.setdefault(field.device, [])
+            fields_by_device[field.device].append(field)
+
+        for device, start_register in self._block_information():
+            if device not in fields_by_device:
+                continue
+
+            fields_ = fields_by_device[device]
+            structure = parse(device, self.client, start_register, only_fields=fields_)
+            for field in fields_:
+                values_by_field.setdefault(field, [])
+                values_by_field[field].append(getattr(structure, field.name))
+
+        return values_by_field
 

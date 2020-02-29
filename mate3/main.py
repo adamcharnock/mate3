@@ -10,7 +10,6 @@ from sys import argv
 from pymodbus.constants import Defaults
 
 from mate3.api import mate3_connection
-from mate3.base_structures import Device
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S")
 logging.getLogger(__name__)
@@ -57,7 +56,6 @@ def main():
             for block_dict in block_dicts:
                 block_dict['device'] = block_dict['device'].name
             print(json.dumps(block_dicts, indent=indent))
-
 
 
 if __name__ == "__main__":

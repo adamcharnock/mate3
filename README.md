@@ -1,5 +1,7 @@
 # Outback Mate 3s Python Library
 
+[![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)
+
 This library provides complete support for all outback devices (at least in theory, 
 I don't own all the devices so cannot test it). Writing data is also supported.
 
@@ -205,10 +207,23 @@ PDF provided by OutBack. This process is handled by two python files:
 ```
 # Check everything has been comitted
 git diff
-# Up the version
+
+# Update setup.py et al
 dephell deps convert
+
+# Up the version
+poetry version {major|minor|bug}
+
 # Review the resulting changes
 git diff
+
+# Build
+poetry publish --build
+
+# Docker: build & push
+docker build -t adamcharnock/mate3:{VERSION_HERE} .
+docker push adamcharnock/mate3:{VERSION_HERE}
+
 # Commit
 git ci  -m "Version bump"
 git push

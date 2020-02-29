@@ -5,7 +5,7 @@ to = {format = "setuppy", path = "setup.py"}
 [tool.poetry]
 name = "mate3"
 readme = "README.md"
-version = "0.3.0"
+version = "0.4.0"
 description = ""
 authors = ["Adam Charnock <adam@adamcharnock.com>"]
 
@@ -28,6 +28,7 @@ mate3_pg = ["pyyaml", "psycopg2"]
 
 [tool.poetry.scripts]
 mate3 = 'mate3.main:main'
+mate3_write = 'mate3.mate3_write:main'
 mate3_pg = 'mate3.mate3_pg:main'
 
 [build-system]

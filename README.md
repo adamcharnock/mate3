@@ -2,10 +2,10 @@
 
 [![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)
 
-This library provides complete support for all outback devices (at least in theory, 
+This library provides complete support for all Outback devices (at least in theory, 
 I don't own all the devices so cannot test it). Writing data is also supported.
 
-This data is accessed though the Mate3s' Modbus interface. You must therefore 
+This data is accessed though the Outback Mate3s' Modbus interface. You must therefore 
 have a Mate3s which is connected to your local network using its ethernet port.
 
 Tested on Python 3.7. May work on 3.6.

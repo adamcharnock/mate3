@@ -55,8 +55,10 @@ def int_to_ip_address(int_ip_address: int):
 
 
 def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[Device]]:
-    register = client.read_holding_registers(basereg)
-    device_id = register.registers[0]
+    response = client.read_holding_registers(basereg)
+    raise_modbus_exception(response)
+
+    device_id = response.registers[0]
 
     try:
         device = Device(device_id)
@@ -65,10 +67,17 @@ def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[D
         return None, None
 
     if device == Device.sunspec_header:
-        register = client.read_holding_registers(basereg + 3)
-        block_size = int(register.registers[0]) + 2
+        response = client.read_holding_registers(basereg + 3)
+        raise_modbus_exception(response)
+        block_size = int(response.registers[0]) + 2
     else:
-        register = client.read_holding_registers(basereg + 1)
-        block_size = int(register.registers[0])
+        response = client.read_holding_registers(basereg + 1)
+        raise_modbus_exception(response)
+        block_size = int(response.registers[0])
 
     return block_size, device
+
+
+def raise_modbus_exception(response):
+    if isinstance(response, Exception):
+        raise response

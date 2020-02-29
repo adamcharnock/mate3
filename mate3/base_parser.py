@@ -1,12 +1,13 @@
 import logging
+from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import NewType, NamedTuple, Type, Union, Dict, Optional
+from typing import NewType, NamedTuple, Type, Union, Dict, Optional, List, Tuple
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
 from mate3.base_structures import int16, Device, uint32, uint16
-from mate3.io import decode_int16, combine_ints, int16s_to_str, int_to_ip_address
+from mate3.io import decode_int16, combine_ints, int16s_to_str, int_to_ip_address, raise_modbus_exception
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,25 @@ class Field(NamedTuple):
     # Set dynamically by parser
     name: Optional[str] = None
 
+    @property
+    def end(self):
+        return self.start + self.size
+
+
+@dataclass(frozen=False)
+class ReadingRange(object):
+    fields: List[Field]
+    start: int
+    size: int
+
+    @property
+    def end(self):
+        return self.start + self.size
+
+    def extend(self, field: Field):
+        self.fields.append(field)
+        self.size += field.size
+
 
 class BaseParserMetaclass(type):
     """Metaclass to set the name for all Field objects on the parser"""
@@ -46,23 +66,30 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
 
     def parse(self, client: ModbusClient, register_offset: int):
         values = {'device': self.device}
-        for name, field in self.fields.items():
-            register_number = register_offset + field.start - 1
-            response = client.read_holding_registers(register_number, field.size)
 
-            if field.type == str:
-                value = int16s_to_str(response.registers)
-            elif 'tcpip' in name and field.type == uint32:
-                value = int_to_ip_address(combine_ints(response.registers))
-            else:
-                value = combine_ints(response.registers)
+        ranges = self.get_reading_ranges(list(self.fields.values()))
+        for range in ranges:
+            logger.debug(f"Reading range {range.start} -> {range.end}, of {len(range.fields)} fields")
+            register_number = register_offset + range.start - 1
+            response = client.read_holding_registers(register_number, range.size)
+            raise_modbus_exception(response)
 
-            value = field.type(value)
+            for field in range.fields:
+                registers = response.registers[field.start-1:field.end-1]
 
-            if field.type == int16:
-                value = decode_int16(value)
+                if field.type == str:
+                    value = int16s_to_str(registers)
+                elif 'tcpip' in field.name and field.type == uint32:
+                    value = int_to_ip_address(combine_ints(registers))
+                else:
+                    value = combine_ints(registers)
 
-            values[name] = value
+                value = field.type(value)
+
+                if field.type == int16:
+                    value = decode_int16(value)
+
+                values[field.name] = value
 
         # Now we have all the values, do the scaling
         for name, field in self.fields.items():
@@ -86,6 +113,36 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
             for name in dir(self)
             if name != "fields" and isinstance(getattr(self, name), Field)
         }
+
+    def get_reading_ranges(self, fields: List[Field]) -> List[ReadingRange]:
+        """Get the ranges of registers which can be read as a contiguous block
+
+        This allows for greater performance than reading a single register at a time.
+        """
+        # Order fields by their starting registry
+        fields = sorted(fields, key=lambda f: f.start)
+        # We'll collect our ranges here
+        ranges: List[ReadingRange] = []
+
+        # The mate3s gets unhappy if one tries to read too much at once
+        max_range_size = 100
+
+        for field in fields:
+            is_first_loop = not ranges
+            is_contiguous = not is_first_loop and ranges[-1].end == field.start
+            is_at_max_size = not is_first_loop and ranges[-1].size > max_range_size
+
+            if is_first_loop or not is_contiguous or is_at_max_size:
+                ranges.append(ReadingRange(
+                    fields=[field],
+                    start=field.start,
+                    size=field.size
+                ))
+            else:
+                ranges[-1].extend(field)
+
+        return ranges
+
 
 
 def parse(device: Device, client: ModbusClient, register_offset: int):

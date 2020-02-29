@@ -198,7 +198,6 @@ PDF provided by OutBack. This process is handled by two python files:
 
 ## Future work
 
-* Support the writing of values back to the Mate3
 * Web interface?
 
 ## Release process

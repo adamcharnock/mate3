@@ -4,13 +4,13 @@ import argparse
 import json
 import logging
 
-# Setup logging
 from sys import argv
 
 from pymodbus.constants import Defaults
 
 from mate3.api import mate3_connection
 
+# Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S")
 logging.getLogger(__name__)
 

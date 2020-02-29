@@ -1,11 +1,11 @@
 import logging
 import socket
 import struct
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, Type
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 
-from mate3.base_structures import Device
+from mate3.base_structures import Device, int16, uint16, int32, uint32
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +34,33 @@ def decode_int16(signed_value):
 
 
 def combine_ints(ints):
+    """We can receive multiple int16s, combine them into a single int"""
     out = 0
     for i in ints:
         out = out << 16
         out |= i
     return out
+
+
+def split_int(integer, type: Type) -> Tuple[int, ...]:
+    if type not in (int16, uint16, int32, uint32):
+        raise Exception(
+            "Unknown type, please specify one of the following from the mate3.base_structures module: "
+            "int16, uint16, int32, uint32"
+        )
+    # Opposite combine_ints
+    if type is int16:
+        assert -32768 <= integer <= 32767
+        return integer,
+    if type is uint16:
+        assert 0 <= integer <= 65535
+        return integer,
+    if type is int32:
+        assert -2147483648 <= integer <= 2147483647
+        return integer >> 16, integer & 0xffff
+    if type is uint32:
+        assert 0 <= integer <= 4294967295
+        return integer >> 16, integer & 0xffff
 
 
 def int16s_to_str(ints):

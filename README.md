@@ -1,7 +1,7 @@
 # Outback Mate 3s Python Library
 
 This library provides complete support for all outback devices (at least in theory, 
-I don't own all the devices so cannot test it).
+I don't own all the devices so cannot test it). Writing data is also supported.
 
 This data is accessed though the Mate3s' Modbus interface. You must therefore 
 have a Mate3s which is connected to your local network using its ethernet port.
@@ -48,7 +48,7 @@ Example use:
 
 ```python
 from mate3 import mate3_connection
-from mate3.parsers import ChargeControllerParser
+from mate3.parsers import ChargeControllerParser, ChargeControllerConfigurationParser
 from mate3.base_structures import Device
 
 # IP address of your Mate3s
@@ -78,6 +78,14 @@ with mate3_connection(host, port) as client:
     print(values[ChargeControllerParser.battery_current]) 
     # Prints a list of voltages, one for each of your charge controllers
     print(values[ChargeControllerParser.battery_voltage])
+
+    # Writing data
+    # (BE CAREFUL! YOU COULD EASILY DAMAGE YOUR EQUIPMENT WITH THIS FEATURE!)
+    client.set_value(
+        field=ChargeControllerConfigurationParser.absorb_volts,
+        value=330,
+        port=3
+    )
 
 ```
 

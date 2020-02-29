@@ -1,5 +1,8 @@
 from enum import Enum
-from typing import NewType
+from typing import NewType, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mate3.base_parser import BaseParser
 
 int16 = NewType("int16", int)
 uint16 = NewType("uint16", int)
@@ -32,7 +35,7 @@ class Device(Enum):
     end_of_sun_spec: int = 65535
 
 
-def get_parser(device: Device):
+def get_parser(device: Device) -> "BaseParser":
     from mate3 import parsers
     from mate3.base_parser import BaseParser
 

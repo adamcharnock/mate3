@@ -83,8 +83,12 @@ class Mate3(object):
             if structure:
                 yield structure
 
-    def get_device_blocks(self, device: Device):
-        """Get all blocks for the given device"""
+    def get_device_blocks(self, device: Device) -> Iterable[AnyBlock]:
+        """Get all blocks for devices of the specified type
+
+        Multiple blocks will be returned if you have multiple devices
+        of that type attached to your Mate3s.
+        """
         for device, start_register in self._block_information():
             if device != device:
                 continue
@@ -94,6 +98,26 @@ class Mate3(object):
                 yield structure
 
     def get_values(self, *fields: Field) -> Dict[Field, List]:
+        """Get specific values for the specified fields
+
+        Returns a dictionary indexed by field object. THe dictionary values
+        are lists. A list will have a value for every device.
+
+        Example:
+
+            >>> values = client.get_values(
+            ...    ChargeControllerParser.battery_current,
+            ...    ChargeControllerParser.battery_voltage
+            ... )
+            {
+                Field(name='battery_current', ...): [297, 284],
+                Field(name='battery_voltage', ...): [319, 319]
+            }
+
+        In the above example we have two charge controllers, were therefore
+        have two values for each field.
+
+        """
         fields_by_device: Dict[Device, List[Field]] = {}
         values_by_field: Dict[Field, List] = {}
 

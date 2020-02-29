@@ -54,8 +54,12 @@ def int_to_ip_address(int_ip_address: int):
     return socket.inet_ntoa(struct.pack("!I", int_ip_address))
 
 
-def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[Device]]:
-    response = client.read_holding_registers(basereg)
+def read_block_information(client: ModbusClient, block_starting_register) -> Tuple[Optional[int], Optional[Device]]:
+    """Read information about the block at the given starting register
+
+    This will return the block size, and the device the block represents.
+    """
+    response = client.read_holding_registers(block_starting_register, count=4)
     raise_modbus_exception(response)
 
     device_id = response.registers[0]
@@ -67,13 +71,9 @@ def read_block(client: ModbusClient, basereg) -> Tuple[Optional[int], Optional[D
         return None, None
 
     if device == Device.sunspec_header:
-        response = client.read_holding_registers(basereg + 3)
-        raise_modbus_exception(response)
-        block_size = int(response.registers[0]) + 2
+        block_size = int(response.registers[3]) + 2
     else:
-        response = client.read_holding_registers(basereg + 1)
-        raise_modbus_exception(response)
-        block_size = int(response.registers[0])
+        block_size = int(response.registers[1])
 
     return block_size, device
 

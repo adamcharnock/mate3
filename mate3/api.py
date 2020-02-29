@@ -4,7 +4,7 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
 from mate3.base_parser import parse
-from mate3.io import read_block, SUNSPEC_REGISTER_OFFSET
+from mate3.io import read_block_information, SUNSPEC_REGISTER_OFFSET
 from mate3.structures import *
 
 
@@ -51,7 +51,7 @@ class Mate3(object):
     def all_blocks(self) -> Iterable[AnyBlock]:
         register: int = SUNSPEC_REGISTER_OFFSET
         for _ in range(0, 30):
-            block_size, device = read_block(self.client, register)
+            block_size, device = read_block_information(self.client, register)
 
             if device is Device.end_of_sun_spec:
                 # No more blocks to read

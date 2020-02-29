@@ -144,7 +144,6 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
         return ranges
 
 
-
 def parse(device: Device, client: ModbusClient, register_offset: int):
     # Find the parser for this device
     import mate3.parsers

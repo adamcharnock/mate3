@@ -1,9 +1,10 @@
-# Outback Mate 3 Python Library
+# Outback Mate 3s Python Library
 
 This library provides complete support for all outback devices (at least in theory, 
 I don't own all the devices so cannot test it).
 
-This data is accessed though the Mate3's Modbus interface.
+This data is accessed though the Mate3s' Modbus interface. You must therefore 
+have a Mate3s which is connected to your local network using its ethernet port.
 
 Tested on Python 3.7. May work on 3.6.
 
@@ -49,11 +50,18 @@ Example use:
 from mate3 import mate3_connection
 import time
 
+# IP address of your Mate3s
 host = '192.168.0.123'
+# The Modbus port on the Mate3s. The default (502) will be 
+# fine unless you have configured your Mate3s differently
 port = 502
 
+# Connect to the Mate3s
 with mate3_connection(host, port) as client:
+    # Loop forever
     while True:
+        # Get all blocks of fields from the Mate3s 
+        # and print each one out.
         for block in client.all_blocks():
             print(block)
 
@@ -85,6 +93,52 @@ Example use:
 $ mate3 --host 192.168.0.123
 ```
 
+## Using `mate3_pg` to write data to Postgres
+
+The `mate3_pg` command reads data from your Mate3 and writes it to a Postgres database.
+
+In addition to a Mate3s connected to your network, you will need:
+
+* A running Postgres database
+* A definitions YAML file. ([example](https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml))
+
+Example use:
+
+```
+$ mate3_pg \
+    -H 192.168.0.123 \ 
+    --definitions /path/to/my/pg_config.yaml \
+    --database-url postgres://username:password@host:5432/database_name \
+    --debug
+```
+
+You will need to replace `192.168.0.123` with your Mate3s' IP. Replace `/path/to/my/pg_config.yaml` with 
+a path to your definitions file (see [example](https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml)).
+Replace the `username`, `password`, `host`, and `database_name` values with those for your Postgres database.
+
+Full details of the `mate3_pg` command:
+
+```
+$ mate3_pg --help
+usage: mate3_pg [-h] --host HOST [--port PORT] [--interval INTERVAL] [--database-url DATABASE_URL] --definitions DEFINITIONS [--hypertables] [--quiet] [--debug]
+
+Read all available data from the Mate3 controller
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --host HOST, -H HOST  The host name or IP address of the Mate3
+  --port PORT, -p PORT  The port number address of the Mate3
+  --interval INTERVAL, -i INTERVAL
+                        Polling interval in seconds
+  --database-url DATABASE_URL
+                        Postgres database URL
+  --definitions DEFINITIONS
+                        YAML definition file
+  --hypertables         Should we create tables as hypertables? Use only if you are using TimescaleDB
+  --quiet, -q           Hide status output. Only errors will be shown
+  --debug               Show debug logging
+```  
+
 ## Various notes
 
 The `structures.py` and `parsers.py` files are *auto generated* 
@@ -100,6 +154,21 @@ PDF provided by OutBack. This process is handled by two python files:
 
 * Support the writing of values back to the Mate3
 * Web interface?
+
+## Release process
+
+```
+# Check everything has been comitted
+git diff
+# Up the version
+dephell deps convert
+# Review the resulting changes
+git diff
+# Commit
+git ci  -m "Version bump"
+git push
+git push --tags
+```
 
 ## Credits
 

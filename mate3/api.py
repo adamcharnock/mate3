@@ -1,4 +1,4 @@
-from typing import Union, Iterable
+from typing import Union, Iterable, List, Tuple
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
@@ -48,23 +48,38 @@ class Mate3(object):
     def __init__(self, client: ModbusClient):
         self.client = client
 
-    def all_blocks(self) -> Iterable[AnyBlock]:
+    def _block_information(self) -> List[Tuple[Device, int]]:
+        """Get information for all available blocks
+
+        Returns a list of 2-tuples. The first value is the Device instance, the
+        second is the starting modbus register for that device
+        """
         register: int = SUNSPEC_REGISTER_OFFSET
+        blocks = []
         for _ in range(0, 30):
             block_size, device = read_block_information(self.client, register)
 
             if device is Device.end_of_sun_spec:
                 # No more blocks to read
-                return
+                break
 
             if not device:
                 # Unknown device
                 continue
 
-            structure = parse(device, self.client, register)
-
-            if structure:
-                yield structure
+            blocks.append((device, register))
 
             register = register + block_size + 2
+
+        return blocks
+
+    def all_blocks(self) -> Iterable[AnyBlock]:
+        """Get all blocks from the mate3
+
+        This gets all available information
+        """
+        for device, start_register in self._block_information():
+            structure = parse(device, self.client, start_register)
+            if structure:
+                yield structure
 

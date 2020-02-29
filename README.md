@@ -1,4 +1,4 @@
-# Outback Mate 3s Python Library
+# Outback Mate 3s Python library & command line interface
 
 [![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)
 

@@ -28,7 +28,7 @@ setup(
     python_requires='==3.*,>=3.7.0',
     author='Adam Charnock',
     author_email='adam@adamcharnock.com',
-    entry_points={'console_scripts': ['mate3 = mate3.main:main', 'mate3_pg = mate3.mate3_pg:main']},
+    entry_points={'console_scripts': ['mate3 = mate3.main:main', 'mate3_write = mate3.mate3_write:main', 'mate3_pg = mate3.mate3_pg:main']},
     packages=['mate3'],
     package_data={},
     install_requires=['pymodbus==2.*,>=2.2.0'],

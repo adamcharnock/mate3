@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import NewType, TYPE_CHECKING
+from typing import NewType, TYPE_CHECKING, Type
+
+from mate3.exceptions import NoParserFoundForDevice
 
 if TYPE_CHECKING:
     from mate3.base_parser import BaseParser
@@ -35,7 +37,7 @@ class Device(Enum):
     end_of_sun_spec: int = 65535
 
 
-def get_parser(device: Device) -> "BaseParser":
+def get_parser(device: Device) -> Type["BaseParser"]:
     from mate3 import parsers
     from mate3.base_parser import BaseParser
 
@@ -48,4 +50,4 @@ def get_parser(device: Device) -> "BaseParser":
         if is_subclass and attr.device == device:
             return attr
 
-    raise Exception(f"No parser found for this device ({device.name})")
+    raise NoParserFoundForDevice(f"No parser found for this device ({device.name})")

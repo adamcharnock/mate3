@@ -212,7 +212,7 @@ class Mate3(object):
         # This will also raise an error if the provided value is to big/small.
         prepared_values = split_int(value, field.type)
 
-        logger.info(
+        logger.debug(
             f"Setting register {field_register} to value {value} "
             f"(which is a {field.type.__name__} represented as {len(prepared_values)} values: {prepared_values})"
         )

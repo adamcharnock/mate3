@@ -91,6 +91,8 @@ with mate3_connection(host, port) as client:
 
 ## Using the command line interface (CLI)
 
+### Reading data
+
 A simple CLI is available which will read all available values from the Mate3:
 
 ```
@@ -112,6 +114,29 @@ Example use:
 
 ```
 $ mate3 --host 192.168.0.123
+```
+
+### Writing data
+
+You can also set values on the mate3s using the `mate3_write` command.
+
+**WARNING:** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) 
+before using this feature. You could easily damage your equipment by setting 
+incorrect values. Don't come crying to me if you destroy your batteries, 
+or if this library takes it upon itself to do so.
+
+Warnings aside, here is how you use it:
+
+```
+# Show the available writable fields
+$ mate3_write -H 192.168.0.123 --list-fields
+
+# Start your backup generator! 
+# (if that is what your inverter's auxiliary output is connected to)
+$ mate3_write -H 192.168.0.123 --set radian_inverter_configuration.aux_control=2
+
+# Turn it off again
+$ mate3_write -H 192.168.0.123 --set radian_inverter_configuration.aux_control=0
 ```
 
 ## Using `mate3_pg` to write data to Postgres

@@ -1,0 +1,1 @@
+class NoParserFoundForDevice(Exception): pass

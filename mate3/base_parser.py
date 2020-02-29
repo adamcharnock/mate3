@@ -108,6 +108,11 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
 
                 values[field.name] = value
 
+        # If only_fields has been specified then we are going to be missing some values.
+        # Therefore set all values to a default of None
+        for field_name in self.structure._fields:
+            values.setdefault(field_name, None)
+
         # Now we have all the values, do the scaling
         for name, field in self.fields.items():
             if not field.scale_factor:
@@ -119,11 +124,6 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
 
             if scale_factor:
                 values[name] *= scale_factor
-
-        # If only_fields has been specified then we are going to be missing some values.
-        # Therefore set all values to a default of None
-        for field_name in self.structure._fields:
-            values.setdefault(field_name, None)
 
         return self.structure(**values)
 

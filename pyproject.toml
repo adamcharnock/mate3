@@ -6,8 +6,10 @@ to = {format = "setuppy", path = "setup.py"}
 name = "mate3"
 readme = "README.md"
 version = "0.4.0"
-description = ""
+description = "Outback Mate3s Python Library"
 authors = ["Adam Charnock <adam@adamcharnock.com>"]
+homepage = "https://github.com/adamcharnock/mate3/"
+repository = "https://github.com/adamcharnock/mate3/"
 
 [tool.poetry.dependencies]
 python = "^3.7"

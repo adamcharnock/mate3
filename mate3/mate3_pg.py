@@ -221,17 +221,25 @@ def main():
 
         while True:  # Reconnect loop
             try:
-                logger.info(f"Connecting to mate3 at {args.host}:{args.port}")
-                with mate3_connection(args.host, args.port) as client:
-                    while True:
-                        start = time.time()
+                while True:  # Block fetching loop
+                    logger.debug(f"Connecting to mate3 at {args.host}:{args.port}")
+                    start = time.time()
 
-                        insert(conn, tables, list(client.all_blocks()))
+                    # Read data from mate3s
+                    # We keep the connection open for the minimum time possible
+                    # as the mate3s cannot only sustain one modbus connection at a once.
+                    with mate3_connection(args.host, args.port) as client:
+                        blocks = list(client.all_blocks())
 
-                        total = time.time() - start
-                        sleep_time = args.interval - total
-                        if sleep_time > 0:
-                            time.sleep(args.interval - total)
+                    # Insert into postgres
+                    insert(conn, tables, blocks)
+
+                    # Sleep until the end of this interval
+                    total = time.time() - start
+                    sleep_time = args.interval - total
+                    if sleep_time > 0:
+                        time.sleep(args.interval - total)
+
             except (ModbusIOException, ConnectionException) as e:
                 logger.error(f"Communication error: {e}. Will try to reconnect in {args.interval} seconds")
                 time.sleep(args.interval)

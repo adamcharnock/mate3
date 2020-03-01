@@ -183,11 +183,7 @@ class Mate3(object):
 
                 found_devices.append(start_register)
             else:
-                raise Exception(
-                    "Cannot set values for devices which lack a 'port_number' field. "
-                    "Please raise an issue in GitHub if you see this, including details of the device "
-                    "you are trying to set values on."
-                )
+                found_devices.append(start_register)
 
         # Throw some sensible errors
         if not found_devices:

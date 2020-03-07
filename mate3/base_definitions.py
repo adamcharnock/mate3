@@ -27,7 +27,7 @@ class Field(NamedTuple):
     units: Optional[str] = None
     scale_factor: Union[None, str, float] = None
 
-    # Set dynamically by parser
+    # Set dynamically by Definition
     name: Optional[str] = None
     device: Optional[Device] = None
 
@@ -51,8 +51,8 @@ class ReadingRange(object):
         self.size += field.size
 
 
-class BaseParserMetaclass(type):
-    """Metaclass to set the name for all Field objects on the parser"""
+class BaseDefinitionMetaclass(type):
+    """Metaclass to set the name for all Field objects on the definition"""
     def __init__(cls, name, bases, attrs):
         for field_name, field in attrs.items():
             if not isinstance(field, Field):
@@ -61,7 +61,7 @@ class BaseParserMetaclass(type):
             setattr(cls, field_name, field._replace(name=field_name, device=attrs['device']))
 
 
-class BaseParser(object, metaclass=BaseParserMetaclass):
+class BaseDefinition(object, metaclass=BaseDefinitionMetaclass):
 
     structure = None
     device: Device = None
@@ -167,19 +167,19 @@ class BaseParser(object, metaclass=BaseParserMetaclass):
 
 
 def parse(device: Device, client: ModbusClient, register_offset: int, only_fields: Optional[List[Field]] = None):
-    # Find the parser for this device
-    import mate3.parsers
+    # Find the definition for this device
+    import mate3.definitions
 
-    parser = None
-    for value in mate3.parsers.__dict__.values():
-        if hasattr(value, 'device') and issubclass(value, BaseParser) and value != BaseParser and value.device == device:
-            parser = value
+    definition = None
+    for value in mate3.definitions.__dict__.values():
+        if hasattr(value, 'device') and issubclass(value, BaseDefinition) and value != BaseDefinition and value.device == device:
+            definition = value
 
-    if not parser:
-        logger.warning(f"No parser found for device {device}, DID {device.value}")
+    if not definition:
+        logger.warning(f"No definition found for device {device}, DID {device.value}")
         return
 
-    return parser().parse(client, register_offset, only_fields)
+    return definition().parse(client, register_offset, only_fields)
 
 
 class SunspecHeaderBlock(NamedTuple):
@@ -194,7 +194,7 @@ class SunspecHeaderBlock(NamedTuple):
     serial_number: str
 
 
-class SunspecHeaderParser(BaseParser):
+class SunspecHeaderDefinition(BaseDefinition):
     structure = SunspecHeaderBlock
     device = Device.sunspec_header
 

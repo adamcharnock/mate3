@@ -1,10 +1,10 @@
 from enum import Enum
 from typing import NewType, TYPE_CHECKING, Type
 
-from mate3.exceptions import NoParserFoundForDevice
+from mate3.exceptions import NoDefinitionFoundForDevice
 
 if TYPE_CHECKING:
-    from mate3.base_parser import BaseParser
+    from mate3.base_definitions import BaseDefinition
 
 int16 = NewType("int16", int)
 uint16 = NewType("uint16", int)
@@ -37,17 +37,17 @@ class Device(Enum):
     end_of_sun_spec: int = 65535
 
 
-def get_parser(device: Device) -> Type["BaseParser"]:
-    from mate3 import parsers
-    from mate3.base_parser import BaseParser
+def get_definition(device: Device) -> Type["BaseDefinition"]:
+    from mate3 import definitions
+    from mate3.base_definitions import BaseDefinition
 
-    for attr in parsers.__dict__.values():
+    for attr in definitions.__dict__.values():
         try:
-            is_subclass = issubclass(attr, BaseParser)
+            is_subclass = issubclass(attr, BaseDefinition)
         except TypeError:
             is_subclass = False
 
         if is_subclass and attr.device == device:
             return attr
 
-    raise NoParserFoundForDevice(f"No parser found for this device ({device.name})")
+    raise NoDefinitionFoundForDevice(f"No definition found for this device ({device.name})")

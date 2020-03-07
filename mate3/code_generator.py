@@ -7,11 +7,11 @@ from typing import NamedTuple, Optional, NewType, Dict, List, Tuple, Set
 import black
 from click.testing import CliRunner
 
-from mate3.base_parser import Field, Mode
+from mate3.base_definitions import Field, Mode
 from mate3.base_structures import Device
 
 CSV_PATH = Path(__file__).parent.parent / 'registry_data'
-PARSERS_MODULE = Path(__file__).parent / 'parsers.py'
+DEFINITIONS_MODULE = Path(__file__).parent / 'definitions.py'
 STRUCTURES_MODULE = Path(__file__).parent / 'structures.py'
 
 WARNING = f'This file is auto generated, do not edit. The generation code can be found in {Path(__file__).name}'
@@ -161,7 +161,7 @@ def read_all_files() -> Dict[Device, List[Line]]:
 
 
 def generate_field(line: Line, prefixes_to_strip: Set[str], other_lines: List[Line]):
-    """Generate a single Field definition for a parser class"""
+    """Generate a single Field definition for a block Definition class"""
     # Get the default Field attribute values so we can exclude fields we don't need to specify
     arg_spec = inspect.getfullargspec(Field)
     default_names = arg_spec[3]
@@ -170,6 +170,10 @@ def generate_field(line: Line, prefixes_to_strip: Set[str], other_lines: List[Li
 
     field_args = []
     for field_name in Field._fields:
+        if field_name in ('name', 'device'):
+            # These are set programmatically, their data is not available in the CSV
+            continue
+
         value = getattr(line, field_name)
         if field_name in defaults and value == defaults[field_name]:
             # Has the default value. nothing to do
@@ -201,25 +205,25 @@ def generate_field(line: Line, prefixes_to_strip: Set[str], other_lines: List[Li
     return f"    {name} = Field({', '.join(field_args)})\n"
 
 
-def generate_parser_header():
+def generate_definition_header():
     return (
         f"'''{WARNING}'''\n\n"
-        "from mate3.base_parser import *\n"
+        "from mate3.base_definitions import *\n"
         "from mate3.base_structures import *\n"
         "from mate3.structures import *\n"
         "\n\n"
     )
 
 
-def generate_parser(device: Device, lines: List[Line]):
-    """Generate an entire parser class"""
+def generate_definition(device: Device, lines: List[Line]):
+    """Generate an entire block Definition class"""
     common_prefixes = find_common_name_prefixes(lines)
 
-    class_name = f"{to_camel_case(device.name)}Parser"
+    class_name = f"{to_camel_case(device.name)}Definition"
 
     code = (
         f"# {WARNING}\n"
-        f"class {class_name}(BaseParser):\n"
+        f"class {class_name}(BaseDefinition):\n"
     )
 
     for line in lines:
@@ -258,8 +262,6 @@ def generate_structure(device: Device, lines: List[Line]):
 
         code += f'    {name}: {type}\n'
 
-    print("\n")
-
     return code
 
 
@@ -273,18 +275,18 @@ def format_python_file(path: Path):
 
 
 def main():
-    parser_code = generate_parser_header()
+    definition_code = generate_definition_header()
     for device, lines in read_all_files().items():
-        parser_code += generate_parser(device, lines)
+        definition_code += generate_definition(device, lines)
 
     structure_code = generate_structure_header()
     for device, lines in read_all_files().items():
         structure_code += generate_structure(device, lines)
 
-    with open(str(PARSERS_MODULE), 'w') as f:
-        f.write(parser_code)
+    with open(str(DEFINITIONS_MODULE), 'w') as f:
+        f.write(definition_code)
 
-    format_python_file(PARSERS_MODULE)
+    format_python_file(DEFINITIONS_MODULE)
 
     with open(str(STRUCTURES_MODULE), 'w') as f:
         f.write(structure_code)

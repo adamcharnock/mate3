@@ -1,12 +1,12 @@
 """This file is auto generated, do not edit. The generation code can be found in code_generator.py"""
 
-from mate3.base_parser import *
+from mate3.base_definitions import *
 from mate3.base_structures import *
 from mate3.structures import *
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class SunspecCommonModelParser(BaseParser):
+class SunspecCommonModelDefinition(BaseDefinition):
     sunspec_did = Field(
         start=1,
         size=1,
@@ -85,7 +85,7 @@ class SunspecCommonModelParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class SunspecInverterSinglePhaseParser(BaseParser):
+class SunspecInverterSinglePhaseDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -497,7 +497,7 @@ class SunspecInverterSinglePhaseParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class SunspecInverterSplitPhaseParser(BaseParser):
+class SunspecInverterSplitPhaseDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -909,7 +909,7 @@ class SunspecInverterSplitPhaseParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class SunspecInverterThreePhaseParser(BaseParser):
+class SunspecInverterThreePhaseDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -1321,7 +1321,7 @@ class SunspecInverterThreePhaseParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class Mate3Parser(BaseParser):
+class Mate3Definition(BaseDefinition):
     ags_quiet_time_weekday_stop_hour = Field(
         start=322,
         size=1,
@@ -2822,7 +2822,7 @@ class Mate3Parser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class ChargeControllerParser(BaseParser):
+class ChargeControllerDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -3081,7 +3081,7 @@ class ChargeControllerParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class ChargeControllerConfigurationParser(BaseParser):
+class ChargeControllerConfigurationDefinition(BaseDefinition):
     night_light_on_hours = Field(
         start=44,
         size=1,
@@ -3754,7 +3754,7 @@ class ChargeControllerConfigurationParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class FxInverterParser(BaseParser):
+class FxInverterDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -4103,7 +4103,7 @@ class FxInverterParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class FxInverterConfigurationParser(BaseParser):
+class FxInverterConfigurationDefinition(BaseDefinition):
     grid_ac_input_current_limit = Field(
         start=23,
         size=1,
@@ -4632,7 +4632,7 @@ class FxInverterConfigurationParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class SplitPhaseRadianInverterParser(BaseParser):
+class SplitPhaseRadianInverterDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -5179,7 +5179,7 @@ class SplitPhaseRadianInverterParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class RadianInverterConfigurationParser(BaseParser):
+class RadianInverterConfigurationDefinition(BaseDefinition):
     aux_on_battery_voltage = Field(
         start=42,
         size=1,
@@ -5852,7 +5852,7 @@ class RadianInverterConfigurationParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class SinglePhaseRadianInverterParser(BaseParser):
+class SinglePhaseRadianInverterDefinition(BaseDefinition):
     output_kw = Field(
         start=43,
         size=1,
@@ -6291,7 +6291,7 @@ class SinglePhaseRadianInverterParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class FlexnetDcParser(BaseParser):
+class FlexnetDcDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -6982,7 +6982,7 @@ class FlexnetDcParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class FlexnetDcConfigurationParser(BaseParser):
+class FlexnetDcConfigurationDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,
@@ -7331,7 +7331,7 @@ class FlexnetDcConfigurationParser(BaseParser):
 
 
 # This file is auto generated, do not edit. The generation code can be found in code_generator.py
-class OutbackSystemControlParser(BaseParser):
+class OutbackSystemControlDefinition(BaseDefinition):
     did = Field(
         start=1,
         size=1,

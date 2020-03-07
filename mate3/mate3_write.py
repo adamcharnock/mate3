@@ -9,11 +9,11 @@ from sys import argv
 
 from pymodbus.constants import Defaults
 
-from mate3.api import mate3_connection, NoParserFoundForDevice
+from mate3.api import mate3_connection, NoDefinitionFoundForDevice
 
 # Setup logging
-from mate3.base_parser import Mode
-from mate3.base_structures import get_parser, Device
+from mate3.base_definitions import Mode
+from mate3.base_structures import get_definition, Device
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y%m%d %H:%M:%S")
 logging.getLogger(__name__)
@@ -81,10 +81,10 @@ def main():
                     sys.stderr.write(f"Device name {device_name} is not recognised. Perhaps you made a typo?\n")
                     exit(1)
 
-                parser = get_parser(device)()
+                definition = get_definition(device)()
 
                 try:
-                    field = getattr(parser, field_name)
+                    field = getattr(definition, field_name)
                 except AttributeError:
                     sys.stderr.write(f"Device {device_name} has no field named {field_name}\n")
                     exit(1)
@@ -106,26 +106,26 @@ def show_fields(client):
     display_devices = []
     for device in devices:
         try:
-            parser = get_parser(device)()
-        except NoParserFoundForDevice:
+            definition = get_definition(device)()
+        except NoDefinitionFoundForDevice:
             continue
 
         # Does the device have writable fields?
         has_writable_fields = False
-        for field in parser.fields.values():
+        for field in definition.fields.values():
             if field.mode in (Mode.W, Mode.RW):
                 has_writable_fields = True
 
         if not has_writable_fields:
             continue
 
-        if hasattr(parser, 'port_number'):
-            ports = list(client.get_values(parser.port_number).values())[0]
+        if hasattr(definition, 'port_number'):
+            ports = list(client.get_values(definition.port_number).values())[0]
             ports = list(map(str, ports))
         else:
             ports = None
 
-        display_devices.append((device, parser, ports))
+        display_devices.append((device, definition, ports))
 
     for device, _, ports in display_devices:
         print(f"{device.name:<40} {', '.join(ports) if ports else 'N/A'}")
@@ -133,8 +133,8 @@ def show_fields(client):
     print(f"\n{' Fields ':=^80}\n")
 
     print(f"{'FIELD NAME':<68} {'HUB PORT(S)':<12}")
-    for device, parser, ports in display_devices:
-        for field in parser.fields.values():
+    for device, definition, ports in display_devices:
+        for field in definition.fields.values():
             if field.mode not in (Mode.W, Mode.RW):
                 continue
 

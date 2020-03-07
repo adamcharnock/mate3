@@ -10,7 +10,7 @@ from mate3 import mate3_connection
 import time
 
 from mate3.api import AnyBlock, Device
-from mate3.base_structures import get_parser
+from mate3.base_structures import get_definition
 
 logger = logging.getLogger('mate3.mate3_pg')
 
@@ -88,8 +88,8 @@ def create_table(conn, table: Table, hypertables: bool):
 
         for definition in table.definitions:
             if definition.db_column not in column_names:
-                parser = get_parser(definition.device)
-                field = getattr(parser, definition.field)
+                definition = get_definition(definition.device)
+                field = getattr(definition, definition.field)
                 column_type = 'VARCHAR(100)' if field.type == str else 'INTEGER'
                 sql = f'ALTER TABLE {quote_ident(table.name, curs)} ADD COLUMN {quote_ident(definition.db_column, curs)} {column_type} NULL'
                 logger.debug(f"Executing: {sql}")

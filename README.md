@@ -50,7 +50,7 @@ Example use:
 
 ```python
 from mate3 import mate3_connection
-from mate3.parsers import ChargeControllerParser, ChargeControllerConfigurationParser
+from mate3.definitions import ChargeControllerParser, ChargeControllerConfigurationParser
 from mate3.base_structures import Device
 
 # IP address of your Mate3s

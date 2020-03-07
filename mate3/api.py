@@ -4,7 +4,7 @@ from typing import Union, Iterable, List, Tuple, Dict
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
-from mate3.base_parser import parse, Field, Mode
+from mate3.base_definitions import parse, Field, Mode
 from mate3.io import read_block_information, SUNSPEC_REGISTER_OFFSET, combine_ints, split_int
 from mate3.structures import *
 
@@ -109,8 +109,8 @@ class Mate3(object):
         Example:
 
             >>> values = client.get_values(
-            ...    ChargeControllerParser.battery_current,
-            ...    ChargeControllerParser.battery_voltage
+            ...    ChargeControllerDefinition.battery_current,
+            ...    ChargeControllerDefinition.battery_voltage
             ... )
             {
                 Field(name='battery_current', ...): [297, 284],
@@ -149,7 +149,7 @@ class Mate3(object):
         Example:
 
             >>> client.set_value(
-            >>>     field=ChargeControllerConfigurationParser.absorb_volts,
+            >>>     field=ChargeControllerConfigurationDefinition.absorb_volts,
             >>>     value=330,  # 33.0 volts
             >>>     port=3,  # Optional, required when multiple devices of the same type are present
             >>> )
@@ -175,9 +175,9 @@ class Mate3(object):
             if field.device != device:
                 continue
 
-            parser = get_parser(device)
-            if hasattr(parser, 'port_number'):
-                structure = parse(device, self.client, start_register, only_fields=[parser.port_number])
+            definition = get_definition(device)
+            if hasattr(definition, 'port_number'):
+                structure = parse(device, self.client, start_register, only_fields=[definition.port_number])
                 if port is not None and structure.port_number != port:
                     continue
 

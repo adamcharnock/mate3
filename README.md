@@ -1,3 +1,14 @@
+# TODO:
+
+- bitfield(0) - show none or something?
+- get rid of types ... they're misleading
+- remove modbus references
+- general code tidyups
+
+- later
+  - merge the various models into devices
+  - how to preserve individual field reads (faster and easier on mate3) vs update everything?
+
 # Outback Mate 3s Python library & command line interface
 
 [![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)

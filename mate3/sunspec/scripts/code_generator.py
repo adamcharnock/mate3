@@ -16,8 +16,7 @@ PATH = Path(__file__).parent.parent / "doc" / "Outback.Power.SunSpec.Map.xlsx"
 REGISTERS_SHEET = "SunSpecMap"
 BITFIELDS_SHEET = "Bitfields"
 MODELS_MODULE = Path(__file__).parent.parent / "models.py"
-DEVICES_MODULE = Path(__file__).parent.parent / "devices.py"
-STRUCTURES_MODULE = Path(__file__).parent.parent / "structures.py"
+VALUES_MODULE = Path(__file__).parent.parent / "values.py"
 MODELS_COLUMNS = OrderedDict(
     [
         ("did", {"column_names": ("DID",), "type": int}),
@@ -151,12 +150,12 @@ class ModelTable:
     @property
     def python_name(self):
         name = re.sub(r"[\s\-]", "", self.name)
-        name = re.sub(r"block$", "", name, flags=re.I)
-        return name if name.lower().endswith("model") else name + "Model"
+        name = re.sub(r"(block|model)$", "", name, flags=re.I)
+        return re.sub(r"(block|model)$", "", name, flags=re.I)
 
     def generate_definition(self, bitfields):
         class_name = self.python_name
-        code = f"@unique\nclass {class_name}(Enum):\n"
+        code = f"@unique\nclass {class_name}Model(Enum):\n"
         afters = []
         for row in self.rows:
             defn, after = self._generate_field(row=row, class_name=class_name, bitfields=bitfields)
@@ -167,6 +166,17 @@ class ModelTable:
             for after in afters:
                 code += after
         code += "\n"
+        return code
+
+    def generate_values(self):
+        class_name = self.python_name
+        code = f"@dataclass\nclass {class_name}Values:\n"
+        # code += f"    __definition__ = models.{class_name}Model\n"
+        for row in self.rows:
+            name = row.python_name
+            if name in ("sun_spec_did", "sun_spec_length"):
+                name = name.replace("sun_spec_", "")
+            code += f"    {name}: FieldValue\n"
         return code
 
     @lru_cache()
@@ -182,13 +192,19 @@ class ModelTable:
             if field_name == "name":
                 continue
             value = getattr(row, field_name)
+            # ignore none description as that's the default:
+            if field_name == "description" and value is None:
+                continue
             # Mode -> enum
             if field_name == "mode":
                 value = Mode(row.mode.lower().replace("/", ""))
             # strings:
             if isinstance(value, str):
                 value = '"' + value + '"'
-            yield f"{field_name}={value}"
+            if field_name in ("start", "size", "mode"):
+                yield f"{value}"
+            else:
+                yield f"{field_name}={value}"
 
     def _generate_integer_field(self, row, python_name, class_name):
         # Units:
@@ -198,9 +214,9 @@ class ModelTable:
         scale_factor = row.scale_factor
         if scale_factor:
             scale_factor = self._get_scale_factor_python_name(scale_factor)
-            yield True, f"{class_name}.{python_name}.value.scale_factor = {class_name}.{scale_factor}\n"
+            yield True, f"{class_name}Model.{python_name}.value.scale_factor = {class_name}Model.{scale_factor}\n"
         # else:
-        #    yield False, "scale_factor=None"
+        #    yield False, ""
 
     def _generate_bit_field(self, row, bitfields):
         yield f"flags={bitfields[row.name]}"
@@ -262,7 +278,7 @@ class ModelTable:
         yield f"options={enum}"
 
     def _generate_field(self, row, class_name, bitfields):
-        """Generate a single Field definition for a table Definition class"""
+        """Generate a single Field definition for a table Model class"""
 
         name = row.python_name
         if name in ("sun_spec_did", "sun_spec_length"):
@@ -494,8 +510,7 @@ def main():
     # bitfields first:
     bitfield_tables = read_bitfields(wb)
     bitfield_tables = sorted(bitfield_tables, key=lambda x: x.python_name)
-    code = f'''
-"""{WARNING}"""
+    code = f'''"""{WARNING}"""
 
 
 from enum import Enum, IntFlag, unique
@@ -525,24 +540,22 @@ from mate3.sunspec.fields import (
     code += f"""
 @unique
 class SunSpecHeaderModel(Enum):
-    did = Uint32Field(start=1, size=2, mode=Mode.R, description=None, units=None, scale_factor=None)
-    model_id = Uint16Field(start=3, size=1, mode=Mode.R, description=None, units=None, scale_factor=None)
-    length = Uint16Field(start=4, size=1, mode=Mode.R, description=None, units=None, scale_factor=None)
-    manufacturer = StringField(start=5, mode=Mode.R, size=16, description=None)
-    model = StringField(start=21, size=16, mode=Mode.R, description=None)
-    options = StringField(start=37, size=8, mode=Mode.R, description=None)
-    version = StringField(start=45, size=8, mode=Mode.R, description=None)
-    serial_number = StringField(start=53, size=16, mode=Mode.R, description=None)
+    did = Uint32Field(1, 2, Mode.R)
+    model_id = Uint16Field(3, 1, Mode.R)
+    length = Uint16Field(4, 1, Mode.R)
+    manufacturer = StringField(5, 16, Mode.R)
+    model = StringField(21, 16, Mode.R)
+    options = StringField(37, 8, Mode.R)
+    version = StringField(45, 8, Mode.R)
+    serial_number = StringField(53, 16, Mode.R)
 
 
 @unique
 class SunSpecEndModel(Enum):
-    did = Uint32Field(start=1, size=2, mode=Mode.R, description="Should be {0xFFFF}", units=None, scale_factor=None)
-    length = Uint16Field(start=4, size=1, mode=Mode.R, description="Should be 0", units=None, scale_factor=None)
+    did = Uint16Field(1, 1, Mode.R, description="Should be {0xFFFF}")
+    length = Uint16Field(2, 1, Mode.R, description="Should be 0")
 \n
 """
-    # TODO: is sunspecmodel.did int32
-
     model_tables = read_models(wb)
     model_tables = sorted(model_tables, key=lambda x: x.did)
     bitfield_lookup = {t.name: t.python_name for t in bitfield_tables}
@@ -550,17 +563,54 @@ class SunSpecEndModel(Enum):
         code += table.generate_definition(bitfield_lookup)
         code += "\n"
 
-    # code += "class Models(Enum):\n"
-    # for table in model_tables:
-    #    code += f"    {table.python_name} = {table.did}\n"
     code += "MODEL_DEVICE_IDS = {\n"
     code += f"    {0x53756e53}: SunSpecHeaderModel,\n"
     code += "    65535: SunSpecEndModel,\n"
     for table in model_tables:
-        code += f"    {table.did}: {table.python_name},\n"
+        code += f"    {table.did}: {table.python_name}Model,\n"
     code += "}\n"
 
     with open(str(MODELS_MODULE), "w") as f:
+        f.write(code)
+
+    # now values:
+    code = f'''"""{WARNING}"""
+
+from mate3.sunspec.fields import FieldValue
+from dataclasses import dataclass
+from mate3.sunspec import models
+
+
+@dataclass
+class SunSpecHeaderValues:
+    did: FieldValue
+    model_id: FieldValue
+    length: FieldValue
+    manufacturer: FieldValue
+    model: FieldValue
+    options: FieldValue
+    version: FieldValue
+    serial_number: FieldValue
+
+
+@dataclass
+class SunSpecEndValues:
+    did: FieldValue
+    length: FieldValue
+
+'''
+    for table in model_tables:
+        code += table.generate_values()
+        code += "\n\n"
+
+    code += "MODELS_TO_VALUES = {\n"
+    code += "    models.SunSpecHeaderModel: SunSpecHeaderValues,\n"
+    code += "    models.SunSpecEndModel: SunSpecEndValues,\n"
+    for table in model_tables:
+        code += f"    models.{table.python_name}Model: {table.python_name}Values,\n"
+    code += "}\n"
+
+    with open(str(VALUES_MODULE), "w") as f:
         f.write(code)
 
 

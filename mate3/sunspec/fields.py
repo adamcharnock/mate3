@@ -1,8 +1,11 @@
 import socket
 import struct
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
+
+from loguru import logger
 
 
 class Mode(Enum):
@@ -43,14 +46,14 @@ class Field:
     start: int
     size: int
     mode: Mode
-    description: Optional[str]
+    description: Optional[str] = None
 
     @property
     def end(self):
         return self.start + self.size
 
     def from_registers(self, registers):
-        if self.mode == Mode.W:
+        if self.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from a write-only field!")
         if not all(isinstance(i, int) for i in registers):
             raise ValueError("Registers should be an iterable of ints!")
@@ -59,7 +62,7 @@ class Field:
         return self._from_registers(registers)
 
     def to_registers(self, value):
-        if self.mode == Mode.R:
+        if self.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to a read-only field!")
         registers = self._to_registers(value)
         if len(registers) != self.size:
@@ -325,3 +328,91 @@ class AddressField(Field):
 
     def _to_registers(self, value):
         raise NotImplementedError()
+
+
+class FieldValue:
+    def __init__(self, field):
+        self.field = field
+        self.last_read = None
+        self.dirty = False
+        self.implemented = None  # TODO: make this (among others) property so can be read but not set directly
+        self._value_to_write = None
+        self._raw_value = None
+        self._scale_factor = None
+        self._scale_factor_cache_time = timedelta(seconds=60)
+
+    def __repr__(self):
+        return f"{'' if self.implemented else 'not '}implemented | {'' if self.dirty else 'not '}dirty | {self.last_read} | {self._raw_value} | {self._scale_factor} | {self.value}"
+
+    @property
+    def _should_be_scaled(self):
+        return isinstance(self.field, IntegerField) and self.field.scale_factor is not None
+
+    @property
+    def value(self):
+        if self.field.mode not in (Mode.R, Mode.RW):
+            raise RuntimeError("Can't read from this field!")
+        if not self.implemented:
+            return None
+        if not self._should_be_scaled:
+            return self._raw_value
+        # scale it:
+        value = self._raw_value * 10 ** self._scale_factor
+        # round it to what it should be after scaling:
+        return round(value, -self._scale_factor if self._scale_factor < 0 else 0)
+
+    @value.setter
+    def value(self, value):
+        if self.field.mode not in (Mode.W, Mode.RW):
+            raise RuntimeError("Can't write to this field!")
+        if self.last_read is None:
+            raise RuntimeError("You should read a field at least once before writing")
+        if not self.implemented:
+            raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
+        if self._should_be_scaled:
+            # Time limit on scale_factor being applicable?
+            if (datetime.now() - self.last_read) > self._scale_factor_cache_time:
+                raise ValueError(
+                    (
+                        f"You need to read this value within {self._scale_factor_cache_time} of writing to 'ensure'",
+                        " the scale factor is up-to-date before you write.",
+                    )
+                )
+            # scale it:
+            value = value / 10 ** self._scale_factor
+            # round it to what it should be after scaling:
+            self._value_to_write = int(round(value, 0))
+        else:
+            self._value_to_write = value
+        self.dirty = True
+
+    def _update_on_read(self, value, implemented, read_time, scale_factor=None):
+        """
+        Assumption is that if there's a scale factor, it's read at the same time as value, so they should be in sync.
+        Not really a major with Outback, as they seem to be constant anyway.
+        """
+        if self._should_be_scaled:
+            if scale_factor is None:
+                raise RuntimeError(f"scale_factor required for field {self.field}")
+            if not scale_factor.implemented:
+                raise RuntimeError(f"scale_factor should be implemented!")
+            # TODO: check scale_factor time vs read_time
+            scale_factor = scale_factor.value
+            if not isinstance(scale_factor, int):
+                raise RuntimeError(f"scale_factor should be an integer!")
+            if scale_factor < -10 or scale_factor > 10:
+                raise RuntimeError(f"scale_factor should be between -10 and 10")
+        else:
+            if scale_factor is not None:
+                raise RuntimeError(f"No scale_factor should be provided for field {self.field}")
+
+        self._raw_value = value
+        self._scale_factor = scale_factor
+        self.implemented = implemented
+        self.last_read = read_time
+        if self._value_to_write is not None:
+            logger.warning(
+                f"A value has been set to be written, but was re-read after this, so the write will be ignored "
+            )
+            self._value_to_write = None
+        self.dirty = False

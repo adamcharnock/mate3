@@ -1,12 +1,14 @@
 # TODO:
 
+  - add caveats on write:
+    - if you have two inverters, do a read, then write, the device-port reference will be wrong so you'll write to the wrong device.
 - bitfield(0) - show none or something?
 - get rid of types ... they're misleading
 - remove modbus references
 - general code tidyups
+- nicer debug logging etc.
 
 - later
-  - merge the various models into devices
   - how to preserve individual field reads (faster and easier on mate3) vs update everything?
 
 # Outback Mate 3s Python library & command line interface

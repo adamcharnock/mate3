@@ -1,13 +1,17 @@
-# TODO:
+# TODO
 
-  - add caveats on write:
-    - if you have two inverters, do a read, then write, the device-port reference will be wrong so you'll write to the wrong device.
+- add caveats on write:
+  - never change the port mappings on devices! TODO: add a safety check to check the device IDs (mac addresses?) are the same before we update a dirty value? this will ensure any port swapping doesn't mess with things.
+  - if you have two inverters, do a read, then write, the device-port reference will be wrong so you'll write to the wrong device.
 - bitfield(0) - show none or something?
-- get rid of types ... they're misleading
 - remove modbus references
 - general code tidyups
 - nicer debug logging etc.
-
+- tests:
+  - indivudal fields etc.
+- update toml, new version, etc.
+- update readme
+- update cli
 - later
   - how to preserve individual field reads (faster and easier on mate3) vs update everything?
 

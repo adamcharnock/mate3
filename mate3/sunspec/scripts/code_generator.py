@@ -171,6 +171,7 @@ class ModelTable:
     def generate_values(self):
         class_name = self.python_name
         code = f"@dataclass\nclass {class_name}Values:\n"
+        code += f"    address: int\n"
         # code += f"    __definition__ = models.{class_name}Model\n"
         for row in self.rows:
             name = row.python_name
@@ -583,6 +584,7 @@ from mate3.sunspec import models
 
 @dataclass
 class SunSpecHeaderValues:
+    address: int
     did: FieldValue
     model_id: FieldValue
     length: FieldValue
@@ -595,8 +597,10 @@ class SunSpecHeaderValues:
 
 @dataclass
 class SunSpecEndValues:
+    address: int
     did: FieldValue
     length: FieldValue
+
 
 '''
     for table in model_tables:

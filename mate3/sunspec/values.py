@@ -7,6 +7,7 @@ from mate3.sunspec import models
 
 @dataclass
 class SunSpecHeaderValues:
+    address: int
     did: FieldValue
     model_id: FieldValue
     length: FieldValue
@@ -19,11 +20,14 @@ class SunSpecHeaderValues:
 
 @dataclass
 class SunSpecEndValues:
+    address: int
     did: FieldValue
     length: FieldValue
 
+
 @dataclass
 class SunSpecCommonValues:
+    address: int
     did: FieldValue
     length: FieldValue
     manufacturer: FieldValue
@@ -36,6 +40,7 @@ class SunSpecCommonValues:
 
 @dataclass
 class SunSpecInverterSinglePhaseValues:
+    address: int
     did: FieldValue
     length: FieldValue
     ac_current: FieldValue
@@ -85,6 +90,7 @@ class SunSpecInverterSinglePhaseValues:
 
 @dataclass
 class SunSpecInverterSplitPhaseValues:
+    address: int
     did: FieldValue
     length: FieldValue
     ac_current: FieldValue
@@ -134,6 +140,7 @@ class SunSpecInverterSplitPhaseValues:
 
 @dataclass
 class SunSpecInverterThreePhaseValues:
+    address: int
     did: FieldValue
     length: FieldValue
     ac_current: FieldValue
@@ -183,6 +190,7 @@ class SunSpecInverterThreePhaseValues:
 
 @dataclass
 class OutBackValues:
+    address: int
     did: FieldValue
     length: FieldValue
     major_firmware_number: FieldValue
@@ -353,6 +361,7 @@ class OutBackValues:
 
 @dataclass
 class ChargeControllerValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -385,6 +394,7 @@ class ChargeControllerValues:
 
 @dataclass
 class ChargeControllerConfigurationValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -463,6 +473,7 @@ class ChargeControllerConfigurationValues:
 
 @dataclass
 class FXInverterRealTimeValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -505,6 +516,7 @@ class FXInverterRealTimeValues:
 
 @dataclass
 class FXInverterConfigurationValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -567,6 +579,7 @@ class FXInverterConfigurationValues:
 
 @dataclass
 class SplitPhaseRadianInverterRealTimeValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -632,6 +645,7 @@ class SplitPhaseRadianInverterRealTimeValues:
 
 @dataclass
 class RadianInverterConfigurationValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -711,6 +725,7 @@ class RadianInverterConfigurationValues:
 
 @dataclass
 class SinglePhaseRadianInverterRealTimeValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -764,6 +779,7 @@ class SinglePhaseRadianInverterRealTimeValues:
 
 @dataclass
 class FLEXnetDCRealTimeValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -844,6 +860,7 @@ class FLEXnetDCRealTimeValues:
 
 @dataclass
 class FLEXnetDCConfigurationValues:
+    address: int
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -886,6 +903,7 @@ class FLEXnetDCConfigurationValues:
 
 @dataclass
 class OutBackSystemControlValues:
+    address: int
     did: FieldValue
     length: FieldValue
     dc_voltage_scale_factor: FieldValue
@@ -915,6 +933,7 @@ class OutBackSystemControlValues:
 
 @dataclass
 class OPTICSPacketStatisticsValues:
+    address: int
     did: FieldValue
     length: FieldValue
     bt_min: FieldValue

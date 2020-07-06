@@ -15,6 +15,17 @@ class Mode(Enum):
 
 
 class BitfieldDescriptionMixin:
+    """
+    A mixim that allows us to define something as 
+    
+        @unique
+        class MyFlags(BitfieldDescriptionMixin, IntFlag):
+            a = 1, "a description"
+            b = 2, "b description"
+
+    Where each member now has a `.description` attribute (as opposed to just the usual name and value).
+    """
+
     def __new__(cls, value, description):
         obj = super().__new__(cls, value)  # , description)
         obj._value_ = value
@@ -28,6 +39,9 @@ class BitfieldDescriptionMixin:
         return f"Combination of flags: {self.set_flags()}"
 
     def set_flags(self):
+        """
+        Convenience method to determine which flags are set, as a list:
+        """
         flags = []
         for flag in self.__class__:
             if flag.value & self.value == flag.value:
@@ -97,16 +111,6 @@ class Uint16Field(IntegerField):
 @dataclass
 class Int16Field(IntegerField):
     def _from_registers(self, registers):
-        # signed_value = registers[0]
-        # TODO
-        # Outback has some bugs in their firmware it seems. The FlexNet DC Shunt current measurements
-        # return an offset from 65535 for negative values. No reading should ever be higher then 2000. So use that
-        # if signed_value > 32768 + 2000:
-        #    return signed_value - 65535
-        # elif signed_value >= 32768:
-        #    return int(32768 - signed_value)
-        # else:
-        #    return signed_value
         val = registers[0]
         if val == 0x8000:
             # as per sunspec, this is "not implemented" TODO before after cconversion?
@@ -209,6 +213,11 @@ class BitfieldMixin:
 
 @dataclass
 class Bit16Field(Uint16Field, BitfieldMixin):
+    """
+    The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
+    before using the flags, etc.
+    """
+
     flags: Any = None  # TODO: made this default=None just to get rid of dataclass errors ... should be None
 
     def _from_registers(self, registers):
@@ -225,8 +234,11 @@ class Bit16Field(Uint16Field, BitfieldMixin):
 @dataclass
 class Bit32Field(Uint32Field, BitfieldMixin):
     """
-    According to the spec this shouldn't exist. But Outback have created it anyway. We'll assume it's just mean to be
-    a bit16 for now ...
+    The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
+    before using the flags, etc.
+    
+    NB: According to the spec this shouldn't exist. But Outback have created it anyway. We'll assume it's just meant to
+    be a bit16 for now ...
     """
 
     flags: Any = None  # TODO: made this default=None just to get rid of dataclass errors ... should be None

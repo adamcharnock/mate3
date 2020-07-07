@@ -1,13 +1,12 @@
 """This file is auto generated, do not edit. The generation code can be found in code_generator.py"""
 
-from mate3.sunspec.fields import FieldValue
-from dataclasses import dataclass
+from mate3.sunspec.fields import FieldValue, ModelFieldValues
+from dataclasses import dataclass, field
 from mate3.sunspec import models
 
 
 @dataclass
-class SunSpecHeaderValues:
-    address: int
+class SunSpecHeaderValues(ModelFieldValues):
     did: FieldValue
     model_id: FieldValue
     length: FieldValue
@@ -19,15 +18,13 @@ class SunSpecHeaderValues:
 
 
 @dataclass
-class SunSpecEndValues:
-    address: int
+class SunSpecEndValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
 
 
 @dataclass
-class SunSpecCommonValues:
-    address: int
+class SunSpecCommonValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     manufacturer: FieldValue
@@ -39,8 +36,7 @@ class SunSpecCommonValues:
 
 
 @dataclass
-class SunSpecInverterSinglePhaseValues:
-    address: int
+class SunSpecInverterSinglePhaseValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     ac_current: FieldValue
@@ -89,8 +85,7 @@ class SunSpecInverterSinglePhaseValues:
 
 
 @dataclass
-class SunSpecInverterSplitPhaseValues:
-    address: int
+class SunSpecInverterSplitPhaseValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     ac_current: FieldValue
@@ -139,8 +134,7 @@ class SunSpecInverterSplitPhaseValues:
 
 
 @dataclass
-class SunSpecInverterThreePhaseValues:
-    address: int
+class SunSpecInverterThreePhaseValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     ac_current: FieldValue
@@ -189,8 +183,7 @@ class SunSpecInverterThreePhaseValues:
 
 
 @dataclass
-class OutBackValues:
-    address: int
+class OutBackValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     major_firmware_number: FieldValue
@@ -360,8 +353,7 @@ class OutBackValues:
 
 
 @dataclass
-class ChargeControllerValues:
-    address: int
+class ChargeControllerValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -393,8 +385,7 @@ class ChargeControllerValues:
 
 
 @dataclass
-class ChargeControllerConfigurationValues:
-    address: int
+class ChargeControllerConfigurationValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -472,8 +463,7 @@ class ChargeControllerConfigurationValues:
 
 
 @dataclass
-class FXInverterRealTimeValues:
-    address: int
+class FXInverterRealTimeValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -515,8 +505,7 @@ class FXInverterRealTimeValues:
 
 
 @dataclass
-class FXInverterConfigurationValues:
-    address: int
+class FXInverterConfigurationValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -578,8 +567,7 @@ class FXInverterConfigurationValues:
 
 
 @dataclass
-class SplitPhaseRadianInverterRealTimeValues:
-    address: int
+class SplitPhaseRadianInverterRealTimeValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -644,8 +632,7 @@ class SplitPhaseRadianInverterRealTimeValues:
 
 
 @dataclass
-class RadianInverterConfigurationValues:
-    address: int
+class RadianInverterConfigurationValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -724,8 +711,7 @@ class RadianInverterConfigurationValues:
 
 
 @dataclass
-class SinglePhaseRadianInverterRealTimeValues:
-    address: int
+class SinglePhaseRadianInverterRealTimeValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -778,8 +764,7 @@ class SinglePhaseRadianInverterRealTimeValues:
 
 
 @dataclass
-class FLEXnetDCRealTimeValues:
-    address: int
+class FLEXnetDCRealTimeValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -859,8 +844,7 @@ class FLEXnetDCRealTimeValues:
 
 
 @dataclass
-class FLEXnetDCConfigurationValues:
-    address: int
+class FLEXnetDCConfigurationValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     port_number: FieldValue
@@ -902,8 +886,7 @@ class FLEXnetDCConfigurationValues:
 
 
 @dataclass
-class OutBackSystemControlValues:
-    address: int
+class OutBackSystemControlValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     dc_voltage_scale_factor: FieldValue
@@ -932,8 +915,7 @@ class OutBackSystemControlValues:
 
 
 @dataclass
-class OPTICSPacketStatisticsValues:
-    address: int
+class OPTICSPacketStatisticsValues(ModelFieldValues):
     did: FieldValue
     length: FieldValue
     bt_min: FieldValue

@@ -4,7 +4,6 @@
   - never change the port mappings on devices! TODO: add a safety check to check the device IDs (mac addresses?) are the same before we update a dirty value? this will ensure any port swapping doesn't mess with things.
   - if you have two inverters, do a read, then write, the device-port reference will be wrong so you'll write to the wrong device.
 - bitfield(0) - show none or something?
-- remove modbus references
 - general code tidyups
 - nicer debug logging etc.
 - tests:

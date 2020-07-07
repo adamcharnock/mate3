@@ -1,6 +1,6 @@
 import socket
 import struct
-from dataclasses import dataclass
+import dataclasses as dc
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
@@ -49,7 +49,7 @@ class BitfieldDescriptionMixin:
         return flags
 
 
-@dataclass
+@dc.dataclass
 class Field:
     """
     Not a register - a specific field we care about (regardless of how it's split across registers etc.)
@@ -84,14 +84,14 @@ class Field:
         return registers
 
 
-@dataclass
+@dc.dataclass
 class IntegerField(Field):
     units: Optional[str] = None
     scale_factor: Optional[Field] = None  # TODO: should be IntegerField ...
     # TODO: add a check that the size is right for the field type?
 
 
-@dataclass(frozen=False)
+@dc.dataclass(frozen=False)
 class Uint16Field(IntegerField):
     def _from_registers(self, registers):
         val = registers[0]
@@ -108,7 +108,7 @@ class Uint16Field(IntegerField):
         return (value,)
 
 
-@dataclass
+@dc.dataclass
 class Int16Field(IntegerField):
     def _from_registers(self, registers):
         val = registers[0]
@@ -129,7 +129,7 @@ class Int16Field(IntegerField):
         return (value,)
 
 
-@dataclass
+@dc.dataclass
 class Uint32Field(IntegerField):
     def _from_registers(self, registers):
         val = (registers[0] << 16) | registers[1]
@@ -146,7 +146,7 @@ class Uint32Field(IntegerField):
         return (value >> 16, value & 0xFFFF)
 
 
-@dataclass
+@dc.dataclass
 class Int32Field(IntegerField):
     def _from_registers(self, registers):
         val = (registers[0] << 16) | registers[1]
@@ -163,7 +163,7 @@ class Int32Field(IntegerField):
         return (value >> 16, value & 0xFFFF)
 
 
-@dataclass
+@dc.dataclass
 class StringField(Field):
     def _from_registers(self, registers):
         # as per sunspec, if all registers are 0, the not implemented:
@@ -211,14 +211,14 @@ class BitfieldMixin:
         return flags.value
 
 
-@dataclass
+@dc.dataclass
 class Bit16Field(Uint16Field, BitfieldMixin):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
     before using the flags, etc.
     """
 
-    flags: Any = None  # TODO: made this default=None just to get rid of dataclass errors ... should be None
+    flags: Any = None  # TODO: made this default=None just to get rid of dc.dataclass errors ... should be None
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -231,7 +231,7 @@ class Bit16Field(Uint16Field, BitfieldMixin):
         return super()._to_registers(value)
 
 
-@dataclass
+@dc.dataclass
 class Bit32Field(Uint32Field, BitfieldMixin):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
@@ -241,7 +241,7 @@ class Bit32Field(Uint32Field, BitfieldMixin):
     be a bit16 for now ...
     """
 
-    flags: Any = None  # TODO: made this default=None just to get rid of dataclass errors ... should be None
+    flags: Any = None  # TODO: made this default=None just to get rid of dc.dataclass errors ... should be None
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -269,9 +269,9 @@ class EnumMixin:
 # TODO: remove duplication below ...
 
 
-@dataclass
+@dc.dataclass
 class EnumUint16Field(Uint16Field, EnumMixin):
-    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dataclass errors, but shouldn't be None
+    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
 
     def _from_registers(self, registers):
         implemented, val = super()._from_registers(registers)
@@ -284,9 +284,9 @@ class EnumUint16Field(Uint16Field, EnumMixin):
         return super()._to_registers(value)
 
 
-@dataclass
+@dc.dataclass
 class EnumInt16Field(Int16Field, EnumMixin):
-    options: Any = None  # TODO: enum? TODO: made this default = None to get rid of dataclass errors, but shouldn't be None
+    options: Any = None  # TODO: enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
 
     def _from_registers(self, registers):
         implemented, val = super()._from_registers(registers)
@@ -299,9 +299,9 @@ class EnumInt16Field(Int16Field, EnumMixin):
         return super()._to_registers(value)
 
 
-@dataclass
+@dc.dataclass
 class EnumUint32Field(Uint32Field, EnumMixin):
-    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dataclass errors, but shouldn't be None
+    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
 
     def _from_registers(self, registers):
         implemented, val = super()._from_registers(registers)
@@ -314,9 +314,9 @@ class EnumUint32Field(Uint32Field, EnumMixin):
         return super()._to_registers(value)
 
 
-@dataclass
+@dc.dataclass
 class EnumInt32Field(Int32Field, EnumMixin):
-    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dataclass errors, but shouldn't be None
+    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
 
     def _from_registers(self, registers):
         implemented, val = super()._from_registers(registers)
@@ -329,7 +329,7 @@ class EnumInt32Field(Int32Field, EnumMixin):
         return super()._to_registers(value)
 
 
-@dataclass
+@dc.dataclass
 class AddressField(Field):
     def _from_registers(self, registers):
         val = (registers[0] << 16) | registers[1]
@@ -354,15 +354,26 @@ class FieldValue:
         self._scale_factor_cache_time = timedelta(seconds=60)
 
     def __repr__(self):
-        return f"{'' if self.implemented else 'not '}implemented | {'' if self.dirty else 'not '}dirty | {self.last_read} | {self._raw_value} | {self._scale_factor} | {self.value}"
+        ss = [f"< {self.field.name}"]
+        ss.append("impl" if self.implemented else "not impl")
+        ss.append(f"read @ {self.last_read}")
+        if self._scale_factor:
+            ss.append(f"sf: {self._scale_factor}")
+            ss.append(f"raw: {self._raw_value}")
+        if self.implemented:
+            ss.append(f"val: {self.value}")
+            s = f"dirty (value to write: {self._value_to_write})" if self.dirty else "clean"
+            s += " >"
+            ss.append(s)
+        return " | ".join(ss)
 
     @property
     def _should_be_scaled(self):
-        return isinstance(self.field, IntegerField) and self.field.scale_factor is not None
+        return isinstance(self.field.value, IntegerField) and self.field.value.scale_factor is not None
 
     @property
     def value(self):
-        if self.field.mode not in (Mode.R, Mode.RW):
+        if self.field.value.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from this field!")
         if not self.implemented:
             return None
@@ -375,7 +386,7 @@ class FieldValue:
 
     @value.setter
     def value(self, value):
-        if self.field.mode not in (Mode.W, Mode.RW):
+        if self.field.value.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to this field!")
         if self.last_read is None:
             raise RuntimeError("You should read a field at least once before writing")
@@ -408,7 +419,7 @@ class FieldValue:
                 raise RuntimeError(f"scale_factor required for field {self.field}")
             if not scale_factor.implemented:
                 raise RuntimeError(f"scale_factor should be implemented!")
-            # TODO: check scale_factor time vs read_time
+            # TODO: check scale_factor time vs read_time?
             scale_factor = scale_factor.value
             if not isinstance(scale_factor, int):
                 raise RuntimeError(f"scale_factor should be an integer!")
@@ -428,3 +439,14 @@ class FieldValue:
             )
             self._value_to_write = None
         self.dirty = False
+
+
+@dc.dataclass
+class ModelFieldValues:
+    _address: int = dc.field(metadata={"field_value": False})
+
+    def __iter__(self):
+        for field in dc.fields(self):
+            if field.metadata.get("field_value", True):
+                yield field.name, getattr(self, field.name)
+

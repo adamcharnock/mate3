@@ -1,8 +1,9 @@
+from abc import ABCMeta, abstractmethod
 import socket
 import struct
 import dataclasses as dc
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import Enum, IntFlag
 from typing import Any, Optional
 
 from loguru import logger
@@ -36,9 +37,9 @@ class BitfieldDescriptionMixin:
     def description(self):
         if self.name is not None:
             return self._description
-        return f"Combination of flags: {self.set_flags()}"
+        return f"Combination of flags: {self.get_set_flags()}"
 
-    def set_flags(self):
+    def get_set_flags(self):
         """
         Convenience method to determine which flags are set, as a list:
         """
@@ -50,13 +51,12 @@ class BitfieldDescriptionMixin:
 
 
 @dc.dataclass
-class Field:
+class Field(metaclass=ABCMeta):
     """
     Not a register - a specific field we care about (regardless of how it's split across registers etc.)
     """
 
-    # TODO: abcmetaclass to ensure _to_registers and _from_registers are implemented
-
+    name: str
     start: int
     size: int
     mode: Mode
@@ -83,20 +83,27 @@ class Field:
             raise ValueError(f"Expected {self.size} registers!")
         return registers
 
+    @abstractmethod
+    def _from_registers(self, registers):
+        pass
+
+    @abstractmethod
+    def _to_registers(self, value):
+        pass
+
 
 @dc.dataclass
 class IntegerField(Field):
     units: Optional[str] = None
-    scale_factor: Optional[Field] = None  # TODO: should be IntegerField ...
-    # TODO: add a check that the size is right for the field type?
+    scale_factor: Optional[Field] = None  # TODO: should be IntegerField but can't refer to itself in definition ...
 
 
-@dc.dataclass(frozen=False)
+@dc.dataclass
 class Uint16Field(IntegerField):
     def _from_registers(self, registers):
         val = registers[0]
         if val == 0xFFFF:
-            # as per sunspec, this is "not implemented" TODO before after cconversion?
+            # as per sunspec, this is "not implemented"
             return False, None
         return True, val
 
@@ -113,7 +120,7 @@ class Int16Field(IntegerField):
     def _from_registers(self, registers):
         val = registers[0]
         if val == 0x8000:
-            # as per sunspec, this is "not implemented" TODO before after cconversion?
+            # as per sunspec, this is "not implemented"
             return False, None
         # two's complement:
         bits = 16
@@ -134,7 +141,7 @@ class Uint32Field(IntegerField):
     def _from_registers(self, registers):
         val = (registers[0] << 16) | registers[1]
         if val == 0xFFFFFFFF:
-            # as per sunspec, this is "not implemented" TODO before after cconversion?
+            # as per sunspec, this is "not implemented"
             return False, None
         return True, val
 
@@ -151,7 +158,7 @@ class Int32Field(IntegerField):
     def _from_registers(self, registers):
         val = (registers[0] << 16) | registers[1]
         if val == 0x80000000:
-            # as per sunspec, this is "not implemented" TODO before after cconversion?
+            # as per sunspec, this is "not implemented"
             return False, None
         return True, val
 
@@ -198,7 +205,7 @@ class BitfieldMixin:
 
         # TODO: as per spec ... "if the most significant bit in a bitfield is set, all other bits shall be ignored"
         if value == not_implemented:
-            # as per sunspec, this is "not implemented" TODO before after cconversion?
+            # as per sunspec, this is "not implemented"
             return False, None
         elif value < 0 or value > mx:
             raise ValueError(f"{self.__class__.__name__} should be between 0 and {mx}")
@@ -218,7 +225,7 @@ class Bit16Field(Uint16Field, BitfieldMixin):
     before using the flags, etc.
     """
 
-    flags: Any = None  # TODO: made this default=None just to get rid of dc.dataclass errors ... should be None
+    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -241,7 +248,7 @@ class Bit32Field(Uint32Field, BitfieldMixin):
     be a bit16 for now ...
     """
 
-    flags: Any = None  # TODO: made this default=None just to get rid of dc.dataclass errors ... should be None
+    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -254,6 +261,7 @@ class Bit32Field(Uint32Field, BitfieldMixin):
         return super()._to_registers(value)
 
 
+@dc.dataclass
 class EnumMixin:
     def _get_option(self, val):
         if val is None:
@@ -265,68 +273,35 @@ class EnumMixin:
             raise ValueError(f"Expected {self.options}")
         return val.value
 
+    def _from_registers(self, registers):
+        implemented, val = super()._from_registers(registers)
+        if not implemented:
+            return False, None
+        return True, self._get_option(val)
 
-# TODO: remove duplication below ...
+    def _to_registers(self, value):
+        value = self._set_option(value)
+        return super()._to_registers(value)
 
 
 @dc.dataclass
 class EnumUint16Field(Uint16Field, EnumMixin):
-    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
-
-    def _from_registers(self, registers):
-        implemented, val = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return True, self._get_option(val)
-
-    def _to_registers(self, value):
-        value = super()._set_option(value)
-        return super()._to_registers(value)
+    options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
 class EnumInt16Field(Int16Field, EnumMixin):
-    options: Any = None  # TODO: enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
-
-    def _from_registers(self, registers):
-        implemented, val = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return True, self._get_option(val)
-
-    def _to_registers(self, value):
-        value = super()._set_option(value)
-        return super()._to_registers(value)
+    options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
 class EnumUint32Field(Uint32Field, EnumMixin):
-    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
-
-    def _from_registers(self, registers):
-        implemented, val = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return True, self._get_option(val)
-
-    def _to_registers(self, value):
-        value = super()._set_option(value)
-        return super()._to_registers(value)
+    options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
 class EnumInt32Field(Int32Field, EnumMixin):
-    options: Any = None  # TODO enum? TODO: made this default = None to get rid of dc.dataclass errors, but shouldn't be None
-
-    def _from_registers(self, registers):
-        implemented, val = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return True, self._get_option(val)
-
-    def _to_registers(self, value):
-        value = super()._set_option(value)
-        return super()._to_registers(value)
+    options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
@@ -345,37 +320,53 @@ class AddressField(Field):
 class FieldValue:
     def __init__(self, field):
         self.field = field
-        self.last_read = None
-        self.dirty = False
-        self.implemented = None  # TODO: make this (among others) property so can be read but not set directly
+        self._last_read = None
+        self._dirty = False
+        self._implemented = None
         self._value_to_write = None
         self._raw_value = None
         self._scale_factor = None
         self._scale_factor_cache_time = timedelta(seconds=60)
 
+    @property
+    def name(self):
+        return self.field.name
+
     def __repr__(self):
         ss = [f"< {self.field.name}"]
-        ss.append("impl" if self.implemented else "not impl")
-        ss.append(f"read @ {self.last_read}")
+        ss.append("impl" if self._implemented else "not impl")
+        ss.append(f"read @ {self._last_read}")
         if self._scale_factor:
             ss.append(f"sf: {self._scale_factor}")
             ss.append(f"raw: {self._raw_value}")
-        if self.implemented:
+        if self._implemented:
             ss.append(f"val: {self.value}")
-            s = f"dirty (value to write: {self._value_to_write})" if self.dirty else "clean"
+            s = f"dirty (value to write: {self._value_to_write})" if self._dirty else "clean"
             s += " >"
             ss.append(s)
         return " | ".join(ss)
 
     @property
+    def last_read(self):
+        return self._last_read
+
+    @property
+    def dirty(self):
+        return self._dirty
+
+    @property
+    def implemented(self):
+        return self._implemented
+
+    @property
     def _should_be_scaled(self):
-        return isinstance(self.field.value, IntegerField) and self.field.value.scale_factor is not None
+        return isinstance(self.field, IntegerField) and self.field.scale_factor is not None
 
     @property
     def value(self):
-        if self.field.value.mode not in (Mode.R, Mode.RW):
+        if self.field.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from this field!")
-        if not self.implemented:
+        if not self._implemented:
             return None
         if not self._should_be_scaled:
             return self._raw_value
@@ -386,15 +377,15 @@ class FieldValue:
 
     @value.setter
     def value(self, value):
-        if self.field.value.mode not in (Mode.W, Mode.RW):
+        if self.field.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to this field!")
-        if self.last_read is None:
+        if self._last_read is None:
             raise RuntimeError("You should read a field at least once before writing")
-        if not self.implemented:
+        if not self._implemented:
             raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
         if self._should_be_scaled:
             # Time limit on scale_factor being applicable?
-            if (datetime.now() - self.last_read) > self._scale_factor_cache_time:
+            if (datetime.now() - self._last_read) > self._scale_factor_cache_time:
                 raise ValueError(
                     (
                         f"You need to read this value within {self._scale_factor_cache_time} of writing to 'ensure'",
@@ -407,46 +398,53 @@ class FieldValue:
             self._value_to_write = int(round(value, 0))
         else:
             self._value_to_write = value
-        self.dirty = True
+        self._dirty = True
 
-    def _update_on_read(self, value, implemented, read_time, scale_factor=None):
+    def _update_on_read(self, value, implemented, read_time, scale_factor_read=None):
         """
         Assumption is that if there's a scale factor, it's read at the same time as value, so they should be in sync.
         Not really a major with Outback, as they seem to be constant anyway.
         """
         if self._should_be_scaled:
-            if scale_factor is None:
-                raise RuntimeError(f"scale_factor required for field {self.field}")
-            if not scale_factor.implemented:
-                raise RuntimeError(f"scale_factor should be implemented!")
-            # TODO: check scale_factor time vs read_time?
-            scale_factor = scale_factor.value
-            if not isinstance(scale_factor, int):
+            if scale_factor_read is None:
+                raise RuntimeError(f"scale_factor_read required for field {self.field}")
+            if not scale_factor_read.implemented:
+                raise RuntimeError(f"scale_factor_read should be implemented!")
+            if (read_time - scale_factor_read.time).total_seconds() > 60:
+                raise RuntimeError(
+                    (
+                        "The scale factor on this field was updated more than a minute since this field was. Scale "
+                        "factors *shouldn't* change anyway, but there'd be problems if they did, so better safe than "
+                        "sorry. However, you should never hit this error (as we try to ensure the scale factor is "
+                        "always read when the field is - so if you see it, please file an issue."
+                    )
+                )
+            scale_factor_read = scale_factor_read.value
+            if not isinstance(scale_factor_read, int):
                 raise RuntimeError(f"scale_factor should be an integer!")
-            if scale_factor < -10 or scale_factor > 10:
+            if scale_factor_read < -10 or scale_factor_read > 10:
                 raise RuntimeError(f"scale_factor should be between -10 and 10")
         else:
-            if scale_factor is not None:
+            if scale_factor_read is not None:
                 raise RuntimeError(f"No scale_factor should be provided for field {self.field}")
 
         self._raw_value = value
-        self._scale_factor = scale_factor
-        self.implemented = implemented
-        self.last_read = read_time
+        self._scale_factor = scale_factor_read
+        self._implemented = implemented
+        self._last_read = read_time
         if self._value_to_write is not None:
             logger.warning(
                 f"A value has been set to be written, but was re-read after this, so the write will be ignored "
             )
             self._value_to_write = None
-        self.dirty = False
+        self._dirty = False
 
 
 @dc.dataclass
 class ModelFieldValues:
-    _address: int = dc.field(metadata={"field_value": False})
+    _address: int = dc.field(metadata={"field": False})
 
     def __iter__(self):
         for field in dc.fields(self):
-            if field.metadata.get("field_value", True):
-                yield field.name, getattr(self, field.name)
-
+            if field.metadata.get("field", True):
+                yield getattr(self, field.name)

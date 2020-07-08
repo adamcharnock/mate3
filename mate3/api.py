@@ -94,7 +94,7 @@ class ReadingRange:
 
     def extend(self, field: Field):
         self.fields.append(field)
-        self.size += field.value.size
+        self.size += field.size
 
 
 @dataclass
@@ -131,10 +131,9 @@ class Mate3(object):
         # Loop through fields in start order, finding contiguous blocks of registers:
         ranges = []
         previous_range = None
-        for field in sorted(fields, key=lambda x: x.value.start):
-            value = field.value
-            if previous_range is None or previous_range.end != value.start or previous_range.size >= max_range_size:
-                previous_range = ReadingRange(fields=[field], start=value.start, size=value.size)
+        for field in sorted(fields, key=lambda x: x.start):
+            if previous_range is None or previous_range.end != field.start or previous_range.size >= max_range_size:
+                previous_range = ReadingRange(fields=[field], start=field.start, size=field.size)
                 ranges.append(previous_range)
             else:
                 previous_range.extend(field)
@@ -155,61 +154,67 @@ class Mate3(object):
 
         if device_id not in MODEL_DEVICE_IDS:
             logger.warning(f"Unknown model type with device ID {device_id}")
-            return None, None
+            return None, None, None
 
         model = MODEL_DEVICE_IDS[device_id]
 
         # get the readable fields:
-        fields = [field for field in model if field.value.mode in (Mode.R, Mode.RW)]
+        fields = [field for field in model.__model_fields__ if field.mode in (Mode.R, Mode.RW)]
         if only:
             fields = [field for field in fields if field in only or field.name in ("length", "port_number")]
 
         # Order fields by start registry, as this is the order in which we will receive the values
-        fields = sorted(fields, key=lambda f: f.value.start)
+        fields = sorted(fields, key=lambda f: f.start)
 
         # Get registers in large ranges, as this drastically improves performance and isn't so demanding of the mate3
-        values = {}
-        for range in self._get_reading_ranges(fields):
-            logger.debug(f"Reading range {range.start} -> {range.end}, of {len(range.fields)} fields")
-            register_number = address + range.start - 1
-            registers = self.client.read_holding_registers(address=register_number, count=range.size)
+        field_reads = {}
+        for reading_range in self._get_reading_ranges(fields):
+            logger.debug(
+                f"Reading range {reading_range.start} -> {reading_range.end}, of {len(reading_range.fields)} fields"
+            )
+            register_number = address + reading_range.start - 1
+            registers = self.client.read_holding_registers(address=register_number, count=reading_range.size)
             read_time = datetime.now()
 
-            for field in range.fields:
+            for field in reading_range.fields:
                 try:
-                    implemented, value = field.value.from_registers(registers[: field.value.size])
-                    values[field] = FieldRead(value=value, implemented=implemented, time=read_time, scale_factor=None)
+                    implemented, value = field.from_registers(registers[: field.size])
+                    field_reads[field.name] = FieldRead(
+                        value=value, implemented=implemented, time=read_time, scale_factor=None
+                    )
                 except Exception as e:
                     logger.warning(f"Error reading field {field.name} - so setting as not implemented. Message: {e}")
-                    values[field] = FieldRead(value=None, implemented=False, time=read_time, scale_factor=None)
-                registers = registers[field.value.size :]
+                    field_reads[field.name] = FieldRead(
+                        value=None, implemented=False, time=read_time, scale_factor=None
+                    )
+                registers = registers[field.size :]
 
         for field in fields:
-            if isinstance(field.value, IntegerField) and field.value.scale_factor is not None:
-                scale_factor = values[field.value.scale_factor]
+            if isinstance(field, IntegerField) and field.scale_factor is not None:
+                scale_factor = field_reads[field.scale_factor.name]
                 if not scale_factor.implemented:
                     raise RuntimeError("Scale factor isn't implemented!")
-                values[field].scale_factor = scale_factor
+                field_reads[field.name].scale_factor = scale_factor
 
-        # get length:
-        length = [v for k, v in values.items() if k.name == "length"][0].value
-
-        return length, model, values
+        return model, field_reads
 
     def read(self, only: Optional[List[FieldValue]] = None):
         register = self.sunspec_register
         max_models = 30
         first = True
-        model_values = []
+        model_field_reads = {}
         only_fields = []
         if only is not None:
-            for field_value in only:
-                field = field_value.field
-                if field.value.mode not in (Mode.R, Mode.RW):
+            for field in only:
+                field = field.field
+                if field.mode not in (Mode.R, Mode.RW):
                     raise RuntimeError("Can't read from a read-only field!")
                 only_fields.append(field)
+                # read the scale factor too, if needed:
+                if isinstance(field, IntegerField) and field.scale_factor is not None:
+                    only_fields.append(field.scale_factor)
         for _ in range(max_models):
-            length, model, values = self._read_model(register, first, only_fields)
+            model, field_reads = self._read_model(register, first, only_fields)
             first = False
 
             # Unknown device
@@ -221,27 +226,22 @@ class Mate3(object):
                 break
 
             # record for use out of loop:
-            model_values.append((register, model, values))
+            model_field_reads.setdefault(model, [])
+            model_field_reads[model].append((register, field_reads))
 
             # move register to next block - that is, add the length of the block (which excludes DID + length) and
             # the DID and length fields lengths (each one - hence the +2)
-            register += length + 2
+            register += field_reads["length"].value + 2
             # TODO: why + 2 for sunspec? +1 yes, as the ID is a uint32, but that's only one extra 16 bits, not 2 ... maybe padding?
             if model == SunSpecHeaderModel:
                 register += 2
 
         # create devices if needed:
-        devices = self._devices
-        if devices is None:
-            devices = DeviceValues()
+        if self._devices is None:
+            self._devices = DeviceValues()
 
         # update:
-        devices.update(model_values)
-
-        # assign back:
-        self._devices = devices
-
-        return model_values
+        self._devices.update(model_field_reads)
 
     def write(self):
         """
@@ -259,15 +259,13 @@ class Mate3(object):
 
         # TODO: write in ranges?
         for device in self._devices.connected_devices:
-            # TODO: iterating through dataclasses is gross ...
-            # ew, this will fail iterating over non-config ones, as it'll include config TODO
-            for field_name, field_value in device:
+            for field_value in device:
                 if field_value.dirty:
-                    if field_value.field.value.mode not in (Mode.RW, Mode.W):
-                        raise RuntimeError(f"Can't write to field {field_name}")
-                    logger.info(f"writing {field_value._value_to_write} to {field_name}")
-                    address = device._address + field_value.field.value.start - 1  # -1 since start is 1-indexed
-                    registers = field_value.field.value.to_registers(field_value._value_to_write)
+                    if field_value.field.mode not in (Mode.RW, Mode.W):
+                        raise RuntimeError(f"Can't write to field {field_value.name}")
+                    logger.info(f"writing {field_value._value_to_write} to {field_value.name}")
+                    address = device._address + field_value.field.start - 1  # -1 since start is 1-indexed
+                    registers = field_value.field.to_registers(field_value._value_to_write)
                     logger.debug(f"Setting register {address} to value {registers}")
 
                     # # Do the write
@@ -291,8 +289,8 @@ if __name__ == "__main__":
         print(client.devices.mate3.system_name)
         print("get the voltage")
         print(client.devices.fndc.battery_voltage)
-        print("read only system name again and check only it's read time was updated")
-        client.read(only=[client.devices.mate3.system_name])
+        print("read only battery voltage again and check only it's read time was updated but not system name")
+        client.read(only=[client.devices.fndc.battery_voltage])
         print(client.devices.mate3.system_name)
         print(client.devices.fndc.battery_voltage)
         print("nice. what about not implememted?")

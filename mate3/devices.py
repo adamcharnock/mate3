@@ -30,37 +30,35 @@ from mate3.sunspec.values import (
     SplitPhaseRadianInverterRealTimeValues,
 )
 
-# TODO: tidy up how addresses work ... add an AddressesValues thing? Or add a new field _address to all model values?
-
 
 @dc.dataclass
 class ChargeControllerDeviceValues(ChargeControllerValues):
-    config: ChargeControllerConfigurationValues = dc.field(metadata={"field_value": False})
+    config: ChargeControllerConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class FNDCDeviceValues(FLEXnetDCRealTimeValues):
-    config: FLEXnetDCConfigurationValues = dc.field(metadata={"field_value": False})
+    config: FLEXnetDCConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class FXInverterDeviceValues(FXInverterRealTimeValues):
-    config: FXInverterConfigurationValues = dc.field(metadata={"field_value": False})
+    config: FXInverterConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class SinglePhaseRadianInverterDeviceValues(SinglePhaseRadianInverterRealTimeValues):
-    config: RadianInverterConfigurationValues = dc.field(metadata={"field_value": False})
+    config: RadianInverterConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class SplitPhaseRadianInverterDeviceValues(SplitPhaseRadianInverterRealTimeValues):
-    config: RadianInverterConfigurationValues = dc.field(metadata={"field_value": False})
+    config: RadianInverterConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class Mate3DeviceValues(OutBackValues):
-    config: OutBackSystemControlValues = dc.field(metadata={"field_value": False})
+    config: OutBackSystemControlValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
@@ -147,7 +145,7 @@ class DeviceValues:
 
     def _create_empty_model_values(self, model, address, values_cls, config=None):
         values = {}
-        for field in model:
+        for field in model.__model_fields__:
             values[field.name] = FieldValue(field)
         return (
             values_cls(**values, _address=address)
@@ -155,29 +153,24 @@ class DeviceValues:
             else values_cls(**values, config=config, _address=address)
         )
 
-    def update(self, model_values):
-        # group by model:
-        address_and_values_per_model = {}
-        for address, model, values in model_values:
-            address_and_values_per_model.setdefault(model, [])
-            address_and_values_per_model[model].append((address, values))
+    def update(self, model_field_reads):
 
         # check that all values for each model have a different port:
-        for model, address_and_values in address_and_values_per_model.items():
+        for model, address_and_field_reads in model_field_reads.items():
             ports = []
-            for addr, values in address_and_values:
-                for field, read in values.items():
-                    if field.name == "port_number":
-                        ports.append(read.value)
+            for _, field_reads in address_and_field_reads:
+                port_field = field_reads.get("port_number")
+                if port_field:
+                    ports.append(port_field.value)
             if len(set(ports)) < len(ports):
-                raise RuntimeError("Multiple devices with the same (including missing) port!")
+                raise RuntimeError(f"Multiple devices with the same (including missing) port for model {model}")
 
         # update mate:
-        self._update_mate(address_and_values_per_model)
+        self._update_mate(model_field_reads)
 
         # charge controller
         self._update_model_and_config(
-            models=address_and_values_per_model,
+            all_model_field_reads=model_field_reads,
             model_class=ChargeControllerModel,
             config_class=ChargeControllerConfigurationModel,
             config_values_class=ChargeControllerConfigurationValues,
@@ -186,7 +179,7 @@ class DeviceValues:
         )
         # fndcs
         self._update_model_and_config(
-            models=address_and_values_per_model,
+            all_model_field_reads=model_field_reads,
             model_class=FLEXnetDCRealTimeModel,
             config_class=FLEXnetDCConfigurationModel,
             config_values_class=FLEXnetDCConfigurationValues,
@@ -195,7 +188,7 @@ class DeviceValues:
         )
         # fx inverters
         self._update_model_and_config(
-            models=address_and_values_per_model,
+            all_model_field_reads=model_field_reads,
             model_class=FXInverterRealTimeModel,
             config_class=FXInverterConfigurationModel,
             config_values_class=FXInverterConfigurationValues,
@@ -204,7 +197,7 @@ class DeviceValues:
         )
         # single phase radian inverters
         self._update_model_and_config(
-            models=address_and_values_per_model,
+            all_model_field_reads=model_field_reads,
             model_class=SinglePhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
@@ -213,7 +206,7 @@ class DeviceValues:
         )
         # split phase radian inverters
         self._update_model_and_config(
-            models=address_and_values_per_model,
+            all_model_field_reads=model_field_reads,
             model_class=SplitPhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
@@ -221,10 +214,10 @@ class DeviceValues:
             device_class=SplitPhaseRadianInverterDeviceValues,
         )
 
-    def _update_mate(self, models):
+    def _update_mate(self, all_model_field_reads):
 
-        config_address, config_values = models[OutBackSystemControlModel][0]
-        model_address, model_values = models[OutBackModel][0]
+        config_address, config_field_reads = all_model_field_reads[OutBackSystemControlModel][0]
+        model_address, model_field_reads = all_model_field_reads[OutBackModel][0]
         if self.mate3 is None:
             conf = self._create_empty_model_values(
                 OutBackSystemControlModel, config_address, OutBackSystemControlValues
@@ -232,50 +225,47 @@ class DeviceValues:
             self.mate3 = self._create_empty_model_values(OutBackModel, model_address, Mate3DeviceValues, conf)
 
         # update stuff:
-        for field, read in model_values.items():
-            getattr(self.mate3, field.name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
-        for field, read in config_values.items():
-            getattr(self.mate3.config, field.name)._update_on_read(
+        for field_name, read in model_field_reads.items():
+            getattr(self.mate3, field_name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
+        for field_name, read in config_field_reads.items():
+            getattr(self.mate3.config, field_name)._update_on_read(
                 read.value, read.implemented, read.time, read.scale_factor
             )
 
-    def _update_model_and_config(self, models, model_class, config_class, config_values_class, target, device_class):
+    def _update_model_and_config(
+        self, all_model_field_reads, model_class, config_class, config_values_class, target, device_class
+    ):
 
-        if not models:
-            pass
+        if not all_model_field_reads:
+            return
 
-        n = sum([config_class in models, model_class in models])
+        # check either both config and model exist, or none:
+        n = sum([config_class in all_model_field_reads, model_class in all_model_field_reads])
         if n == 0:
             # OK, this device doesn't exist, so nothing to do here
             return
         elif n == 1:
             raise RuntimeError("both the config and model class need to be present!")
 
-        config = models[config_class]
-        model = models[model_class]
+        config_addresses_and_field_reads = all_model_field_reads[config_class]
+        model_addresses_and_field_reads = all_model_field_reads[model_class]
 
         # run some checks on ports and stuff:
-        config_port_values = [
-            (address, [read.value for field, read in reads.items() if field.name == "port_number"][0])
-            for address, reads in config
-        ]
-        model_port_values = [
-            (address, [read.value for field, read in reads.items() if field.name == "port_number"][0])
-            for address, reads in model
-        ]
-        config_ports = [port for address, port in config_port_values]
-        model_ports = [port for address, port in model_port_values]
-        if len(config_ports) > len(set(config_ports)):
+        config_port_addresses = {
+            field_reads["port_number"].value: address for address, field_reads in config_addresses_and_field_reads
+        }
+        model_port_addresses = {
+            field_reads["port_number"].value: address for address, field_reads in model_addresses_and_field_reads
+        }
+        if len(config_port_addresses) > len(set(config_port_addresses)):
             raise RuntimeError("Multiple configs for the same port!")
-        if len(model_ports) > len(set(model_ports)):
+        if len(model_port_addresses) > len(set(model_port_addresses)):
             raise RuntimeError("Multiple models for the same port!")
-        if set(config_ports).symmetric_difference(set(model_ports)):
+        if set(config_port_addresses).symmetric_difference(set(model_port_addresses)):
             raise RuntimeError("The ports for model + configuration don't match ...")
-        ports = config_ports
+        ports = list(config_port_addresses)
 
         # create any new:
-        config_port_addresses = {port: address for address, port in config_port_values}
-        model_port_addresses = {port: address for address, port in model_port_values}
         for port in ports:
             if port not in target:
                 config_values = self._create_empty_model_values(
@@ -295,21 +285,29 @@ class DeviceValues:
             del target[port]
 
         # update stuff:
-        for address, values in model:
-            port = [v for k, v in values.items() if k.name == "port_number"][0].value
-            device = target[port]
+        for address, field_reads in model_addresses_and_field_reads:
+            device = target[field_reads["port_number"].value]
             # check address matches:
             if device._address != address:
-                raise RuntimeError("TODO")
-            for field, read in values.items():
-                getattr(device, field.name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
-        for address, values in config:
-            port = [v for k, v in values.items() if k.name == "port_number"][0].value
-            device = target[port]
+                raise RuntimeError(
+                    (
+                        "Device address has changed! This might be OK, but it might also cause bugs we haven't thought of "
+                        "so we're bailing just in case."
+                    )
+                )
+            for field_name, read in field_reads.items():
+                getattr(device, field_name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
+        for address, field_reads in config_addresses_and_field_reads:
+            device = target[field_reads["port_number"].value]
             # check address matches:
             if device.config._address != address:
-                raise RuntimeError("TODO")
-            for field, read in values.items():
-                getattr(device.config, field.name)._update_on_read(
+                raise RuntimeError(
+                    (
+                        "Device address has changed! This might be OK, but it might also cause bugs we haven't thought of "
+                        "so we're bailing just in case."
+                    )
+                )
+            for field_name, read in field_reads.items():
+                getattr(device.config, field_name)._update_on_read(
                     read.value, read.implemented, read.time, read.scale_factor
                 )

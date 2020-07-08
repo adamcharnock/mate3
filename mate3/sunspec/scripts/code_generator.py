@@ -155,12 +155,18 @@ class ModelTable:
 
     def generate_definition(self, bitfields):
         class_name = self.python_name
-        code = f"@unique\nclass {class_name}Model(Enum):\n"
+        code = f"class {class_name}Model:\n"
         afters = []
+        names = []
         for row in self.rows:
-            defn, after = self._generate_field(row=row, class_name=class_name, bitfields=bitfields)
+            name, defn, after = self._generate_field(row=row, class_name=class_name, bitfields=bitfields)
+            if name:
+                names.append(name)
             code += defn
             afters += after
+        # add the names:
+        names = ", ".join([f"{class_name}Model.{name}" for name in names])
+        afters.append(f"{class_name}Model.__model_fields__ = [{names}]")
         if afters:
             code += "\n\n"
             for after in afters:
@@ -214,7 +220,7 @@ class ModelTable:
         scale_factor = row.scale_factor
         if scale_factor:
             scale_factor = self._get_scale_factor_python_name(scale_factor)
-            yield True, f"{class_name}Model.{python_name}.value.scale_factor = {class_name}Model.{scale_factor}\n"
+            yield True, f"{class_name}Model.{python_name}.scale_factor = {class_name}Model.{scale_factor}\n"
         # else:
         #    yield False, ""
 
@@ -294,7 +300,7 @@ class ModelTable:
                 # if we don't know about that bitfield, skip it - generally these are ones kept for future use
                 if row.name not in bitfields:
                     logger.warning(f"skipping {row.name} as unknown bitfield. Row: {row}")
-                    return "", []
+                    return "", "", []
                 field_type = f"Bit{16 * row.size}"
                 field_args += list(self._generate_bit_field(row, bitfields))
             elif units == "enumerated" or (
@@ -327,7 +333,7 @@ class ModelTable:
             field_type = "String"
         else:
             raise ValueError(f"Don't know what to do with type {row.type}")
-        return f"    {name} = {field_type}Field({', '.join(field_args)})\n", afters
+        return name, f"    {name}: {field_type}Field = {field_type}Field(\"{name}\", {', '.join(field_args)})\n", afters
 
 
 class BitfieldTable:
@@ -538,22 +544,26 @@ from mate3.sunspec.fields import (
         code += "\n"
 
     code += f"""
-@unique
-class SunSpecHeaderModel(Enum):
-    did = Uint32Field(1, 2, Mode.R)
-    model_id = Uint16Field(3, 1, Mode.R)
-    length = Uint16Field(4, 1, Mode.R)
-    manufacturer = StringField(5, 16, Mode.R)
-    model = StringField(21, 16, Mode.R)
-    options = StringField(37, 8, Mode.R)
-    version = StringField(45, 8, Mode.R)
-    serial_number = StringField(53, 16, Mode.R)
+class SunSpecHeaderModel:
+    did: Uint32Field = Uint32Field("did", 1, 2, Mode.R)
+    model_id: Uint16Field = Uint16Field("model_id", 3, 1, Mode.R)
+    length: Uint16Field = Uint16Field("length", 4, 1, Mode.R)
+    manufacturer: StringField = StringField("manufacturer", 5, 16, Mode.R)
+    model: StringField = StringField("model", 21, 16, Mode.R)
+    options: StringField = StringField("options", 37, 8, Mode.R)
+    version: StringField = StringField("version", 45, 8, Mode.R)
+    serial_number: StringField = StringField("serial_number", 53, 16, Mode.R)
 
 
-@unique
-class SunSpecEndModel(Enum):
-    did = Uint16Field(1, 1, Mode.R, description="Should be {0xFFFF}")
-    length = Uint16Field(2, 1, Mode.R, description="Should be 0")
+SunSpecHeaderModel.__model_fields__ = [SunSpecHeaderModel.did, SunSpecHeaderModel.model_id, SunSpecHeaderModel.length, SunSpecHeaderModel.manufacturer, SunSpecHeaderModel.model, SunSpecHeaderModel.options, SunSpecHeaderModel.version, SunSpecHeaderModel.serial_number]
+
+
+class SunSpecEndModel:
+    did: Uint16Field = Uint16Field("did", 1, 1, Mode.R, description="Should be {0xFFFF}")
+    length: Uint16Field = Uint16Field("length", 2, 1, Mode.R, description="Should be 0")
+
+
+SunSpecEndModel.__model_fields__ = [SunSpecEndModel.did, SunSpecEndModel.length]
 \n
 """
     model_tables = read_models(wb)

@@ -1,10 +1,10 @@
-from abc import ABCMeta, abstractmethod
+import dataclasses as dc
 import socket
 import struct
-import dataclasses as dc
+from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntFlag
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from loguru import logger
 
@@ -202,7 +202,6 @@ class BitfieldMixin:
     """
 
     def _get_flags(self, value, mx, not_implemented):
-
         # TODO: as per spec ... "if the most significant bit in a bitfield is set, all other bits shall be ignored"
         if value == not_implemented:
             # as per sunspec, this is "not implemented"
@@ -219,7 +218,7 @@ class BitfieldMixin:
 
 
 @dc.dataclass
-class Bit16Field(Uint16Field, BitfieldMixin):
+class Bit16Field(BitfieldMixin, Uint16Field):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
     before using the flags, etc.
@@ -239,7 +238,7 @@ class Bit16Field(Uint16Field, BitfieldMixin):
 
 
 @dc.dataclass
-class Bit32Field(Uint32Field, BitfieldMixin):
+class Bit32Field(BitfieldMixin, Uint32Field):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
     before using the flags, etc.
@@ -261,7 +260,6 @@ class Bit32Field(Uint32Field, BitfieldMixin):
         return super()._to_registers(value)
 
 
-@dc.dataclass
 class EnumMixin:
     def _get_option(self, val):
         if val is None:
@@ -285,22 +283,22 @@ class EnumMixin:
 
 
 @dc.dataclass
-class EnumUint16Field(Uint16Field, EnumMixin):
+class EnumUint16Field(EnumMixin, Uint16Field):
     options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
-class EnumInt16Field(Int16Field, EnumMixin):
+class EnumInt16Field(EnumMixin, Int16Field):
     options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
-class EnumUint32Field(Uint32Field, EnumMixin):
+class EnumUint32Field(EnumMixin, Uint32Field):
     options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
 @dc.dataclass
-class EnumInt32Field(Int32Field, EnumMixin):
+class EnumInt32Field(EnumMixin, Int32Field):
     options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
 
 
@@ -318,18 +316,19 @@ class AddressField(Field):
 
 
 class FieldValue:
+    _scale_factor_cache_time = timedelta(seconds=60)
+
     def __init__(self, field):
-        self.field = field
-        self._last_read = None
-        self._dirty = False
-        self._implemented = None
-        self._value_to_write = None
-        self._raw_value = None
-        self._scale_factor = None
-        self._scale_factor_cache_time = timedelta(seconds=60)
+        self.field: Field = field
+        self._last_read: Optional[datetime] = None
+        self._dirty: bool = False
+        self._implemented: Optional[bool] = None
+        self._value_to_write: Any = None
+        self._raw_value: Any = None
+        self._scale_factor: Optional[int] = None
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.field.name
 
     def __repr__(self):
@@ -347,23 +346,39 @@ class FieldValue:
         return " | ".join(ss)
 
     @property
-    def last_read(self):
+    def last_read(self) -> datetime:
         return self._last_read
 
     @property
-    def dirty(self):
+    def dirty(self) -> bool:
         return self._dirty
 
     @property
-    def implemented(self):
+    def implemented(self) -> bool:
+        if self._last_read is None:
+            raise RuntimeError("Can't access 'implemented' before the field value has been read at least once.")
         return self._implemented
+
+    @property
+    def scale_factor(self) -> int:
+        if self._last_read is None:
+            raise RuntimeError("Can't access 'scale_factor' before the field value has been read at least once.")
+        return self._scale_factor
+
+    @property
+    def raw_value(self) -> Any:
+        if self._last_read is None:
+            raise RuntimeError("Can't access 'raw_value' before the field value has been read at least once.")
+        return self._raw_value
 
     @property
     def _should_be_scaled(self):
         return isinstance(self.field, IntegerField) and self.field.scale_factor is not None
 
     @property
-    def value(self):
+    def value(self) -> Any:
+        if self._last_read is None:
+            raise RuntimeError("Can't access 'value' before the field value has been read at least once.")
         if self.field.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from this field!")
         if not self._implemented:
@@ -421,9 +436,9 @@ class FieldValue:
                 )
             scale_factor_read = scale_factor_read.value
             if not isinstance(scale_factor_read, int):
-                raise RuntimeError(f"scale_factor should be an integer!")
+                raise RuntimeError("scale_factor should be an integer!")
             if scale_factor_read < -10 or scale_factor_read > 10:
-                raise RuntimeError(f"scale_factor should be between -10 and 10")
+                raise RuntimeError("scale_factor should be between -10 and 10")
         else:
             if scale_factor_read is not None:
                 raise RuntimeError(f"No scale_factor should be provided for field {self.field}")
@@ -434,7 +449,7 @@ class FieldValue:
         self._last_read = read_time
         if self._value_to_write is not None:
             logger.warning(
-                f"A value has been set to be written, but was re-read after this, so the write will be ignored "
+                "A value has been set to be written, but was re-read after this, so the write will be ignored "
             )
             self._value_to_write = None
         self._dirty = False
@@ -444,7 +459,9 @@ class FieldValue:
 class ModelFieldValues:
     _address: int = dc.field(metadata={"field": False})
 
-    def __iter__(self):
+    def fields(self, modes: Iterable[Mode] = None):
         for field in dc.fields(self):
             if field.metadata.get("field", True):
-                yield getattr(self, field.name)
+                field_ = getattr(self, field.name)
+                if modes is None or field_.field.mode in modes:
+                    yield field_

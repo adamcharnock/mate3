@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Optional, Set
@@ -9,81 +9,80 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
 from mate3.devices import DeviceValues
-from mate3.sunspec.fields import Field, IntegerField, Mode, Uint32Field, FieldValue
+from mate3.sunspec.fields import Field, FieldValue, IntegerField, Mode, Uint32Field
 from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
 
 class CachingModbusClient(ModbusClient):
-    def __init__(self, cache_path, cache_only=False, *args, **kwargs):
-        self.cache_path = cache_path
-        self.cache = {}
-        self.cache_only = cache_only
-        if self.cache_path.exists():
-            self.cache = self._read_cache()
+    """
+    This is a simple wrapper around ModbusClient that can cache values during use, write them to disk, and then read
+    those values. It's particularly useful for:
+
+        - Testing/debugging if you don't have the same physical Outback gear as others.
+        - Not hammering your Mate3 while developing, and continually having to restart it!
+
+    If cache_only is False, the cache will be continually updated with anything not in the cache, whereas if True, then
+    the cache won't be updated i.e. it's never hit the Mate3 directly and only rely on the cache.
+    """
+
+    def __init__(self, cache_path: str, *args, cache_only: bool = False, **kwargs):
+        self._cache_path = Path(cache_path)
+        self._cache = {}
+        self._cache_only = cache_only
+        if self._cache_path.exists():
+            self._cache = self._read_cache()
         else:
-            if self.cache_only:
+            if self._cache_only:
                 raise RuntimeError("Cache doesn't exist!")
-        self.cache_only = cache_only
-        if not self.cache_only:
+        self._cache_only = cache_only
+        if not self._cache_only:
             super().__init__(*args, **kwargs)
 
     def _read_cache(self):
-        with open(self.cache_path) as f:
+        with open(self._cache_path) as f:
             cache = json.load(f)
             cache = {int(addr): val for addr, val in cache.items()}
         return cache
 
     def _write_cache(self):
-        with open(self.cache_path, "w") as f:
-            json.dump(self.cache, f)
+        with open(self._cache_path, "w") as f:
+            json.dump(self._cache, f)
 
     def read_holding_registers(self, address, count):
+        """
+        Replace the existing method with our own to do the caching.
+        """
+        # Get all the addresses:
         addresses = [address + i for i in range(count)]
-        # ok, need to handle uncached stuff:
-        if any(addr not in self.cache for addr in addresses):
-            if self.cache_only:
-                # if we're cache_only, then cache miss is an error
-                raise ValueError(f"Uncached lookup at {k}")
+        # If there are any uncached, then we read the whole lot again:
+        if any(addr not in self._cache for addr in addresses):
+            if self._cache_only:
+                # If we're cache_only, then cache miss is an error
+                raise ValueError("Uncached lookup!")
             response = super().read_holding_registers(address=address, count=count)
             if isinstance(response, Exception):
                 raise response
             for addr, bites in zip(addresses, response.registers):
-                self.cache[addr] = bites
-        # done!
-        return [self.cache[addr] for addr in addresses]
+                self._cache[addr] = bites
+        # Return results from cache:
+        return [self._cache[addr] for addr in addresses]
 
     def close(self, *args, **kwargs):
+        """
+        On close, write the cache then close properly.
+        """
         self._write_cache()
-        if not self.cache_only:
+        if not self._cache_only:
             super().close(*args, **kwargs)
-
-
-class Mate3Factory:
-    def __init__(self, host: str, port: int = Defaults.Port, cache_path=None, cache_only=False):
-        self.host = host
-        self.port = port
-        self.cache_path = cache_path
-        self.cache_only = cache_only
-        self._client = None
-
-    def __enter__(self) -> "Mate3":
-        if self.cache_path is not None:
-            self._client = CachingModbusClient(
-                host=self.host, port=self.port, cache_path=self.cache_path, cache_only=self.cache_only
-            )
-        else:
-            self._client = ModbusClient(self.host, self.port)
-        return Mate3(self._client)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._client.close()
-
-
-mate3_connection = Mate3Factory
 
 
 @dataclass(frozen=False)
 class ReadingRange:
+    """
+    Mate's work better reading a contiguous range of values at once as opposed to indivudally. This is a simple wrapper
+    for such a contiguous range.
+    """
+
     fields: List[Field]
     start: int
     size: int
@@ -105,13 +104,44 @@ class FieldRead:
     scale_factor: Optional[Any] = None
 
 
-class Mate3(object):
+class Mate3Client:
+    """
+    The main Mate3 object users will interact with. Can (and should) be used as a context manager.
+    """
 
-    sunspec_register = 40000
+    sunspec_register: int = 40000
 
-    def __init__(self, client):
-        self.client = client
-        self._devices = None
+    def __init__(self, host: str, port: int = Defaults.Port, cache_path: str = None, cache_only: bool = False):
+        self.host: str = host
+        self.port: int = port
+        self._cache_path: str = cache_path
+        self._cache_only: bool = cache_only
+        self._client: ModbusClient = None
+        self._devices: DeviceValues = None
+
+    def connect(self):
+        """
+        Connect to the mate over modbus.
+        """
+        if self._cache_path is not None:
+            self._client = CachingModbusClient(
+                host=self.host, port=self.port, cache_path=self._cache_path, cache_only=self._cache_only
+            )
+        else:
+            self._client = ModbusClient(self.host, self.port)
+
+    def close(self):
+        """
+        Close the modbus connection to the mate.
+        """
+        self._client.close()
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     @property
     def devices(self) -> DeviceValues:
@@ -121,8 +151,8 @@ class Mate3(object):
 
     def _get_reading_ranges(self, fields):
         """
-        Get the ranges of registers which can be read as a contiguous block
-        This allows for greater performance than reading a single register at a time.
+        Get the ranges of registers which can be read as a contiguous block, which  allows for greater performance than
+        reading a single register at a time.
         """
 
         # The mate3s gets unhappy if one tries to read too much at once
@@ -139,26 +169,30 @@ class Mate3(object):
                 previous_range.extend(field)
         return ranges
 
-    def _read_model(self, address, first, only: List[Field]):
+    def _read_model(self, address: int, first: bool, only: List[Field]):
+        """
+        Read an individual model at `address`. Use `first` to specify that this is the first block - see comment below.
+        By default reads everything in the model - use `only` to specify a list of Fields to read, if you want to limit.
+        """
 
-        # read the first register for the device ID:
-        registers = self.client.read_holding_registers(address=address, count=2)
+        # Read the first register for the device ID:
+        registers = self._client.read_holding_registers(address=address, count=2)
 
-        # if first, then this is the SunSpecHeaderModel, which has a device ID of Uint32 type not Uint16 like the rest.
+        # If first, then this is the SunSpecHeaderModel, which has a device ID of Uint32 type not Uint16 like the rest.
         if first:
             _, device_id = Uint32Field._from_registers(None, registers[:2])
         else:
-            # don't use the Uint16Field parser as for the SunSpec end block the value is 65535, which is actually the
+            # Don't use the Uint16Field parser as for the SunSpec end block the value is 65535, which is actually the
             # 'not implemented' value, so None is returned.
             device_id = registers[0]
 
         if device_id not in MODEL_DEVICE_IDS:
             logger.warning(f"Unknown model type with device ID {device_id}")
-            return None, None, None
+            return None, None
 
         model = MODEL_DEVICE_IDS[device_id]
 
-        # get the readable fields:
+        # Get the readable fields:
         fields = [field for field in model.__model_fields__ if field.mode in (Mode.R, Mode.RW)]
         if only:
             fields = [field for field in fields if field in only or field.name in ("length", "port_number")]
@@ -173,7 +207,7 @@ class Mate3(object):
                 f"Reading range {reading_range.start} -> {reading_range.end}, of {len(reading_range.fields)} fields"
             )
             register_number = address + reading_range.start - 1
-            registers = self.client.read_holding_registers(address=register_number, count=reading_range.size)
+            registers = self._client.read_holding_registers(address=register_number, count=reading_range.size)
             read_time = datetime.now()
 
             for field in reading_range.fields:
@@ -199,6 +233,10 @@ class Mate3(object):
         return model, field_reads
 
     def read(self, only: Optional[List[FieldValue]] = None):
+        """
+        Read values from the mate. By default (`only=None`), everything is read, but if you want to read only specified
+        fields (which puts less strain on the mate), list the in `only`.
+        """
         register = self.sunspec_register
         max_models = 30
         first = True
@@ -210,7 +248,7 @@ class Mate3(object):
                 if field.mode not in (Mode.R, Mode.RW):
                     raise RuntimeError("Can't read from a read-only field!")
                 only_fields.append(field)
-                # read the scale factor too, if needed:
+                # Read the scale factor too, if needed:
                 if isinstance(field, IntegerField) and field.scale_factor is not None:
                     only_fields.append(field.scale_factor)
         for _ in range(max_models):
@@ -229,10 +267,11 @@ class Mate3(object):
             model_field_reads.setdefault(model, [])
             model_field_reads[model].append((register, field_reads))
 
-            # move register to next block - that is, add the length of the block (which excludes DID + length) and
+            # Move register to next block - that is, add the length of the block (which excludes DID + length) and
             # the DID and length fields lengths (each one - hence the +2)
             register += field_reads["length"].value + 2
-            # TODO: why + 2 for sunspec? +1 yes, as the ID is a uint32, but that's only one extra 16 bits, not 2 ... maybe padding?
+            # TODO: why + 2 for sunspec? +1 yes, as the ID is a uint32, but that's only one extra 16 bits, not 2 ...
+            # maybe padding?
             if model == SunSpecHeaderModel:
                 register += 2
 
@@ -245,6 +284,8 @@ class Mate3(object):
 
     def write(self):
         """
+        After having updated values on self.devices, call this function to write them to the mate itself.
+
         Warning:
 
             Ensure you have read the LICENSE file before using this feature. Note the
@@ -259,7 +300,7 @@ class Mate3(object):
 
         # TODO: write in ranges?
         for device in self._devices.connected_devices:
-            for field_value in device:
+            for field_value in device.fields():
                 if field_value.dirty:
                     if field_value.field.mode not in (Mode.RW, Mode.W):
                         raise RuntimeError(f"Can't write to field {field_value.name}")
@@ -281,10 +322,17 @@ if __name__ == "__main__":
     logger.add(sys.stderr, level="INFO")
 
     cache_path = Path(__file__).parent / ".modbus_client_cache.json"
-    with Mate3Factory("192.168.1.12", cache_path=cache_path, cache_only=True) as client:
+    with Mate3Client("192.168.1.12", cache_path=cache_path, cache_only=True) as client:
         client.read()
-        # for d in client.devices.connected_devices:
-        #     print(d.__class__.__name__, d._address)
+        print("devices:")
+        print("name".ljust(50), "address".ljust(10), "port")
+        print("----".ljust(50), "-------".ljust(10), "----")
+        for d in client.devices.connected_devices:
+            print(
+                d.__class__.__name__.ljust(50),
+                str(d._address).ljust(10),
+                d.port_number.value if hasattr(d, "port_number") else None,
+            )
         print("the system!")
         print(client.devices.mate3.system_name)
         print("get the voltage")

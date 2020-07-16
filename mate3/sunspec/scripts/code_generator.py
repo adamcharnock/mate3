@@ -257,7 +257,7 @@ class ModelTable:
             for m in starts_number:
                 g = m.groups()
                 k = int(g[0])
-                v = g[1].strip().strip(",")
+                v = g[1].strip().strip(",;").strip()
                 options.append((v, k))
         else:
             for m in ends_number:

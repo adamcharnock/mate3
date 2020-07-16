@@ -13,6 +13,9 @@
 - update toml, new version, etc.
 - update readme
 - update cli
+- add a 'save cache' to mate3 command so this can be shared.
+- add a `name` attr to each device.
+- add command to cli to just list connected devices & their ports.
 
 # Outback Mate 3s Python library & command line interface
 

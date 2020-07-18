@@ -155,7 +155,7 @@ class ModelTable:
 
     def generate_definition(self, bitfields):
         class_name = self.python_name
-        code = f"class {class_name}Model:\n"
+        code = f"class {class_name}Model(Model):\n"
         afters = []
         names = []
         for row in self.rows:
@@ -176,7 +176,7 @@ class ModelTable:
 
     def generate_values(self):
         class_name = self.python_name
-        code = f"@dataclass\nclass {class_name}Values(ModelFieldValues):\n"
+        code = f"@dataclass\nclass {class_name}Values(ModelValues):\n"
         # code += f"    __definition__ = models.{class_name}Model\n"
         for row in self.rows:
             name = row.python_name
@@ -513,9 +513,6 @@ def main():
 
     wb = load_workbook(PATH)
 
-    # bitfields first:
-    bitfield_tables = read_bitfields(wb)
-    bitfield_tables = sorted(bitfield_tables, key=lambda x: x.python_name)
     code = f'''"""{WARNING}"""
 
 
@@ -525,26 +522,27 @@ from mate3.sunspec.fields import (
     StringField,
     Int16Field,
     Uint16Field,
-    Int32Field,
     Uint32Field,
     EnumUint16Field,
-    EnumUint32Field,
     EnumInt16Field,
-    EnumInt32Field,
     Bit16Field,
     Bit32Field,
     BitfieldDescriptionMixin,
     AddressField
 )
+from mate3.sunspec.model_base import Model
 
 
 '''
+    # bitfields first:
+    bitfield_tables = read_bitfields(wb)
+    bitfield_tables = sorted(bitfield_tables, key=lambda x: x.python_name)
     for table in bitfield_tables:
         code += table.generate_definition()
         code += "\n"
 
     code += f"""
-class SunSpecHeaderModel:
+class SunSpecHeaderModel(Model):
     did: Uint32Field = Uint32Field("did", 1, 2, Mode.R)
     model_id: Uint16Field = Uint16Field("model_id", 3, 1, Mode.R)
     length: Uint16Field = Uint16Field("length", 4, 1, Mode.R)
@@ -558,7 +556,7 @@ class SunSpecHeaderModel:
 SunSpecHeaderModel.__model_fields__ = [SunSpecHeaderModel.did, SunSpecHeaderModel.model_id, SunSpecHeaderModel.length, SunSpecHeaderModel.manufacturer, SunSpecHeaderModel.model, SunSpecHeaderModel.options, SunSpecHeaderModel.version, SunSpecHeaderModel.serial_number]
 
 
-class SunSpecEndModel:
+class SunSpecEndModel(Model):
     did: Uint16Field = Uint16Field("did", 1, 1, Mode.R, description="Should be {0xFFFF}")
     length: Uint16Field = Uint16Field("length", 2, 1, Mode.R, description="Should be 0")
 
@@ -586,13 +584,14 @@ SunSpecEndModel.__model_fields__ = [SunSpecEndModel.did, SunSpecEndModel.length]
     # now values:
     code = f'''"""{WARNING}"""
 
-from mate3.sunspec.fields import FieldValue, ModelFieldValues
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+from mate3.field_values import FieldValue, ModelValues
 from mate3.sunspec import models
 
 
 @dataclass
-class SunSpecHeaderValues(ModelFieldValues):
+class SunSpecHeaderValues(ModelValues):
     did: FieldValue
     model_id: FieldValue
     length: FieldValue
@@ -604,7 +603,7 @@ class SunSpecHeaderValues(ModelFieldValues):
 
 
 @dataclass
-class SunSpecEndValues(ModelFieldValues):
+class SunSpecEndValues(ModelValues):
     did: FieldValue
     length: FieldValue
 

@@ -2,14 +2,15 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional, Set
+from typing import Any, Iterable, List, Optional
 
 from loguru import logger
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
 from mate3.devices import DeviceValues
-from mate3.sunspec.fields import Field, FieldValue, IntegerField, Mode, Uint32Field
+from mate3.field_values import FieldValue
+from mate3.sunspec.fields import Field, IntegerField, Mode, Uint32Field
 from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
 
@@ -169,7 +170,7 @@ class Mate3Client:
                 previous_range.extend(field)
         return ranges
 
-    def _read_model(self, address: int, first: bool, only: List[Field]):
+    def _read_model(self, address: int, first: bool, only: Optional[List[Field]] = None):
         """
         Read an individual model at `address`. Use `first` to specify that this is the first block - see comment below.
         By default reads everything in the model - use `only` to specify a list of Fields to read, if you want to limit.
@@ -194,7 +195,8 @@ class Mate3Client:
 
         # Get the readable fields:
         fields = [field for field in model.__model_fields__ if field.mode in (Mode.R, Mode.RW)]
-        if only:
+        if only is not None:
+            # Make sure we include the length and port number, as we need that elsewhere:
             fields = [field for field in fields if field in only or field.name in ("length", "port_number")]
 
         # Order fields by start registry, as this is the order in which we will receive the values
@@ -232,7 +234,7 @@ class Mate3Client:
 
         return model, field_reads
 
-    def read(self, only: Optional[List[FieldValue]] = None):
+    def read(self, only: Optional[Iterable[FieldValue]] = None):
         """
         Read values from the mate. By default (`only=None`), everything is read, but if you want to read only specified
         fields (which puts less strain on the mate), list the in `only`.
@@ -241,8 +243,9 @@ class Mate3Client:
         max_models = 30
         first = True
         model_field_reads = {}
-        only_fields = []
+        model_addresses = {}
         if only is not None:
+            only_fields = []
             for field in only:
                 field = field.field
                 if field.mode not in (Mode.R, Mode.RW):
@@ -251,6 +254,8 @@ class Mate3Client:
                 # Read the scale factor too, if needed:
                 if isinstance(field, IntegerField) and field.scale_factor is not None:
                     only_fields.append(field.scale_factor)
+        else:
+            only_fields = None
         for _ in range(max_models):
             model, field_reads = self._read_model(register, first, only_fields)
             first = False
@@ -265,7 +270,9 @@ class Mate3Client:
 
             # record for use out of loop:
             model_field_reads.setdefault(model, [])
-            model_field_reads[model].append((register, field_reads))
+            model_field_reads[model].append(field_reads)
+            model_addresses.setdefault(model, [])
+            model_addresses[model].append(register)
 
             # Move register to next block - that is, add the length of the block (which excludes DID + length) and
             # the DID and length fields lengths (each one - hence the +2)
@@ -280,7 +287,7 @@ class Mate3Client:
             self._devices = DeviceValues()
 
         # update:
-        self._devices.update(model_field_reads)
+        self._devices.update(model_field_reads, model_addresses)
 
     def write(self):
         """
@@ -299,13 +306,15 @@ class Mate3Client:
         """
 
         # TODO: write in ranges?
+        # TODO: don't use _address - just get it as we need it now. This prevent any issues with caching etc.
         for device in self._devices.connected_devices:
             for field_value in device.fields():
                 if field_value.dirty:
                     if field_value.field.mode not in (Mode.RW, Mode.W):
                         raise RuntimeError(f"Can't write to field {field_value.name}")
                     logger.info(f"writing {field_value._value_to_write} to {field_value.name}")
-                    address = device._address + field_value.field.start - 1  # -1 since start is 1-indexed
+                    address = device.address + field_value.field.start - 1  # -1 since start is 1-indexed
+                    # TODO: should we check that the device at the given address still has the right port?
                     registers = field_value.field.to_registers(field_value._value_to_write)
                     logger.debug(f"Setting register {address} to value {registers}")
 
@@ -323,16 +332,17 @@ if __name__ == "__main__":
 
     cache_path = Path(__file__).parent / ".modbus_client_cache.json"
     with Mate3Client("192.168.1.12", cache_path=cache_path, cache_only=True) as client:
-        client.read()
+        addresses = client.read()
         print("devices:")
         print("name".ljust(50), "address".ljust(10), "port")
         print("----".ljust(50), "-------".ljust(10), "----")
-        for d in client.devices.connected_devices:
-            print(
-                d.__class__.__name__.ljust(50),
-                str(d._address).ljust(10),
-                d.port_number.value if hasattr(d, "port_number") else None,
-            )
+        for device in client.devices.connected_devices:
+            name = device.__class__.__name__
+            port = device.port_number.value if hasattr(device, "port_number") else None
+            # address = addresses[(device, port)]
+            print(addresses)
+            address = "1"
+            print(name.ljust(50), str(address).ljust(10), port)
         print("the system!")
         print(client.devices.mate3.system_name)
         print("get the voltage")

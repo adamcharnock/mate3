@@ -5,17 +5,19 @@
 - add caveats on write:
   - never change the port mappings on devices! TODO: add a safety check to check the device IDs (mac addresses?) are the same before we update a dirty value? this will ensure any port swapping doesn't mess with things.
   - if you have two inverters, do a read, then write, the device-port reference will be wrong so you'll write to the wrong device.
-- bitfield(0) - show none or something?
 - general code tidyups
 - nicer debug logging etc.
 - tests:
   - indivudal fields etc.
 - update toml, new version, etc.
 - update readme
-- update cli
+- update mate3_pg and mate3_write
 - add a 'save cache' to mate3 command so this can be shared.
 - add a `name` attr to each device.
 - add command to cli to just list connected devices & their ports.
+- all loguru
+- allow reading only a single field *from a single device* (i.e. a specific port if there are multiple). We'd still need to read all devices of this type to get the port, but we could bail after that if it's not the port we want.
+- caveats: should be ok if you add/remove devices in most cases. but if e.g. you do a read, then swithc the ports of your two inverters, and then do a read again, you may have fun. Actually, likewise with writing values - if you read, then change ports, and write, it may go to the wrong address.
 
 # Outback Mate 3s Python library & command line interface
 

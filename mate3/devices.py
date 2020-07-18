@@ -1,7 +1,11 @@
 import dataclasses as dc
-from typing import Dict, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
-from mate3.sunspec.fields import FieldValue
+from loguru import logger
+
+from mate3.field_values import FieldValue, ModelValues
+from mate3.sunspec.fields import Field
+from mate3.sunspec.model_base import Model
 from mate3.sunspec.models import (
     ChargeControllerConfigurationModel,
     ChargeControllerModel,
@@ -33,61 +37,83 @@ from mate3.sunspec.values import (
 
 @dc.dataclass
 class ChargeControllerDeviceValues(ChargeControllerValues):
+    """
+    Simple wrapper to combine the value and config models.
+    """
+
     config: ChargeControllerConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class FNDCDeviceValues(FLEXnetDCRealTimeValues):
+    """
+    Simple wrapper to combine the real-time and config models.
+    """
+
     config: FLEXnetDCConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class FXInverterDeviceValues(FXInverterRealTimeValues):
+    """
+    Simple wrapper to combine the real-time and config models.
+    """
+
     config: FXInverterConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class SinglePhaseRadianInverterDeviceValues(SinglePhaseRadianInverterRealTimeValues):
+    """
+    Simple wrapper to combine the real-time and config models.
+    """
+
     config: RadianInverterConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class SplitPhaseRadianInverterDeviceValues(SplitPhaseRadianInverterRealTimeValues):
+    """
+    Simple wrapper to combine the real-time and config models.
+    """
+
     config: RadianInverterConfigurationValues = dc.field(metadata={"field": False})
 
 
 @dc.dataclass
 class Mate3DeviceValues(OutBackValues):
+    """
+    Simple wrapper to combine the value and config models.
+    """
+
     config: OutBackSystemControlValues = dc.field(metadata={"field": False})
 
 
-@dc.dataclass
 class DeviceValues:
-    mate3: Mate3DeviceValues = dc.field(init=False)
-    charge_controllers: Dict[int, ChargeControllerDeviceValues] = dc.field(init=False)
-    fndcs: Dict[int, FNDCDeviceValues] = dc.field(init=False)
-    fx_inverters: Dict[int, FXInverterDeviceValues] = dc.field(init=False)
-    single_phase_radian_inverters: Dict[int, SinglePhaseRadianInverterDeviceValues] = dc.field(init=False)
-    split_phase_radian_inverters: Dict[int, SplitPhaseRadianInverterDeviceValues] = dc.field(init=False)
-    optics: Optional[OPTICSPacketStatisticsValues] = dc.field(init=False)
+    """
+    This is basically a way for storing state (i.e. current values) about all devices. It's the main interface for users
+    to access values etc.
+    """
 
-    def __post_init__(self):
-        self.mate3 = None
-        self.charge_controllers = {}
-        self.fndcs = {}
-        self.fx_inverters = {}
-        self.single_phase_radian_inverters = {}
-        self.split_phase_radian_inverters = {}
-        self.optics = None
+    def __init__(self):
+        self.mate3s: Dict[None, Mate3DeviceValues] = {}
+        self.charge_controllers: Dict[int, ChargeControllerDeviceValues] = {}
+        self.fndcs: Dict[int, FNDCDeviceValues] = {}
+        self.fx_inverters: Dict[int, FXInverterDeviceValues] = {}
+        self.single_phase_radian_inverters: Dict[int, SinglePhaseRadianInverterDeviceValues] = {}
+        self.split_phase_radian_inverters: Dict[int, SplitPhaseRadianInverterDeviceValues] = {}
+        self.optics: Optional[OPTICSPacketStatisticsValues] = None
 
     @property
-    def connected_devices(self):
-        # ones with only a single device:
+    def connected_devices(self) -> Iterable[ModelValues]:
+        # First ones with only a single device:
         for d in ("mate3", "optics"):
             device = getattr(self, d)
             if device:
                 yield device
-        # ones with multiple (and with config):
+
+        # Now those with device and config. (NB: we're explicit here as opposed to relying on hasattr(device, 'config')
+        # just in case a model actually had a 'config' field.)
         for d in (
             "charge_controllers",
             "fndcs",
@@ -99,215 +125,231 @@ class DeviceValues:
                 yield device
                 yield device.config
 
-    @property
-    def charge_controller(self):
-        if len(self.charge_controllers) != 1:
-            raise RuntimeError(
-                "Must be one, and only one, charge controller device to be able to use `charge_controller` attribute"
-            )
-        return list(self.charge_controllers.values())[0]
-
-    @property
-    def fndc(self):
-        if len(self.fndcs) != 1:
-            raise RuntimeError("Must be one, and only one, FNDC device to be able to use `fndc` attribute")
-        return list(self.fndcs.values())[0]
-
-    @property
-    def fx_inverter(self):
-        if len(self.fx_inverters) != 1:
-            raise RuntimeError(
-                "Must be one, and only one, FX inverter device to be able to use `fx_inverter` attribute"
-            )
-        return list(self.fx_inverters.values())[0]
-
-    @property
-    def single_phase_radian_inverter(self):
-        if len(self.single_phase_radian_inverters) != 1:
+    def _get_single_device(self, name: str) -> ModelValues:
+        """
+        Helper function so that e.g. if there's only one charge controller in self.charge_controllers, you can call
+        self.charge_controller to get it.
+        """
+        devices = getattr(self, f"{name}s")
+        if len(devices) != 1:
             raise RuntimeError(
                 (
-                    "Must be one, and only one, single phase radian inverter device to be able to use the"
-                    " `single_phase_radian_inverter` attribute"
+                    f"Must be one, and only one, {name} device to be able to use `{name}` attribute - but there are "
+                    f"{len(devices)}"
                 )
             )
-        return list(self.single_phase_radian_inverters.values())[0]
+        return list(devices.values())[0]
 
     @property
-    def split_phase_radian_inverter(self):
-        if len(self.split_phase_radian_inverters) != 1:
-            raise RuntimeError(
-                (
-                    "Must be one, and only one, split phase radian inverter device to be able to use the"
-                    " `split_phase_radian_inverter` attribute"
-                )
-            )
-        return list(self.split_phase_radian_inverters.values())[0]
+    def mate3(self) -> Mate3DeviceValues:
+        """
+        Return the mate3.
+        """
+        return self._get_single_device("mate3")
 
-    def _create_empty_model_values(self, model, address, values_cls, config=None):
-        values = {}
-        for field in model.__model_fields__:
-            values[field.name] = FieldValue(field)
-        return (
-            values_cls(**values, _address=address)
-            if config is None
-            else values_cls(**values, config=config, _address=address)
-        )
+    @property
+    def charge_controller(self) -> ChargeControllerDeviceValues:
+        """
+        Return the charge controller if there's only one.
+        """
+        return self._get_single_device("charge_controller")
 
-    def update(self, model_field_reads):
+    @property
+    def fndc(self) -> FNDCDeviceValues:
+        """
+        Return the FNDC if there's only one.
+        """
+        return self._get_single_device("fndc")
 
-        # check that all values for each model have a different port:
-        for model, address_and_field_reads in model_field_reads.items():
+    @property
+    def fx_inverter(self) -> FXInverterDeviceValues:
+        """
+        Return the FX inverter if there's only one.
+        """
+        return self._get_single_device("fx_inverter")
+
+    @property
+    def single_phase_radian_inverter(self) -> SinglePhaseRadianInverterDeviceValues:
+        """
+        Return the single phase radian inverter if there's only one.
+        """
+        return self._get_single_device("single_phase_radian_inverter")
+
+    @property
+    def split_phase_radian_inverter(self) -> SplitPhaseRadianInverterDeviceValues:
+        """
+        Return the split phase radian inverter if there's only one.
+        """
+        return self._get_single_device("split_phase_radian_inverter")
+
+    def update(self, all_model_field_reads: Dict[Model, List[Any]], model_addresses: Dict[Model, List[int]]) -> None:
+        """
+        This is the key method, and is used to update the state of the devices with new values.
+        """
+
+        # Check that all values for each model have a different port:
+        for model, model_field_reads in all_model_field_reads.items():
             ports = []
-            for _, field_reads in address_and_field_reads:
+            for field_reads in model_field_reads:
                 port_field = field_reads.get("port_number")
                 if port_field:
                     ports.append(port_field.value)
             if len(set(ports)) < len(ports):
                 raise RuntimeError(f"Multiple devices with the same (including missing) port for model {model}")
 
-        # update mate:
-        self._update_mate(model_field_reads)
-
-        # charge controller
+        # Update mate:
         self._update_model_and_config(
-            all_model_field_reads=model_field_reads,
+            all_model_field_reads=all_model_field_reads,
+            model_class=OutBackModel,
+            config_class=OutBackSystemControlModel,
+            config_values_class=OutBackSystemControlValues,
+            target=self.mate3s,
+            device_class=Mate3DeviceValues,
+            device_has_port=False,
+            model_addresses=model_addresses,
+        )
+
+        # Charge controller
+        self._update_model_and_config(
+            all_model_field_reads=all_model_field_reads,
             model_class=ChargeControllerModel,
             config_class=ChargeControllerConfigurationModel,
             config_values_class=ChargeControllerConfigurationValues,
             target=self.charge_controllers,
             device_class=ChargeControllerDeviceValues,
+            model_addresses=model_addresses,
         )
-        # fndcs
+
+        # FNDCs
         self._update_model_and_config(
-            all_model_field_reads=model_field_reads,
+            all_model_field_reads=all_model_field_reads,
             model_class=FLEXnetDCRealTimeModel,
             config_class=FLEXnetDCConfigurationModel,
             config_values_class=FLEXnetDCConfigurationValues,
             target=self.fndcs,
             device_class=FNDCDeviceValues,
+            model_addresses=model_addresses,
         )
-        # fx inverters
+
+        # FX inverters
         self._update_model_and_config(
-            all_model_field_reads=model_field_reads,
+            all_model_field_reads=all_model_field_reads,
             model_class=FXInverterRealTimeModel,
             config_class=FXInverterConfigurationModel,
             config_values_class=FXInverterConfigurationValues,
             target=self.fx_inverters,
             device_class=FXInverterDeviceValues,
+            model_addresses=model_addresses,
         )
-        # single phase radian inverters
+
+        # Single phase radian inverters
         self._update_model_and_config(
-            all_model_field_reads=model_field_reads,
+            all_model_field_reads=all_model_field_reads,
             model_class=SinglePhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
             target=self.single_phase_radian_inverters,
             device_class=SinglePhaseRadianInverterDeviceValues,
+            model_addresses=model_addresses,
         )
-        # split phase radian inverters
+
+        # Split phase radian inverters
         self._update_model_and_config(
-            all_model_field_reads=model_field_reads,
+            all_model_field_reads=all_model_field_reads,
             model_class=SplitPhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
             target=self.split_phase_radian_inverters,
             device_class=SplitPhaseRadianInverterDeviceValues,
+            model_addresses=model_addresses,
         )
 
-    def _update_mate(self, all_model_field_reads):
-
-        config_address, config_field_reads = all_model_field_reads[OutBackSystemControlModel][0]
-        model_address, model_field_reads = all_model_field_reads[OutBackModel][0]
-        if self.mate3 is None:
-            conf = self._create_empty_model_values(
-                OutBackSystemControlModel, config_address, OutBackSystemControlValues
-            )
-            self.mate3 = self._create_empty_model_values(OutBackModel, model_address, Mate3DeviceValues, conf)
-
-        # update stuff:
-        for field_name, read in model_field_reads.items():
-            getattr(self.mate3, field_name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
-        for field_name, read in config_field_reads.items():
-            getattr(self.mate3.config, field_name)._update_on_read(
-                read.value, read.implemented, read.time, read.scale_factor
-            )
-
     def _update_model_and_config(
-        self, all_model_field_reads, model_class, config_class, config_values_class, target, device_class
-    ):
+        self,
+        all_model_field_reads: Dict,
+        model_class: Model,
+        config_class: Model,
+        config_values_class: ModelValues,
+        target: Dict[int, ModelValues],
+        device_class: ModelValues,
+        model_addresses: Dict[Model, List[int]],
+        device_has_port: bool = True,
+    ) -> None:
+        """
+        Note that all connected devices should always be updated, as every read loop we still read the length and port
+        of each device, regardless of what `only` fields were specified in `read`. Note that not all devices will be 
+        connected, in which case neither will be in the reads.
+        """
 
-        if not all_model_field_reads:
+        model_field_reads = all_model_field_reads.get(model_class)
+        config_field_reads = all_model_field_reads.get(config_class)
+
+        # Check we see both model and config or none:
+        number_missing = sum([model_field_reads is None, config_field_reads is None])
+        if number_missing == 2:
+            # Nothing to do - neither is present which means there are no devices.
             return
+        elif number_missing == 1:
+            raise RuntimeError("Only one of config and values is present, and both should be!")
 
-        # check either both config and model exist, or none:
-        n = sum([config_class in all_model_field_reads, model_class in all_model_field_reads])
-        if n == 0:
-            # OK, this device doesn't exist, so nothing to do here
-            return
-        elif n == 1:
-            raise RuntimeError("both the config and model class need to be present!")
+        if device_has_port:
+            # Let's check ports. Keep in mind that we should be getting all devices of this type, across all ports, and not
+            # just one, as you can't specify to only read off one port. E.g. if you've got two inverters on separate ports
+            # then you'll always get both, not just one. This may change in future.
+            def check_ports(all_field_reads):
+                ports = {field_reads["port_number"].value for field_reads in all_field_reads}
+                if len(ports) > len(set(ports)):
+                    raise RuntimeError("Multiple models for the same port!")
+                return ports
 
-        config_addresses_and_field_reads = all_model_field_reads[config_class]
-        model_addresses_and_field_reads = all_model_field_reads[model_class]
+            model_ports = check_ports(model_field_reads)
+            config_ports = check_ports(config_field_reads)
 
-        # run some checks on ports and stuff:
-        config_port_addresses = {
-            field_reads["port_number"].value: address for address, field_reads in config_addresses_and_field_reads
-        }
-        model_port_addresses = {
-            field_reads["port_number"].value: address for address, field_reads in model_addresses_and_field_reads
-        }
-        if len(config_port_addresses) > len(set(config_port_addresses)):
-            raise RuntimeError("Multiple configs for the same port!")
-        if len(model_port_addresses) > len(set(model_port_addresses)):
-            raise RuntimeError("Multiple models for the same port!")
-        if set(config_port_addresses).symmetric_difference(set(model_port_addresses)):
-            raise RuntimeError("The ports for model + configuration don't match ...")
-        ports = list(config_port_addresses)
+            # The ports should be the same between model and config (since the separation of the model and config are just
+            # implementation details of the Outback SunSpec - they're still the same device, so should have the same port).
+            if model_ports.symmetric_difference(config_ports):
+                raise RuntimeError("Config and models have different ports!")
 
-        # create any new:
+            ports = model_ports
+        else:
+            ports = set([None])
+            if len(model_field_reads) != 1 or len(config_field_reads) != 1:
+                raise RuntimeError("Can't use device_has_port=False unless there's only one model and config.")
+
+        # Create any new devices for the given ports.
         for port in ports:
             if port not in target:
-                config_values = self._create_empty_model_values(
-                    config_class, config_port_addresses[port], config_values_class
-                )
+                config_values = self._create_empty_model_values(model=config_class, values_cls=config_values_class)
                 target[port] = self._create_empty_model_values(
-                    model_class, model_port_addresses[port], device_class, config_values
+                    model=model_class, values_cls=device_class, config=config_values
                 )
 
-        # remove any old:
-        # TODO: this means if they don't do a read, the CC will get dropped
-        # TODO: maybe fail here to explicitly prevent users accessing a device after this point which is gone?
-        # using this code after losing connection to a device
-        old = set(list(target.keys())) - set(ports)
-        for port in old:
-            # TODO: warning
+        # If there are any ports that were used for this device, but are no longer, remove them:
+        old_device_ports = set(list(target.keys())) - set(ports)
+        for port in old_device_ports:
+            logger.warning(
+                f"Device(s) of model {model_class} on ports {old_device_ports} have disappeared. These will be ignored."
+            )
             del target[port]
 
-        # update stuff:
-        for address, field_reads in model_addresses_and_field_reads:
-            device = target[field_reads["port_number"].value]
-            # check address matches:
-            if device._address != address:
-                raise RuntimeError(
-                    (
-                        "Device address has changed! This might be OK, but it might also cause bugs we haven't thought of "
-                        "so we're bailing just in case."
-                    )
-                )
+        # OK, we're done creating/deleting the device containers - now update them:
+        for field_reads, address in zip(model_field_reads, model_addresses[model_class]):
+            device = target[field_reads["port_number"].value if "port_number" in field_reads else None]
             for field_name, read in field_reads.items():
                 getattr(device, field_name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
-        for address, field_reads in config_addresses_and_field_reads:
-            device = target[field_reads["port_number"].value]
-            # check address matches:
-            if device.config._address != address:
-                raise RuntimeError(
-                    (
-                        "Device address has changed! This might be OK, but it might also cause bugs we haven't thought of "
-                        "so we're bailing just in case."
-                    )
-                )
+            # update addresses:
+            device.address = address
+        for field_reads, address in zip(config_field_reads, model_addresses[config_class]):
+            device = target[field_reads["port_number"].value if "port_number" in field_reads else None]
             for field_name, read in field_reads.items():
                 getattr(device.config, field_name)._update_on_read(
                     read.value, read.implemented, read.time, read.scale_factor
                 )
+            # update addresses:
+            device.config.address = address
+
+    def _create_empty_model_values(self, model: Model, values_cls: ModelValues, config: Optional[Model] = None):
+        values = {field.name: FieldValue(field) for field in model.fields()}
+        values["model"] = model
+        values["address"] = None
+        return values_cls(**values) if config is None else values_cls(**values, config=config)

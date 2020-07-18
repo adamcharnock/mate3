@@ -16,7 +16,25 @@ First, the big one:
 
 > **WARNING!** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) before using any of the `write` functionality. You could easily damage your equipment by setting incorrect values (directly or indirectly).
 
-In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time.
+In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time. On that note, the recommended approach if you need to poll over time is:
+
+```python
+while True:
+    with Mate3Client(...) as client:
+        client...
+    sleep(1)
+```
+
+As opposed to
+
+```python
+with Mate3Client(...) as client:
+    while True:
+        client...
+    sleep(1)
+```
+
+Why? It means you're getting point-in-time values, and don't have to worry about changes (such as ports being switched). There are exceptions, but you should know why you're doing it.
 
 ## Installation
 

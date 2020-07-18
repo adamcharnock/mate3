@@ -98,7 +98,7 @@ def main():
                         if value.value is None or isinstance(value.value, (str, int, float))
                         else repr(value.value),
                     }
-                devices.append({"name": name, "address": device._address, "values": values})
+                devices.append({"name": name, "address": device.address, "values": values})
             indent = None if args.format == "json" else 4
             print(json.dumps(devices, indent=indent))
 

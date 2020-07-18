@@ -31,16 +31,15 @@ class FieldValue:
         return self.field.name
 
     def __repr__(self):
-        ss = [f"< {self.field.name}"]
-        ss.append("impl" if self._implemented else "not impl")
-        ss.append(f"read @ {self._last_read}")
+        ss = [f"FieldValue[{self.field.name}]"]
+        ss.append("Implemented" if self._implemented else "Not implemented")
+        ss.append(f"Read @ {self._last_read}")
         if self._scale_factor:
-            ss.append(f"sf: {self._scale_factor}")
-            ss.append(f"raw: {self._raw_value}")
+            ss.append(f"Scale factor: {self._scale_factor}")
+            ss.append(f"Unscaled value: {self._raw_value}")
         if self._implemented:
-            ss.append(f"val: {self.value}")
-            s = f"dirty (value to write: {self._value_to_write})" if self._dirty else "clean"
-            s += " >"
+            ss.append(f"Value: {self.value}")
+            s = f"Dirty (value to write: {self._value_to_write})" if self._dirty else "Clean"
             ss.append(s)
         return " | ".join(ss)
 
@@ -91,6 +90,7 @@ class FieldValue:
 
     @value.setter
     def value(self, value):
+        # TODO: ensure the type of value is correct
         if self.field.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to this field!")
         if self._last_read is None:
@@ -109,6 +109,7 @@ class FieldValue:
             # Scale it:
             value = value / 10 ** self._scale_factor
             # Round it to what it should be after scaling:
+            # TODO: raise error if too many digits specified
             self._value_to_write = int(round(value, 0))
         else:
             self._value_to_write = value

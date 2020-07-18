@@ -332,21 +332,31 @@ class DeviceValues:
             )
             del target[port]
 
-        # OK, we're done creating/deleting the device containers - now update them:
-        for field_reads, address in zip(model_field_reads, model_addresses[model_class]):
-            device = target[field_reads["port_number"].value if "port_number" in field_reads else None]
-            for field_name, read in field_reads.items():
-                getattr(device, field_name)._update_on_read(read.value, read.implemented, read.time, read.scale_factor)
-            # update addresses:
-            device.address = address
-        for field_reads, address in zip(config_field_reads, model_addresses[config_class]):
-            device = target[field_reads["port_number"].value if "port_number" in field_reads else None]
-            for field_name, read in field_reads.items():
-                getattr(device.config, field_name)._update_on_read(
-                    read.value, read.implemented, read.time, read.scale_factor
-                )
-            # update addresses:
-            device.config.address = address
+        # OK, we're done creating/deleting the device containers - now update their values with the field reads:
+        def update_values(cls, is_config):
+            for field_reads, address in zip(all_model_field_reads[cls], model_addresses[cls]):
+                port = field_reads["port_number"].value if "port_number" in field_reads else None
+                device = target[port]
+                if is_config:
+                    device = device.config
+                for field_name, read in field_reads.items():
+                    getattr(device, field_name)._update_on_read(
+                        read.value, read.implemented, read.time, read.scale_factor
+                    )
+                # Update addresses:
+                if device.address is not None and address != device.address:
+                    logger.warning(
+                        (
+                            f"The address of {model_class} on port={port} has changed from {device.address} to "
+                            f"{address}. It will be updated to the new value, but this is could lead to unexpected "
+                            "behaviour e.g. if you've switched the ports of two inverters."
+                        )
+                    )
+
+                device.address = address
+
+        update_values(model_class, False)
+        update_values(config_class, True)
 
     def _create_empty_model_values(self, model: Model, values_cls: ModelValues, config: Optional[Model] = None):
         values = {field.name: FieldValue(field) for field in model.fields()}

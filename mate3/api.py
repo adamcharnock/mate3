@@ -9,7 +9,7 @@ from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
 from mate3.devices import DeviceValues
-from mate3.field_values import FieldValue
+from mate3.field_values import FieldRead, FieldValue
 from mate3.sunspec.fields import Field, IntegerField, Mode, Uint32Field
 from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
@@ -95,14 +95,6 @@ class ReadingRange:
     def extend(self, field: Field):
         self.fields.append(field)
         self.size += field.size
-
-
-@dataclass
-class FieldRead:
-    value: Any
-    implemented: bool
-    time: datetime
-    scale_factor: Optional[Any] = None
 
 
 class Mate3Client:

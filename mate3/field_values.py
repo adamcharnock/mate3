@@ -8,6 +8,14 @@ from mate3.sunspec.fields import Field, IntegerField, Mode
 from mate3.sunspec.model_base import Model
 
 
+@dc.dataclass
+class FieldRead:
+    value: Any
+    implemented: bool
+    time: datetime
+    scale_factor: Optional[Any] = None
+
+
 class FieldValue:
     """
     A FieldValue is really just a container to store values read from a particular Field, with nice utilities like
@@ -115,17 +123,16 @@ class FieldValue:
             self._value_to_write = value
         self._dirty = True
 
-    def _update_on_read(self, value, implemented, read_time, scale_factor_read=None):
+    def _update_on_read(self, read: FieldRead):
         """
-        Assumption is that if there's a scale factor, it's read at the same time as value, so they should be in sync.
-        Not really a major with Outback, as the scale factors seem to be constant anyway ... but no harm in being safe.
+        This method is called to update the state of this FieldValue to represent that latest read from modbus.
         """
         if self._should_be_scaled:
-            if scale_factor_read is None:
+            if read.scale_factor is None:
                 raise RuntimeError(f"scale_factor_read required for field {self.field}")
-            if not scale_factor_read.implemented:
+            if not read.scale_factor.implemented:
                 raise RuntimeError("scale_factor_read should be implemented!")
-            if (read_time - scale_factor_read.time).total_seconds() > 60:
+            if (read.time - read.scale_factor.time).total_seconds() > 60:
                 raise RuntimeError(
                     (
                         "The scale factor on this field was updated more than a minute since this field was. Scale "
@@ -134,19 +141,19 @@ class FieldValue:
                         "always read when the field is - so if you see it, please file an issue."
                     )
                 )
-            scale_factor_read = scale_factor_read.value
+            scale_factor_read = read.scale_factor.value
             if not isinstance(scale_factor_read, int):
                 raise RuntimeError("scale_factor should be an integer!")
             if scale_factor_read < -10 or scale_factor_read > 10:
                 raise RuntimeError("scale_factor should be between -10 and 10")
         else:
-            if scale_factor_read is not None:
+            if read.scale_factor is not None:
                 raise RuntimeError(f"No scale_factor should be provided for field {self.field}")
 
-        self._raw_value = value
-        self._scale_factor = scale_factor_read
-        self._implemented = implemented
-        self._last_read = read_time
+        self._raw_value = read.value
+        self._scale_factor = None if read.scale_factor is None else read.scale_factor.value
+        self._implemented = read.implemented
+        self._last_read = read.time
         if self._value_to_write is not None:
             logger.warning(
                 "A value has been set to be written, but was re-read after this, so the write will be ignored "

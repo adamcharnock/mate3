@@ -340,9 +340,7 @@ class DeviceValues:
                 if is_config:
                     device = device.config
                 for field_name, read in field_reads.items():
-                    getattr(device, field_name)._update_on_read(
-                        read.value, read.implemented, read.time, read.scale_factor
-                    )
+                    getattr(device, field_name)._update_on_read(read)
                 # Update addresses:
                 if device.address is not None and address != device.address:
                     logger.warning(

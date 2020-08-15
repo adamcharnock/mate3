@@ -108,11 +108,11 @@ A simple CLI is available, with four main sub-commands:
 
 For each you can access the help (i.e. `mate3 <cmd> -h`) for more information.
 
-## Using `mate3_pg` to write data to Postgres
+## Writing data to Postgres
 
-TODO: THis isn't implemented under the new API!
+> NB: this used to be in `mate3_pg` command, but has been moved to `./examples/postgres_monitor.py`.
 
-The `mate3_pg` command reads data from your Mate3 and writes it to a Postgres database.
+The `postgress_monitor.py` command reads data from your Mate3 and writes it to a Postgres database.
 
 In addition to a Mate3s connected to your network, you will need:
 
@@ -122,7 +122,7 @@ In addition to a Mate3s connected to your network, you will need:
 Example use:
 
 ```
-$ mate3_pg \
+$ python postgres_monitor.py \
     -H 192.168.0.123 \ 
     --definitions /path/to/my/definitions.yaml \
     --database-url postgres://username:password@host:5432/database_name \
@@ -133,10 +133,10 @@ You will need to replace `192.168.0.123` with your Mate3s' IP. Replace `/path/to
 a path to your definitions file (see [example](https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml)).
 Replace the `username`, `password`, `host`, and `database_name` values with those for your Postgres database.
 
-Full details of the `mate3_pg` command:
+Full details of the `postgres_monitor.py` command:
 
 ```
-$ mate3_pg --help
+$ python postgres_monitor.py --help
 usage: mate3_pg [-h] --host HOST [--port PORT] [--interval INTERVAL] [--database-url DATABASE_URL] --definitions DEFINITIONS [--hypertables] [--quiet] [--debug]
 
 Read all available data from the Mate3 controller

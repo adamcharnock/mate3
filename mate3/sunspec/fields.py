@@ -135,7 +135,7 @@ class Uint32Field(IntegerField):
 @dc.dataclass
 class StringField(Field):
     def _from_registers(self, registers):
-        # As per sunspec, if all registers are 0, the not implemented:
+        # As per sunspec, if all registers are 0, then not implemented:
         if all(i == 0 for i in registers):
             return False, None
         int8s = []
@@ -148,12 +148,14 @@ class StringField(Field):
     def _to_registers(self, value):
         if not isinstance(value, str):
             raise ValueError("Expected str!")
-        if len(value) != self.size * 2:
-            raise ValueError(f"String must be of size {self.size * 2}")
+        if len(value) > self.size * 2:
+            raise ValueError(f"String must be less than {self.size * 2} characters")
+        # Pad with "\0" if needed:
+        value = value.ljust(self.size * 2, "\0")
         int8s = [ord(i) for i in value]
         int16s = []
         for i in range(self.size):
-            int16s.append((int8s[i] << 8) & int8s[i + 1])
+            int16s.append((int8s[i * 2] << 8) | int8s[i * 2 + 1])
         return tuple(int16s)
 
 

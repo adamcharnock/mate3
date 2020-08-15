@@ -14,7 +14,19 @@ from mate3.sunspec.fields import Field, IntegerField, Mode, Uint32Field
 from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
 
-class CachingModbusClient(ModbusClient):
+class NonCachingModbusClient(ModbusClient):
+    """
+    Let's raise errors nicely at this stage, and just get registers from the response:
+    """
+
+    def read_holding_registers(self, *args, **kwargs):
+        response = super().read_holding_registers(*args, **kwargs)
+        if isinstance(response, Exception):
+            raise response
+        return response.registers
+
+
+class CachingModbusClient(NonCachingModbusClient):
     """
     This is a simple wrapper around ModbusClient that can cache values during use, write them to disk, and then read
     those values. It's particularly useful for:
@@ -60,10 +72,8 @@ class CachingModbusClient(ModbusClient):
             if self._cache_only:
                 # If we're cache_only, then cache miss is an error
                 raise ValueError("Uncached lookup!")
-            response = super().read_holding_registers(address=address, count=count)
-            if isinstance(response, Exception):
-                raise response
-            for addr, bites in zip(addresses, response.registers):
+            registers = super().read_holding_registers(address=address, count=count)
+            for addr, bites in zip(addresses, registers):
                 self._cache[addr] = bites
         # Return results from cache:
         return [self._cache[addr] for addr in addresses]
@@ -121,7 +131,7 @@ class Mate3Client:
                 host=self.host, port=self.port, cache_path=self._cache_path, cache_only=self._cache_only
             )
         else:
-            self._client = ModbusClient(self.host, self.port)
+            self._client = NonCachingModbusClient(self.host, self.port)
 
     def close(self):
         """
@@ -310,4 +320,4 @@ class Mate3Client:
                     logger.debug(f"Setting register {address} to value {registers}")
 
                     # Do the write
-                    self.client.write_registers(address, registers)
+                    self._client.write_registers(address, registers)

@@ -5,7 +5,7 @@ to = {format = "setuppy", path = "setup.py"}
 [tool.poetry]
 name = "mate3"
 readme = "README.md"
-version = "0.4.0"
+version = "0.5.0"
 description = "Outback Mate3s Python Library"
 authors = ["Adam Charnock <adam@adamcharnock.com>"]
 homepage = "https://github.com/adamcharnock/mate3/"
@@ -14,24 +14,14 @@ repository = "https://github.com/adamcharnock/mate3/"
 [tool.poetry.dependencies]
 python = "^3.7"
 pymodbus = "^2.2"
-psycopg2 = { version = "^2.8.3", optional = true }
-pyyaml = { version = "^5.1.2", optional = true }
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
-camelot-py = "^0.7.3"
-excalibur-py = "^0.4.2"
-black = {version = "^18.3-alpha.0", allows-prereleases = true}
+black = {version = "^18.3-alpha.0", allow-prereleases = true}
 dephell = ">=0.7.6"
-fissix = "==19.2b1"
-
-[tool.poetry.extras]
-mate3_pg = ["pyyaml", "psycopg2"]
 
 [tool.poetry.scripts]
 mate3 = 'mate3.main:main'
-mate3_write = 'mate3.mate3_write:main'
-mate3_pg = 'mate3.mate3_pg:main'
 
 [build-system]
 requires = ["poetry>=0.12"]

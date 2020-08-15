@@ -1,18 +1,18 @@
 import argparse
 from sys import argv
-from typing import NamedTuple, List, Type, Iterable
+from typing import NamedTuple, List
 import logging
 
 from pymodbus.constants import Defaults
 from pymodbus.exceptions import ModbusIOException, ConnectionException
 
-from mate3 import mate3_connection
+from mate3.api import Mate3Client
+from mate3.devices import DeviceValues
+from mate3.field_values import FieldValue
+from mate3.sunspec.fields import IntegerField
 import time
 
-from mate3.api import AnyBlock, Device
-from mate3.base_structures import get_definition
-
-logger = logging.getLogger('mate3.mate3_pg')
+logger = logging.getLogger("mate3.mate3_pg")
 
 
 try:
@@ -26,9 +26,6 @@ try:
 except ImportError:
     raise ImportError("To use this command you must install the psycopg2-binary (or psycopg2) package")
 
-host = '192.168.0.123'
-port = 502
-
 
 class Table(NamedTuple):
     name: str
@@ -36,31 +33,25 @@ class Table(NamedTuple):
 
 
 class Definition(NamedTuple):
-    port: int
-    device: Device
-    field: str
+    field_value: FieldValue
     db_column: str
 
 
-def read_definitions(f) -> List[Table]:
+def read_definitions(f, devices: DeviceValues) -> List[Table]:
     logger.info(f"Reading field definitions from {f.name}")
     in_yaml = load(f, Loader=FullLoader)
     tables = []
 
-    for table_name, in_definitions in in_yaml.get('tables', {}).items():
+    for table_name, in_definitions in in_yaml.get("tables", {}).items():
         definitions = []
         for in_definition in in_definitions:
-            # Get the block class
-            definitions.append(Definition(
-                port=int(in_definition['port']),
-                device=Device[in_definition['device']],
-                field=in_definition['field'],
-                db_column=in_definition['db_column'],
-            ))
+            port = int(in_definition["port"])
+            device = getattr(devices, in_definition["device"])[port]
+            definitions.append(
+                Definition(field_value=getattr(device, in_definition["field"]), db_column=in_definition["db_column"],)
+            )
 
-        tables.append(
-            Table(table_name, definitions)
-        )
+        tables.append(Table(table_name, definitions))
 
     logger.debug(f"Found definitions: {tables}")
     return tables
@@ -79,19 +70,23 @@ def create_table(conn, table: Table, hypertables: bool):
 
         # Get existing columns
         sql = (
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_schema = 'public' "
-            "AND table_name = %s"
+            "SELECT column_name FROM information_schema.columns " "WHERE table_schema = 'public' " "AND table_name = %s"
         )
         curs.execute(sql, [table.name])
         column_names = {row[0] for row in curs.fetchall()}
 
         for definition in table.definitions:
             if definition.db_column not in column_names:
-                definition = get_definition(definition.device)
-                field = getattr(definition, definition.field)
-                column_type = 'VARCHAR(100)' if field.type == str else 'INTEGER'
-                sql = f'ALTER TABLE {quote_ident(table.name, curs)} ADD COLUMN {quote_ident(definition.db_column, curs)} {column_type} NULL'
+                field = definition.field_value.field
+                column_type = "VARCHAR(100)"
+                if isinstance(field, IntegerField):
+                    if field.scale_factor is None:
+                        column_type = "INTEGER"
+                    else:
+                        # NB: this assume scale factor doesn't change ... which should be the case:
+                        scale = -definition.field_value.scale_factor
+                        column_type = f"DECIMAL(6,{scale})"
+                sql = f"ALTER TABLE {quote_ident(table.name, curs)} ADD COLUMN {quote_ident(definition.db_column, curs)} {column_type} NULL"
                 logger.debug(f"Executing: {sql}")
                 curs.execute(sql)
 
@@ -101,10 +96,11 @@ def create_table(conn, table: Table, hypertables: bool):
                 logger.debug(f"Executing: {sql}")
                 curs.execute(sql, [table.name])
             except psycopg2.DatabaseError as e:
-                if 'already a hypertable' in str(e):
+                if "already a hypertable" in str(e):
                     logger.debug("Table is already a hypertable")
                 else:
                     raise
+
 
 def create_tables(conn, tables: List[Table], hypertables: bool):
     logger.info("Creating tables (if needed)")
@@ -112,27 +108,18 @@ def create_tables(conn, tables: List[Table], hypertables: bool):
         create_table(conn, table, hypertables)
 
 
-def _get_value(blocks: List[AnyBlock], definition: Definition) -> ...:
-    for block in blocks:
-        if not hasattr(block, 'port_number'):
-            continue
-
-        if block.port_number == definition.port and block.device == definition.device:
-            return getattr(block, definition.field)
-
-
-def insert(conn, tables: List[Table], blocks: List[AnyBlock]):
+def insert(conn, tables: List[Table], devices: DeviceValues):
 
     with conn.cursor() as curs:
         for table in tables:
             insert_kv = {}
             for definition in table.definitions:
-                value = _get_value(blocks, definition)
+                value = definition.field_value.value
                 if value is not None:
                     insert_kv[definition.db_column] = value
 
             column_names = [quote_ident(c, curs) for c in insert_kv.keys()]
-            placeholders = ['%s'] * len(insert_kv)
+            placeholders = ["%s"] * len(insert_kv)
             sql = (
                 f"INSERT INTO {quote_ident(table.name, curs)} "
                 f"(timestamp, {', '.join(column_names)}) "
@@ -147,23 +134,13 @@ def main():
     parser = argparse.ArgumentParser(description="Read all available data from the Mate3 controller")
 
     parser.add_argument(
-        "--host", "-H",
-        dest="host",
-        help="The host name or IP address of the Mate3",
-        required=True,
+        "--host", "-H", dest="host", help="The host name or IP address of the Mate3", required=True,
     )
     parser.add_argument(
-        "--port", "-p",
-        dest="port",
-        default=Defaults.Port,
-        help="The port number address of the Mate3",
+        "--port", "-p", dest="port", default=Defaults.Port, help="The port number address of the Mate3",
     )
     parser.add_argument(
-        "--interval", "-i",
-        dest="interval",
-        default=5,
-        help="Polling interval in seconds",
-        type=int,
+        "--interval", "-i", dest="interval", default=5, help="Polling interval in seconds", type=int,
     )
     parser.add_argument(
         "--database-url",
@@ -174,35 +151,29 @@ def main():
     parser.add_argument(
         "--definitions",
         dest="definitions",
-        default='text',
+        default="text",
         help="YAML definition file",
-        type=argparse.FileType('r'),
+        type=argparse.FileType("r"),
         required=True,
     )
     parser.add_argument(
         "--hypertables",
         dest="hypertables",
         help="Should we create tables as hypertables? Use only if you are using TimescaleDB",
-        action='store_true',
+        action="store_true",
     )
     parser.add_argument(
-        "--quiet", "-q",
-        dest="quiet",
-        help="Hide status output. Only errors will be shown",
-        action='store_true',
+        "--quiet", "-q", dest="quiet", help="Hide status output. Only errors will be shown", action="store_true",
     )
     parser.add_argument(
-        "--debug",
-        dest="debug",
-        help="Show debug logging",
-        action='store_true',
+        "--debug", dest="debug", help="Show debug logging", action="store_true",
     )
 
     args = parser.parse_args(argv[1:])
 
     logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", level=logging.ERROR)
     root_logger = logging.getLogger()
-    mate3_logger = logging.getLogger('mate3')
+    mate3_logger = logging.getLogger("mate3")
 
     if args.debug:
         root_logger.setLevel(logging.DEBUG)
@@ -211,12 +182,16 @@ def main():
     else:
         mate3_logger.setLevel(logging.INFO)
 
-    tables = read_definitions(args.definitions)
-
     logger.info(f"Connecting to Postgres at {args.database_url}")
     with psycopg2.connect(args.database_url) as conn:
         conn.autocommit = True
-        logger.debug(f"Connected to Postgres")
+        logger.debug("Connected to Postgres")
+
+        # Initial read to get table definitions etc.:
+        with Mate3Client(host=args.host, port=args.port) as client:
+            client.read()
+            devices = client.devices
+        tables = read_definitions(args.definitions, client.devices)
         create_tables(conn, tables, hypertables=args.hypertables)
 
         while True:  # Reconnect loop
@@ -228,11 +203,12 @@ def main():
                     # Read data from mate3s
                     # We keep the connection open for the minimum time possible
                     # as the mate3s can only sustain one modbus connection at a once.
-                    with mate3_connection(args.host, args.port) as client:
-                        blocks = list(client.all_blocks())
+                    with Mate3Client(host=args.host, port=args.port) as client:
+                        client.read()
+                        devices = client.devices
 
                     # Insert into postgres
-                    insert(conn, tables, blocks)
+                    insert(conn, tables, devices)
 
                     # Sleep until the end of this interval
                     total = time.time() - start
@@ -245,5 +221,5 @@ def main():
                 time.sleep(args.interval)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

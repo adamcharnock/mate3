@@ -86,7 +86,10 @@ def create_table(conn, table: Table, hypertables: bool):
                         # NB: this assume scale factor doesn't change ... which should be the case:
                         scale = -definition.field_value.scale_factor
                         column_type = f"DECIMAL(6,{scale})"
-                sql = f"ALTER TABLE {quote_ident(table.name, curs)} ADD COLUMN {quote_ident(definition.db_column, curs)} {column_type} NULL"
+                sql = (
+                    f"ALTER TABLE {quote_ident(table.name, curs)} ADD COLUMN {quote_ident(definition.db_column, curs)} "
+                    f"{column_type} NULL"
+                )
                 logger.debug(f"Executing: {sql}")
                 curs.execute(sql)
 

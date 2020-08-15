@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, List, Optional
+from typing import Iterable, List, Optional
 
 from loguru import logger
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient

@@ -173,7 +173,7 @@ class ModelValues:
 
     def fields(self, modes: Optional[Iterable[Mode]] = None):
         """
-        Often we want to loop through all the fields for a model - ignoring those that aren't 'real' fields such as 
+        Often we want to loop through all the fields for a model - ignoring those that aren't 'real' fields such as
         _address above, or the 'config' field that often gets added when a device has the 'realtime' and 'config'
         models.
         """

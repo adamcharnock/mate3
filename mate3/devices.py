@@ -4,7 +4,6 @@ from typing import Any, Dict, Iterable, List, Optional
 from loguru import logger
 
 from mate3.field_values import FieldValue, ModelValues
-from mate3.sunspec.fields import Field
 from mate3.sunspec.model_base import Model
 from mate3.sunspec.models import (
     ChargeControllerConfigurationModel,
@@ -277,7 +276,7 @@ class DeviceValues:
     ) -> None:
         """
         Note that all connected devices should always be updated, as every read loop we still read the length and port
-        of each device, regardless of what `only` fields were specified in `read`. Note that not all devices will be 
+        of each device, regardless of what `only` fields were specified in `read`. Note that not all devices will be
         connected, in which case neither will be in the reads.
         """
 
@@ -293,9 +292,9 @@ class DeviceValues:
             raise RuntimeError("Only one of config and values is present, and both should be!")
 
         if device_has_port:
-            # Let's check ports. Keep in mind that we should be getting all devices of this type, across all ports, and not
-            # just one, as you can't specify to only read off one port. E.g. if you've got two inverters on separate ports
-            # then you'll always get both, not just one. This may change in future.
+            # Let's check ports. Keep in mind that we should be getting all devices of this type, across all ports, and
+            # not just one, as you can't specify to only read off one port. E.g. if you've got two inverters on separate
+            # ports then you'll always get both, not just one. This may change in future.
             def check_ports(all_field_reads):
                 ports = {field_reads["port_number"].value for field_reads in all_field_reads}
                 if len(ports) > len(set(ports)):
@@ -305,8 +304,9 @@ class DeviceValues:
             model_ports = check_ports(model_field_reads)
             config_ports = check_ports(config_field_reads)
 
-            # The ports should be the same between model and config (since the separation of the model and config are just
-            # implementation details of the Outback SunSpec - they're still the same device, so should have the same port).
+            # The ports should be the same between model and config (since the separation of the model and config are
+            # just implementation details of the Outback SunSpec - they're still the same device, so should have the
+            # same port).
             if model_ports.symmetric_difference(config_ports):
                 raise RuntimeError("Config and models have different ports!")
 

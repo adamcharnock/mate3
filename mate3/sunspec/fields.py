@@ -186,7 +186,7 @@ class Bit16Field(BitfieldMixin, Uint16Field):
     before using the flags, etc.
     """
 
-    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
+    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults already defined
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -209,7 +209,7 @@ class Bit32Field(BitfieldMixin, Uint32Field):
     be a bit16 for now ...
     """
 
-    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
+    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults already defined
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -269,8 +269,8 @@ class AddressField(Field):
 
 class BitfieldDescriptionMixin:
     """
-    A mixin that allows us to define something as 
-    
+    A mixin that allows us to define something as
+
         @unique
         class MyFlags(BitfieldDescriptionMixin, IntFlag):
             a = 1, "a description"

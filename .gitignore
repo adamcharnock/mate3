@@ -1,3 +1,6 @@
 /.venv
 /.env
 /dist
+__pycache__
+*cache*
+*.egg-info

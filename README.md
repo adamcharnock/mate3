@@ -1,4 +1,4 @@
-# Outback Mate 3s Python library & command line interface
+# Outback Mate 3 & 3s Python library & command line interface
 
 [![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)
 
@@ -10,140 +10,109 @@ have a Mate3s which is connected to your local network using its ethernet port.
 
 Tested on Python 3.7. May work on 3.6.
 
+## Warnings
+
+First, the big one:
+
+> **WARNING!** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) before using any of the `write` functionality. You could easily damage your equipment by setting incorrect values (directly or indirectly).
+
+In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time. On that note, the recommended approach if you need to poll over time is:
+
+```python
+while True:
+    with Mate3Client(...) as client:
+        client...
+    sleep(1)
+```
+
+As opposed to
+
+```python
+with Mate3Client(...) as client:
+    while True:
+        client...
+    sleep(1)
+```
+
+Why? It means you're getting point-in-time values, and don't have to worry about changes (such as ports being switched). There are exceptions, but you should know why you're doing it.
+
 ## Installation
 
 The recommended installation is as follows:
 
-```
+```sh
 pip install mate3
 ```
 
 After this you should be able to run the `mate3` command.
 
----
-
-If you wish to edit the mate3 source (contributions are gladly received!), 
-then you can get the project directly from GitHub:
-
-```
-# Install poetry if you don't have it already (if you're unsure, you don't have it)
-pip install poetry
-
-# Get the source
-git clone https://github.com/adamcharnock/mate3.git
-cd mate3
-
-# Install mate3 and its dependencies. This also makes the mate3 command available.
-poetry install
-```
-
-After this you should be able to run the `mate3` command and edit the 
-project's source code.
-
-## Enabling the Modbus interface on your Mate 3
-
-TBA. System -> opticsre -> Modbus?
-
 ## Using the library
 
-Example use:
+More documentation is needed, but you can get a pretty code idea from [./examples/getting_started.py](./examples/getting_started.py), copied (somewhat) below. 
 
 ```python
-from mate3 import mate3_connection
-from mate3.parsers import ChargeControllerParser, ChargeControllerConfigurationParser
-from mate3.base_structures import Device
+with Mate3Client("192.168.1.12") as client:
+        # Read all devices:
+        client.read()
+        
+        # What's the system name?
+        client.devices.mate3.system_name
+        # >>> FieldValue[system_name] | Implemented | Read @ 2020-07-19 21:27:57.747231 | Value: --- | Clean
+        
+        # Get the battery voltage. Note that it's auto-scaled appropriately.
+        client.devices.fndc.battery_voltage
+        # >>> FieldValue[battery_voltage] | Implemented | Read @ 2020-07-19 21:27:57.795158 | Scale factor: -1 | Unscaled value: 544 | Value: 54.4 | Clean
 
-# IP address of your Mate3s
-host = '192.168.0.123'
-# The Modbus port on the Mate3s. The default (502) will be 
-# fine unless you have configured your Mate3s differently
-port = 502
+        # Get the (raw) values for the same device type on different ports
+        for port in client.devices.fx_inverters:
+            print(f"FET temp on port {port} = {client.devices.fx_inverters[port].fet_temperature.value}")
+        # >>> FET temp on port 1 = 36
+        # >>> FET temp on port 2 = 35
 
-# Connect to the Mate3s
-with mate3_connection(host, port) as client:
-    # Get all blocks of fields from the Mate3s 
-    # and print each one out.
-    all_blocks = client.all_blocks()
-    for block in all_blocks:
-        print(block)
-    
-    # Get all values for a specific device
-    values = client.get_device_blocks(Device.charge_controller)
-    print(list(values))
+        # Read only battery voltage again and check only it's read time was updated but not system name
+        time.sleep(1)
+        client.read(only=[client.devices.fndc.battery_voltage])
+        client.devices.mate3.system_name
+        client.devices.fndc.battery_voltage
+        # >>> FieldValue[system_name] ... 2020-07-19 21:27:57 ...
+        # >>> FieldValue[battery_voltage] ... 2020-07-19 21:27:58 ...
+        
+        # Nice. What about modbus fields that aren't implemented?
+        client.devices.mate3.sched_1_ac_mode.implemented
+        # >>> False
 
-    # Or get specific fields
-    values = client.get_values(
-        ChargeControllerParser.battery_current, 
-        ChargeControllerParser.battery_voltage
-    )
-    # Prints a list of currents, one for each of your charge controllers
-    print(values[ChargeControllerParser.battery_current]) 
-    # Prints a list of voltages, one for each of your charge controllers
-    print(values[ChargeControllerParser.battery_voltage])
+        # Cool. Can we set a new value? Note that we don't need to worry about scaling etc.
+        volts = client.devices.charge_controller.config.absorb_volts
+        # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Clean
+        client.devices.chjarge_controller.config.absorb_volts.value = volts.value + 0.1
+        # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Dirty (value to write: 536)
+        
+        # OK, but what about fun fields like Enums? It's doable, though a bit gross ...
+        new_value = client.devices.charge_controller.config.grid_tie_mode.field.options["Grid Tie Mode disabled"]
+        client.devices.charge_controller.config.grid_tie_mode.value = new_value
 
-    # Writing data
-    # (BE CAREFUL! YOU COULD EASILY DAMAGE YOUR EQUIPMENT WITH THIS FEATURE!)
-    client.set_value(
-        field=ChargeControllerConfigurationParser.absorb_volts,
-        value=330,
-        port=3
-    )
 
+        # Finally, write any values that have changed to the device itself - BE CAREFUL!
+        client.write()
 ```
+
 
 ## Using the command line interface (CLI)
 
-### Reading data
+A simple CLI is available, with four main sub-commands:
 
-A simple CLI is available which will read all available values from the Mate3:
+- `read` - reads all of the values from the Mate3 and prints to stdout in a variety of formats.
+- `write` - writes values to the Mate3. (If you're doing anything serious you should use the python API.)
+- `devices` - shows the connected devices.
+- `debug` - caches all of the modbus values to a file which you can then share with others to help in debugging any problems you may have.
 
-```
-$ mate3 -h
-usage: mate3 [-h] [--host HOST] [--port PORT]
-             [--format {text,prettyjson,json}]
+For each you can access the help (i.e. `mate3 <cmd> -h`) for more information.
 
-Read all available data from the Mate3 controller
+## Writing data to Postgres
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --host HOST, -H HOST  The host name or IP address of the Mate3
-  --port PORT, -p PORT  The port number address of the Mate3
-  --format {text,prettyjson,json}, -f {text,prettyjson,json}
-                        Output format
-```
+> NB: this used to be in `mate3_pg` command, but has been moved to `./examples/postgres_monitor.py`.
 
-Example use:
-
-```
-$ mate3 --host 192.168.0.123
-```
-
-### Writing data
-
-You can also set values on the mate3s using the `mate3_write` command.
-
-**WARNING:** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) 
-before using this feature. You could easily damage your equipment by setting 
-incorrect values. Don't come crying to me if you destroy your batteries, 
-or if this library takes it upon itself to do so.
-
-Warnings aside, here is how you use it:
-
-```
-# Show the available writable fields
-$ mate3_write -H 192.168.0.123 --list-fields
-
-# Start your backup generator! 
-# (if that is what your inverter's auxiliary output is connected to)
-$ mate3_write -H 192.168.0.123 --set radian_inverter_configuration.aux_control=2
-
-# Turn it off again
-$ mate3_write -H 192.168.0.123 --set radian_inverter_configuration.aux_control=0
-```
-
-## Using `mate3_pg` to write data to Postgres
-
-The `mate3_pg` command reads data from your Mate3 and writes it to a Postgres database.
+The `postgress_monitor.py` command reads data from your Mate3 and writes it to a Postgres database.
 
 In addition to a Mate3s connected to your network, you will need:
 
@@ -153,7 +122,7 @@ In addition to a Mate3s connected to your network, you will need:
 Example use:
 
 ```
-$ mate3_pg \
+$ python postgres_monitor.py \
     -H 192.168.0.123 \ 
     --definitions /path/to/my/definitions.yaml \
     --database-url postgres://username:password@host:5432/database_name \
@@ -164,10 +133,10 @@ You will need to replace `192.168.0.123` with your Mate3s' IP. Replace `/path/to
 a path to your definitions file (see [example](https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml)).
 Replace the `username`, `password`, `host`, and `database_name` values with those for your Postgres database.
 
-Full details of the `mate3_pg` command:
+Full details of the `postgres_monitor.py` command:
 
 ```
-$ mate3_pg --help
+$ python postgres_monitor.py --help
 usage: mate3_pg [-h] --host HOST [--port PORT] [--interval INTERVAL] [--database-url DATABASE_URL] --definitions DEFINITIONS [--hypertables] [--quiet] [--debug]
 
 Read all available data from the Mate3 controller
@@ -187,24 +156,28 @@ optional arguments:
   --debug               Show debug logging
 ```  
 
-## Various notes
+## Contributing
 
-The `structures.py` and `parsers.py` files are *auto generated* 
-from the CSV files located in `registry_data/`. The CSV files are 
-generated though text extraction from the 
-[axs_app_note.pdf](http://www.outbackpower.com/downloads/documents/appnotes/axs_app_note.pdf) 
-PDF provided by OutBack. This process is handled by two python files:
+If you wish to edit the mate3 source (contributions are gladly received!), 
+then you can get the project directly from GitHub:
 
-* `csv_generator.py` – Extract the CSV data from the PDF
-* `code_generator.py` – Generate the Python code from the CSV data
+```sh
+# Install poetry if you don't have it already (if you're unsure, you don't have it)
+pip install poetry
 
-## Future work
+# Get the source
+git clone https://github.com/adamcharnock/mate3.git
+cd mate3
 
-* Web interface?
+# Install mate3 and its dependencies. This also makes the mate3 command available.
+poetry install
+```
+
+After this you should be able to run the `mate3` command and edit the project's source code.
 
 ## Release process
 
-```
+```sh
 # Check everything has been comitted
 git diff
 
@@ -232,6 +205,5 @@ git push --tags
 
 ## Credits
 
-This is a heavily refactored version of 
-[basrijn's Outback_Mate3 library](https://github.com/basrijn/Outback_Mate3).
-Thank you basrijn!
+This was originally a heavily refactored version of
+[basrijn's Outback_Mate3 library](https://github.com/basrijn/Outback_Mate3), though has largely been completely rewritten since. Thanks anyway basrijn!

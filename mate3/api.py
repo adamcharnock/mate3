@@ -1,158 +1,299 @@
-import logging
-from typing import Union, Iterable, List, Tuple, Dict
+import json
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Iterable, List, Optional
 
+from loguru import logger
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.constants import Defaults
 
-from mate3.base_parser import parse, Field, Mode
-from mate3.io import read_block_information, SUNSPEC_REGISTER_OFFSET, combine_ints, split_int
-from mate3.structures import *
+from mate3.devices import DeviceValues
+from mate3.field_values import FieldRead, FieldValue
+from mate3.sunspec.fields import Field, IntegerField, Mode, Uint32Field
+from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
 
-AnyBlock = Union[
-    SunspecCommonModelBlock,
-    SunspecInverterSinglePhaseBlock,
-    SunspecInverterSplitPhaseBlock,
-    SunspecInverterThreePhaseBlock,
-    Mate3Block,
-    ChargeControllerBlock,
-    ChargeControllerConfigurationBlock,
-    FxInverterBlock,
-    FxInverterConfigurationBlock,
-    SplitPhaseRadianInverterBlock,
-    RadianInverterConfigurationBlock,
-    SinglePhaseRadianInverterBlock,
-    FlexnetDcBlock,
-    FlexnetDcConfigurationBlock,
-    OutbackSystemControlBlock,
-]
+class NonCachingModbusClient(ModbusClient):
+    """
+    Let's raise errors nicely at this stage, and just get registers from the response:
+    """
 
-logger = logging.getLogger(__name__)
+    def read_holding_registers(self, *args, **kwargs):
+        response = super().read_holding_registers(*args, **kwargs)
+        if isinstance(response, Exception):
+            raise response
+        return response.registers
 
 
-class Mate3Factory(object):
+class CachingModbusClient(NonCachingModbusClient):
+    """
+    This is a simple wrapper around ModbusClient that can cache values during use, write them to disk, and then read
+    those values. It's particularly useful for:
 
-    def __init__(self, host: str, port: int=Defaults.Port):
-        self.host = host
-        self.port = port
+        - Testing/debugging if you don't have the same physical Outback gear as others.
+        - Not hammering your Mate3 while developing, and continually having to restart it!
 
-    def __enter__(self) -> "Mate3":
-        self.client = ModbusClient(self.host, self.port)
-        return Mate3(self.client)
+    If cache_only is False, the cache will be continually updated with anything not in the cache, whereas if True, then
+    the cache won't be updated i.e. it's never hit the Mate3 directly and only rely on the cache.
+    """
+
+    def __init__(self, cache_path: str, *args, cache_only: bool = False, **kwargs):
+        self._cache_path = Path(cache_path)
+        self._cache = {}
+        self._cache_only = cache_only
+        if self._cache_path.exists():
+            self._cache = self._read_cache()
+        else:
+            if self._cache_only:
+                raise RuntimeError("Cache doesn't exist!")
+        self._cache_only = cache_only
+        if not self._cache_only:
+            super().__init__(*args, **kwargs)
+
+    def _read_cache(self):
+        with open(self._cache_path) as f:
+            cache = json.load(f)
+            cache = {int(addr): val for addr, val in cache.items()}
+        return cache
+
+    def _write_cache(self):
+        with open(self._cache_path, "w") as f:
+            json.dump(self._cache, f)
+
+    def read_holding_registers(self, address, count):
+        """
+        Replace the existing method with our own to do the caching.
+        """
+        # Get all the addresses:
+        addresses = [address + i for i in range(count)]
+        # If there are any uncached, then we read the whole lot again:
+        if any(addr not in self._cache for addr in addresses):
+            if self._cache_only:
+                # If we're cache_only, then cache miss is an error
+                raise ValueError("Uncached lookup!")
+            registers = super().read_holding_registers(address=address, count=count)
+            for addr, bites in zip(addresses, registers):
+                self._cache[addr] = bites
+        # Return results from cache:
+        return [self._cache[addr] for addr in addresses]
+
+    def close(self, *args, **kwargs):
+        """
+        On close, write the cache then close properly.
+        """
+        self._write_cache()
+        if not self._cache_only:
+            super().close(*args, **kwargs)
+
+
+@dataclass(frozen=False)
+class ReadingRange:
+    """
+    Mate's work better reading a contiguous range of values at once as opposed to indivudally. This is a simple wrapper
+    for such a contiguous range.
+    """
+
+    fields: List[Field]
+    start: int
+    size: int
+
+    @property
+    def end(self):
+        return self.start + self.size
+
+    def extend(self, field: Field):
+        self.fields.append(field)
+        self.size += field.size
+
+
+class Mate3Client:
+    """
+    The main Mate3 object users will interact with. Can (and should) be used as a context manager.
+    """
+
+    sunspec_register: int = 40000
+
+    def __init__(self, host: str, port: int = Defaults.Port, cache_path: str = None, cache_only: bool = False):
+        self.host: str = host
+        self.port: int = port
+        self._cache_path: str = cache_path
+        self._cache_only: bool = cache_only
+        self._client: ModbusClient = None
+        self._devices: DeviceValues = None
+
+    def connect(self):
+        """
+        Connect to the mate over modbus.
+        """
+        if self._cache_path is not None:
+            self._client = CachingModbusClient(
+                host=self.host, port=self.port, cache_path=self._cache_path, cache_only=self._cache_only
+            )
+        else:
+            self._client = NonCachingModbusClient(self.host, self.port)
+
+    def close(self):
+        """
+        Close the modbus connection to the mate.
+        """
+        self._client.close()
+
+    def __enter__(self):
+        self.connect()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.client.close()
+        self.close()
 
+    @property
+    def devices(self) -> DeviceValues:
+        if self._devices is None:
+            raise RuntimeError("Can't access devices until after first read")
+        return self._devices
 
-mate3_connection = Mate3Factory
-
-
-class Mate3(object):
-    def __init__(self, client: ModbusClient):
-        self.client = client
-
-    def _block_information(self) -> List[Tuple[Device, int]]:
-        """Get information for all available blocks
-
-        Returns a list of 2-tuples. The first value is the Device instance, the
-        second is the starting modbus register for that device
+    def _get_reading_ranges(self, fields):
         """
-        register: int = SUNSPEC_REGISTER_OFFSET
-        blocks = []
-        for _ in range(0, 30):
-            block_size, device = read_block_information(self.client, register)
-
-            if device is Device.end_of_sun_spec:
-                # No more blocks to read
-                break
-
-            if not device:
-                # Unknown device
-                continue
-
-            blocks.append((device, register))
-
-            register = register + block_size + 2
-
-        return blocks
-
-    def all_blocks(self) -> Iterable[AnyBlock]:
-        """Get all blocks from the mate3
-
-        This gets all available information
+        Get the ranges of registers which can be read as a contiguous block, which  allows for greater performance than
+        reading a single register at a time.
         """
-        for device, start_register in self._block_information():
-            structure = parse(device, self.client, start_register)
-            if structure:
-                yield structure
 
-    def get_device_blocks(self, device: Device) -> Iterable[AnyBlock]:
-        """Get all blocks for devices of the specified type
+        # The mate3s gets unhappy if one tries to read too much at once
+        max_range_size = 100
 
-        Multiple blocks will be returned if you have multiple devices
-        of that type attached to your Mate3s.
+        # Loop through fields in start order, finding contiguous blocks of registers:
+        ranges = []
+        previous_range = None
+        for field in sorted(fields, key=lambda x: x.start):
+            if previous_range is None or previous_range.end != field.start or previous_range.size >= max_range_size:
+                previous_range = ReadingRange(fields=[field], start=field.start, size=field.size)
+                ranges.append(previous_range)
+            else:
+                previous_range.extend(field)
+        return ranges
+
+    def _read_model(self, address: int, first: bool, only: Optional[List[Field]] = None):
         """
-        for device, start_register in self._block_information():
-            if device != device:
-                continue
-
-            structure = parse(device, self.client, start_register)
-            if structure:
-                yield structure
-
-    def get_values(self, *fields: Field) -> Dict[Field, List]:
-        """Get specific values for the specified fields
-
-        Returns a dictionary indexed by field object. THe dictionary values
-        are lists. A list will have a value for every device.
-
-        Example:
-
-            >>> values = client.get_values(
-            ...    ChargeControllerParser.battery_current,
-            ...    ChargeControllerParser.battery_voltage
-            ... )
-            {
-                Field(name='battery_current', ...): [297, 284],
-                Field(name='battery_voltage', ...): [319, 319]
-            }
-
-        In the above example we have two charge controllers, were therefore
-        have two values for each field.
-
+        Read an individual model at `address`. Use `first` to specify that this is the first block - see comment below.
+        By default reads everything in the model - use `only` to specify a list of Fields to read, if you want to limit.
         """
-        fields_by_device: Dict[Device, List[Field]] = {}
-        values_by_field: Dict[Field, List] = {}
+
+        # Read the first register for the device ID:
+        registers = self._client.read_holding_registers(address=address, count=2)
+
+        # If first, then this is the SunSpecHeaderModel, which has a device ID of Uint32 type not Uint16 like the rest.
+        if first:
+            _, device_id = Uint32Field._from_registers(None, registers[:2])
+        else:
+            # Don't use the Uint16Field parser as for the SunSpec end block the value is 65535, which is actually the
+            # 'not implemented' value, so None is returned.
+            device_id = registers[0]
+
+        if device_id not in MODEL_DEVICE_IDS:
+            logger.warning(f"Unknown model type with device ID {device_id}")
+            return None, None
+
+        model = MODEL_DEVICE_IDS[device_id]
+
+        # Get the readable fields:
+        fields = [field for field in model.__model_fields__ if field.mode in (Mode.R, Mode.RW)]
+        if only is not None:
+            # Make sure we include the length and port number, as we need that elsewhere:
+            fields = [field for field in fields if field in only or field.name in ("length", "port_number")]
+
+        # Order fields by start registry, as this is the order in which we will receive the values
+        fields = sorted(fields, key=lambda f: f.start)
+
+        # Get registers in large ranges, as this drastically improves performance and isn't so demanding of the mate3
+        field_reads = {}
+        for reading_range in self._get_reading_ranges(fields):
+            logger.debug(
+                f"Reading range {reading_range.start} -> {reading_range.end}, of {len(reading_range.fields)} fields"
+            )
+            register_number = address + reading_range.start - 1
+            registers = self._client.read_holding_registers(address=register_number, count=reading_range.size)
+            read_time = datetime.now()
+
+            for field in reading_range.fields:
+                try:
+                    implemented, value = field.from_registers(registers[: field.size])
+                    field_reads[field.name] = FieldRead(
+                        value=value, implemented=implemented, time=read_time, scale_factor=None
+                    )
+                except Exception as e:
+                    logger.warning(f"Error reading field {field.name} - so setting as not implemented. Message: {e}")
+                    field_reads[field.name] = FieldRead(
+                        value=None, implemented=False, time=read_time, scale_factor=None
+                    )
+                registers = registers[field.size :]
 
         for field in fields:
-            fields_by_device.setdefault(field.device, [])
-            fields_by_device[field.device].append(field)
+            if isinstance(field, IntegerField) and field.scale_factor is not None:
+                scale_factor = field_reads[field.scale_factor.name]
+                if not scale_factor.implemented:
+                    raise RuntimeError("Scale factor isn't implemented!")
+                field_reads[field.name].scale_factor = scale_factor
 
-        for device, start_register in self._block_information():
-            if device not in fields_by_device:
+        return model, field_reads
+
+    def read(self, only: Optional[Iterable[FieldValue]] = None):
+        """
+        Read values from the mate. By default (`only=None`), everything is read, but if you want to read only specified
+        fields (which puts less strain on the mate), list the in `only`.
+        """
+        register = self.sunspec_register
+        max_models = 30
+        first = True
+        model_field_reads = {}
+        model_addresses = {}
+        if only is not None:
+            only_fields = []
+            for field in only:
+                field = field.field
+                if field.mode not in (Mode.R, Mode.RW):
+                    raise RuntimeError("Can't read from a read-only field!")
+                only_fields.append(field)
+                # Read the scale factor too, if needed:
+                if isinstance(field, IntegerField) and field.scale_factor is not None:
+                    only_fields.append(field.scale_factor)
+        else:
+            only_fields = None
+        for _ in range(max_models):
+            model, field_reads = self._read_model(register, first, only_fields)
+            first = False
+
+            # Unknown device
+            if not model:
                 continue
 
-            fields_ = fields_by_device[device]
-            structure = parse(device, self.client, start_register, only_fields=fields_)
-            for field in fields_:
-                values_by_field.setdefault(field, [])
-                values_by_field[field].append(getattr(structure, field.name))
+            # No more blocks to read
+            if model == SunSpecEndModel:
+                break
 
-        return values_by_field
+            # record for use out of loop:
+            model_field_reads.setdefault(model, [])
+            model_field_reads[model].append(field_reads)
+            model_addresses.setdefault(model, [])
+            model_addresses[model].append(register)
 
-    def set_value(self, field: Field, value: int, port: int = None):
-        """Set the value for the specified field
+            # Move register to next block - that is, add the length of the block (which excludes DID + length) and
+            # the DID and length fields lengths (each one - hence the +2)
+            register += field_reads["length"].value + 2
+            # TODO: why + 2 for sunspec? +1 yes, as the ID is a uint32, but that's only one extra 16 bits, not 2 ...
+            # maybe padding?
+            if model == SunSpecHeaderModel:
+                register += 2
 
-        The value must be an integer. To discover the correct format for this
-        integer you should read the data using all_blocks().
+        # create devices if needed:
+        if self._devices is None:
+            self._devices = DeviceValues()
 
-        Example:
+        # update:
+        self._devices.update(model_field_reads, model_addresses)
 
-            >>> client.set_value(
-            >>>     field=ChargeControllerConfigurationParser.absorb_volts,
-            >>>     value=330,  # 33.0 volts
-            >>>     port=3,  # Optional, required when multiple devices of the same type are present
-            >>> )
+    def write(self):
+        """
+        After having updated values on self.devices, call this function to write them to the mate itself.
 
         Warning:
 
@@ -164,54 +305,19 @@ class Mate3(object):
 
             Specifically, it is quite possible that you can cause damage to your equipment
             through use of this feature. Be careful!
-
         """
-        if field.mode == Mode.R:
-            raise Exception(f"{field.name} is read-only. You cannot set the value of this field.")
 
-        # Look for devices which math the field and port (if specified)
-        found_devices = []
-        for device, start_register in self._block_information():
-            if field.device != device:
-                continue
+        # TODO: write in ranges?
+        for device in self._devices.connected_devices:
+            for field_value in device.fields():
+                if field_value.dirty:
+                    if field_value.field.mode not in (Mode.RW, Mode.W):
+                        raise RuntimeError(f"Can't write to field {field_value.name}")
+                    logger.info(f"writing {field_value._value_to_write} to {field_value.name}")
+                    address = device.address + field_value.field.start - 1  # -1 since start is 1-indexed
+                    # TODO: should we check that the device at the given address still has the right port?
+                    registers = field_value.field.to_registers(field_value._value_to_write)
+                    logger.debug(f"Setting register {address} to value {registers}")
 
-            parser = get_parser(device)
-            if hasattr(parser, 'port_number'):
-                structure = parse(device, self.client, start_register, only_fields=[parser.port_number])
-                if port is not None and structure.port_number != port:
-                    continue
-
-                found_devices.append(start_register)
-            else:
-                found_devices.append(start_register)
-
-        # Throw some sensible errors
-        if not found_devices:
-            raise Exception(f"No device of type {field.device.name} found on hub port {port}")
-        if len(found_devices) > 1:
-            if port:
-                raise Exception(
-                    f"Multiple devices of type {field.device.name} found on hub port {port}. "
-                    f"This is very unexpected, please raise an issue in GitHub if you see this, "
-                    f"including details of the device you are trying to set values on."
-                )
-            else:
-                raise Exception(
-                    f"Multiple devices of type {field.device.name} found. Please specify a hub port number "
-                    f"using the `port` parameter."
-                )
-
-        # What register do we need to write to?
-        field_register = found_devices[0] + field.start - 1
-
-        # Split the integer into multiple values according to the field's type.
-        # This will also raise an error if the provided value is to big/small.
-        prepared_values = split_int(value, field.type)
-
-        logger.debug(
-            f"Setting register {field_register} to value {value} "
-            f"(which is a {field.type.__name__} represented as {len(prepared_values)} values: {prepared_values})"
-        )
-
-        # Do the write
-        self.client.write_registers(field_register, prepared_values)
+                    # Do the write
+                    self._client.write_registers(address, registers)

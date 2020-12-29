@@ -1,1 +1,1 @@
-class NoParserFoundForDevice(Exception): pass
+class NoDefinitionFoundForDevice(Exception): pass

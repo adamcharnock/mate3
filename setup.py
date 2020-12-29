@@ -34,6 +34,6 @@ setup(
     packages=[],
     package_dir={"": "."},
     package_data={},
-    install_requires=['pymodbus==2.*,>=2.2.0'],
-    extras_require={"dev": ["black==18.*,>=18.3.0.a0", "dephell>=0.7.6", "pytest==3.*,>=3.0.0"]},
+    install_requires=['loguru==0.*,>=0.5.3', 'pymodbus==2.*,>=2.4.0'],
+    extras_require={"dev": ["black==18.*,>=18.3.0.a0", "dephell>=0.7.6", "pytest==6.*,>=6.2.1"]},
 )

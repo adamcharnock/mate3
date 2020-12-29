@@ -55,7 +55,7 @@ with Mate3Client("192.168.1.12") as client:
         # Read all devices:
         client.read()
         
-        # What's the system name?")
+        # What's the system name?
         client.devices.mate3.system_name
         # >>> FieldValue[system_name] | Implemented | Read @ 2020-07-19 21:27:57.747231 | Value: --- | Clean
         

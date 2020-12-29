@@ -68,7 +68,7 @@ More documentation is needed, but you can get a pretty code idea from `./example
            # Read all devices:
            client.read()
 
-           # What's the system name?")
+           # What's the system name?
            client.devices.mate3.system_name
            # >>> FieldValue[system_name] | Implemented | Read @ 2020-07-19 21:27:57.747231 | Value: --- | Clean
 
@@ -121,12 +121,15 @@ A simple CLI is available, with four main sub-commands:
 
 For each you can access the help (i.e. ``mate3 <cmd> -h``\ ) for more information.
 
-Using ``mate3_pg`` to write data to Postgres
-------------------------------------------------
+Writing data to Postgres
+------------------------
 
-TODO: THis isn't implemented under the new API!
+..
 
-The ``mate3_pg`` command reads data from your Mate3 and writes it to a Postgres database.
+   NB: this used to be in ``mate3_pg`` command, but has been moved to ``./examples/postgres_monitor.py``.
+
+
+The ``postgress_monitor.py`` command reads data from your Mate3 and writes it to a Postgres database.
 
 In addition to a Mate3s connected to your network, you will need:
 
@@ -138,7 +141,7 @@ Example use:
 
 .. code-block::
 
-   $ mate3_pg \
+   $ python postgres_monitor.py \
        -H 192.168.0.123 
        --definitions /path/to/my/definitions.yaml \
        --database-url postgres://username:password@host:5432/database_name \
@@ -148,11 +151,11 @@ You will need to replace ``192.168.0.123`` with your Mate3s' IP. Replace ``/path
 a path to your definitions file (see `example <https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml>`_\ ).
 Replace the ``username``\ , ``password``\ , ``host``\ , and ``database_name`` values with those for your Postgres database.
 
-Full details of the ``mate3_pg`` command:
+Full details of the ``postgres_monitor.py`` command:
 
 .. code-block::
 
-   $ mate3_pg --help
+   $ python postgres_monitor.py --help
    usage: mate3_pg [-h] --host HOST [--port PORT] [--interval INTERVAL] [--database-url DATABASE_URL] --definitions DEFINITIONS [--hypertables] [--quiet] [--debug]
 
    Read all available data from the Mate3 controller

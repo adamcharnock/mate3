@@ -10,7 +10,7 @@ from pymodbus.constants import Defaults
 
 from mate3.devices import DeviceValues
 from mate3.field_values import FieldRead, FieldValue
-from mate3.sunspec.fields import Field, IntegerField, Mode, Uint32Field
+from mate3.sunspec.fields import Field, IntegerField, Mode, Uint16Field, Uint32Field
 from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
 
@@ -195,6 +195,10 @@ class Mate3Client:
 
         model = MODEL_DEVICE_IDS[device_id]
 
+        # TODO: Make sure we don't read past the end of length (as reported by device). This shouldn't happen except in
+        # e.g. a case where the (old) device model firmware returns only 10 fields, and then 'new' one (whatever we're
+        # using in our spec) specifies 11, then we'd accidentally try to read one more.
+
         # Get the readable fields:
         fields = [field for field in model.__model_fields__ if field.mode in (Mode.R, Mode.RW)]
         if only is not None:
@@ -276,13 +280,11 @@ class Mate3Client:
             model_addresses.setdefault(model, [])
             model_addresses[model].append(register)
 
-            # Move register to next block - that is, add the length of the block (which excludes DID + length) and
-            # the DID and length fields lengths (each one - hence the +2)
-            register += field_reads["length"].value + 2
-            # TODO: why + 2 for sunspec? +1 yes, as the ID is a uint32, but that's only one extra 16 bits, not 2 ...
-            # maybe padding?
-            if model == SunSpecHeaderModel:
-                register += 2
+            # Move register to next block - that is, add the length of the block, which is what follows after the length
+            # field. For normal fields, we'll already have read 2 registers (DI and length) so we must add this to our
+            # total increment. For the SunSpecHeaderModel, we need to add 4 as DID is a UInt32 in this case (i.e. 2
+            # registers) and there's a model ID field (1 register) and length (1 register)
+            register += field_reads["length"].value + (4 if model == SunSpecHeaderModel else 2)
 
         # create devices if needed:
         if self._devices is None:
@@ -321,3 +323,40 @@ class Mate3Client:
 
                     # Do the write
                     self._client.write_registers(address, registers)
+
+    def read_all_modbus_values_unparsed(self):
+        """
+        This method just reads all of the values from the modbus devices, with no care about parsing them. All it
+        assumes is the standard structure of two registers (DID + length), except for the header.
+        """
+        register = self.sunspec_register
+        max_models = 30
+        first = True
+        reads = {}
+        for _ in range(max_models):
+            # Data starts generally at 3rd register, except for start (SunSpecHeaderModel) where it starts at 5th
+            data_offset = 4 if first else 2
+            registers = self._client.read_holding_registers(address=register, count=data_offset)
+            # The length is the last register (i.e. the one before data)
+            _, length = Uint16Field._from_registers(None, registers[-1:])
+
+            # We're done when length == 0 i.e. SunSpecEndModel
+            if length == 0:
+                break
+
+            # Now read everything (in maximum bunches of 100)
+            batch = 100
+            for start_offset in range(0, length, batch):
+                count = min(batch, length - start_offset)
+                registers = self._client.read_holding_registers(
+                    address=register + data_offset + start_offset, count=count
+                )
+                addresses = [register + i for i in range(count)]
+                for addr, bites in zip(addresses, registers):
+                    reads[addr] = bites
+
+            # See comment in self.read re the increment of 2 or 4
+            register += length + (4 if first else 2)
+            first = False
+
+        return reads

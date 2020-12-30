@@ -289,7 +289,23 @@ class DeviceValues:
             # Nothing to do - neither is present which means there are no devices.
             return
         elif number_missing == 1:
-            raise RuntimeError("Only one of config and values is present, and both should be!")
+            # OK, this shouldn't happen - but to prevent things happening when it does, let's just log a warning but
+            # return (as above) so this device isn't added.
+            if model_field_reads is None:
+                logger.warning(
+                    (
+                        f"Only model ({model_class}) field reads and no config ({config_class}) fields were read. This"
+                        f" is undefined behaviour, so ignoring {model_class}."
+                    )
+                )
+            else:
+                logger.warning(
+                    (
+                        f"Only config ({config_class}) field reads and no model ({model_class}) fields were read. This"
+                        f" is undefined behaviour, so ignoring {config_class}."
+                    )
+                )
+            return
 
         if device_has_port:
             # Let's check ports. Keep in mind that we should be getting all devices of this type, across all ports, and

@@ -104,7 +104,7 @@ A simple CLI is available, with four main sub-commands:
 - `read` - reads all of the values from the Mate3 and prints to stdout in a variety of formats.
 - `write` - writes values to the Mate3. (If you're doing anything serious you should use the python API.)
 - `devices` - shows the connected devices.
-- `debug` - caches all of the modbus values to a file which you can then share with others to help in debugging any problems you may have.
+- `dump` - dumps all of the raw modbus values to a (JSON) file in a format compatible with `CachingModbusClient` which you can then share with others to help in debugging any problems you may have. 
 
 For each you can access the help (i.e. `mate3 <cmd> -h`) for more information.
 

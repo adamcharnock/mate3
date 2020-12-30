@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 import argparse
 import json
+import os
 import re
-from argparse import ArgumentError
+from pathlib import Path
 from typing import List, Tuple
 
 from loguru import logger
@@ -91,17 +92,17 @@ def list_devices(client):
         print(name.ljust(50), str(device.address).ljust(10), port)
 
 
-def debug(args, port):
-    if args.cache_only:
-        raise RuntimeError("Can't use --cache-only for debug, as we're creating the cache, not using it!")
-    if args.cache_path is None:
-        raise RuntimeError("You must specify --cache-path for debug, as this is where the debug file will be written")
-    if args.host is None:
-        raise RuntimeError("You must specify a --host when using debug.")
-    with Mate3Client(host=args.host, port=port, cache_path=args.cache_path, cache_only=False) as client:
-        client.read()
+def dump_modbus_reads(args, port):
+    """
+    Use the caching client and do a full read.
+    """
+    dump_path = Path(args.dump_path)
+    if dump_path.exists():
+        os.remove(dump_path)
+    with Mate3Client(host=args.host, port=port, cache_path=args.dump_path, cache_only=False) as client:
+        client.read_all_modbus_values_unparsed()
         print(
-            f"All debug modbus reads are cached in the file '{args.cache_path}'.\nNOTE THAT THIS MAY CONTAIN SENSITIVE "
+            f"All debug modbus reads are cached in the file '{args.dump_path}'.\nNOTE THAT THIS MAY CONTAIN SENSITIVE "
             "INFORMATION LIKE PASSWORDS ETC."
         )
 
@@ -112,31 +113,10 @@ def main():
     # base parser for shared arguments (which makes sub parsers nicer)
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument(
-        "--host", "-H", dest="host", default=None, required=False, help="The host name or IP address of the Mate3",
+        "--host", "-H", dest="host", default=None, required=False, help="The host name or IP address of the Mate3"
     )
     base_parser.add_argument(
-        "--port",
-        "-p",
-        dest="port",
-        type=int,
-        default=None,
-        required=False,
-        help="The port number address of the Mate3",
-    )
-    base_parser.add_argument(
-        "--cache-path",
-        "-c",
-        dest="cache_path",
-        default=None,
-        required=False,
-        help="Path to a cache to use instead of host/port.",
-    )
-    base_parser.add_argument(
-        "--cache-only",
-        dest="cache_only",
-        action="store_true",
-        required=False,
-        help="Pass this option if you only want to use the provided cache.",
+        "--port", "-p", dest="port", type=int, default=None, required=False, help="The port number address of the Mate3"
     )
     base_parser.add_argument(
         "--loglevel",
@@ -151,6 +131,21 @@ def main():
     parser = argparse.ArgumentParser(description="CLI for the Mate3 controller", parents=[base_parser])
     sub_parsers = parser.add_subparsers(dest="cmd", help="Use mate3 <cmd> -h for help")
     read_parser = sub_parsers.add_parser("read", help="Read mate3 values", parents=[base_parser])
+    read_parser.add_argument(
+        "--cache-path",
+        "-c",
+        dest="cache_path",
+        default=None,
+        required=False,
+        help="Path to a cache to use instead of host/port.",
+    )
+    read_parser.add_argument(
+        "--cache-only",
+        dest="cache_only",
+        action="store_true",
+        required=False,
+        help="Pass this option if you only want to use the provided cache.",
+    )
     read_parser.add_argument(
         "--format",
         "-f",
@@ -173,7 +168,8 @@ def main():
         action="append",
     )
     devices_parser = sub_parsers.add_parser("devices", help="List the devices", parents=[base_parser])
-    debug_parser = sub_parsers.add_parser("debug", help="Dump debug info", parents=[base_parser])
+    dump_modbus_reads_parser = sub_parsers.add_parser("dump", help="Dump a full modbus read", parents=[base_parser])
+    dump_modbus_reads_parser.add_argument("dump_path", help="Path to modbus dump (*.json)")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -185,26 +181,29 @@ def main():
     logger.add(sys.stderr, level=args.loglevel)
 
     # Get the client:
-    if args.cache_only and args.cache_path is None:
-        raise RuntimeError("You must specify --cache-path if you're using --cache-only")
-    if args.cache_path is not None:
-        if args.cache_only and (args.host is not None or args.port is not None):
-            raise RuntimeError("If using --cache-only, you can't specify a host/port")
-    else:
-        if args.host is None:
-            raise RuntimeError("If not using --cache-path, you must specify a host")
     port = Defaults.Port if args.port is None else args.port
 
-    # If debug, let's do it:
-    if args.cmd == "debug":
-        debug(args, port)
-
-    else:
+    # If dump, let's do it:
+    if args.cmd == "dump":
+        dump_modbus_reads(args, port)
+    elif args.cmd == "read":
+        if args.cache_only and args.cache_path is None:
+            raise RuntimeError("You must specify --cache-path if you're using --cache-only")
+        if args.cache_path is not None:
+            if args.cache_only and (args.host is not None or args.port is not None):
+                raise RuntimeError("If using --cache-only, you can't specify a host/port")
+        else:
+            if args.host is None:
+                raise RuntimeError("If not using --cache-path, you must specify a host")
         with Mate3Client(host=args.host, port=port, cache_path=args.cache_path, cache_only=args.cache_only) as client:
             client.read()
-            if args.cmd == "read":
-                read(client, args)
-            elif args.cmd == "write":
+            read(client, args)
+    else:
+        if args.host is None:
+            raise RuntimeError("You must specify a host")
+        with Mate3Client(host=args.host, port=port) as client:
+            client.read()
+            if args.cmd == "write":
                 write(client, args)
             elif args.cmd == "devices":
                 list_devices(client)

@@ -234,6 +234,9 @@ then you can get the project directly from GitHub:
    # Install mate3 and its dependencies. This also makes the mate3 command available.
    poetry install
 
+   # Run the tests - there aren't many, so feel free to add more!
+   pytest .
+
 After this you should be able to run the ``mate3`` command and edit the project's source code.
 
 Release process

@@ -5,6 +5,8 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum, IntFlag
 from typing import Optional
 
+from fixedint import Int16, UInt16
+
 
 class Mode(Enum):
     R = "r"
@@ -96,23 +98,28 @@ class Uint16Field(IntegerField):
 
 @dc.dataclass
 class Int16Field(IntegerField):
+    """
+    Note that values are stored in twos-compliment for 16 bits in modbus registers so e.g. the value -1 will be stored
+    as 65535. However, python will happily read this in as 65535, so we need to convert back to -1. Turns out the
+    easiest way is using the fixedint package, and just calling `int(Int16(65535))` which gives -1. Likewise when we
+    want to write we've got to go from -1 tp 65535 - you can just call `int(UInt16(-1))` as UInt16 casts the Python
+    internal twos-complement representation into 16 bits, which is just what we want. It seems to work, but yeh, it's 
+    mostly 'cos it's less confusing than bit manipulation.
+    """
+
     def _from_registers(self, registers):
         val = registers[0]
         if val == 0x8000:
             # As per sunspec, this is "not implemented"
             return False, None
-        # two's complement:
-        bits = 16
-        if (val & (1 << (bits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-            val = val - (1 << bits)  # compute negative value
-        return True, val
+        return True, int(Int16(val))
 
     def _to_registers(self, value):
         if not isinstance(value, int):
             raise ValueError("Expected an integer!")
         if value < -0x7FFF or value > 0x7FFF:
             raise ValueError("int16 must be between -+0x7fff")
-        return (value,)
+        return (int(UInt16(value)),)
 
 
 @dc.dataclass
@@ -175,7 +182,6 @@ class BitfieldMixin:
         return True, self.flags(value)
 
     def _set_flags(self, flags):
-        raise NotImplementedError("Need to test this ...")
         if not isinstance(flags, self.flags):
             raise ValueError("Should be a flag of type {self.flags}")
         return flags.value
@@ -266,7 +272,9 @@ class AddressField(Field):
         return True, socket.inet_ntoa(struct.pack("!I", val))
 
     def _to_registers(self, value):
-        raise NotImplementedError()
+        bites = socket.inet_aton(value)
+        num = struct.unpack("!I", bites)[0]
+        return (num >> 16, num & 0xFFFF)
 
 
 class BitfieldDescriptionMixin:

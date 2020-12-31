@@ -61,7 +61,9 @@ class CachingModbusClient(NonCachingModbusClient):
         if any(addr not in self._cache for addr in addresses):
             if self._cache_only:
                 # If we're cache_only, then cache miss is an error
-                raise ValueError("Uncached lookup!")
+                raise ValueError(
+                    f"Uncached lookup at addresses {[addr for addr in addresses if addr not in self._cache]}"
+                )
             registers = super().read_holding_registers(address=address, count=count)
             for addr, bites in zip(addresses, registers):
                 self._cache[addr] = bites

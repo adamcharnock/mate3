@@ -54,8 +54,6 @@ def test_known_system(subtests, system_dir):
                 for value in device.fields(modes=[Mode.RW]):
                     if value.implemented:
                         value.value = value.value
-                        assert value.dirty
-                client.write()
             new_cache = client._client._cache
             check_objects(cache, new_cache)
 

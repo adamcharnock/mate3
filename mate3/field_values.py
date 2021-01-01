@@ -1,4 +1,5 @@
 import dataclasses as dc
+from datetime import datetime
 from functools import wraps
 from typing import Any, Iterable, Optional
 
@@ -22,6 +23,7 @@ class FieldValue:
         address: int,
         raw_value: Any,
         implemented: bool,
+        read_time: datetime,
     ):
         self._client = client
         self.field = field
@@ -29,15 +31,7 @@ class FieldValue:
         self._address = address
         self._raw_value = raw_value
         self._implemented = implemented
-
-        # Sense check the scale factor
-        if scale_factor is not None:
-            if not scale_factor.implemented:
-                raise RuntimeError("scale_factor should be implemented.")
-            if not isinstance(scale_factor.value, int):
-                raise RuntimeError("scale_factor should be an integer.")
-            if scale_factor.value < -10 or scale_factor.value > 10:
-                raise RuntimeError("scale_factor should be between -10 and 10.")
+        self._last_read = read_time
 
     @property
     def name(self) -> str:
@@ -60,8 +54,26 @@ class FieldValue:
         return self._implemented
 
     @property
+    def last_read(self) -> datetime:
+        return self._last_read
+
+    @property
     def scale_factor(self) -> Optional[int]:
-        return None if self._scale_factor is None else self._scale_factor.value
+        if self._scale_factor is None:
+            return None
+
+        # Sense check the scale factor
+        if not self._scale_factor.implemented:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be implemented.")
+        if self._scale_factor.scale_factor is not None:
+            raise RuntimeError(f"Scale factor {self._scale_factor} shouldn't have it's own scale factor!")
+        if self._scale_factor.value is None:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should not be None.")
+        if not isinstance(self._scale_factor.value, int):
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be an integer.")
+        if self._scale_factor.value < -10 or self._scale_factor.value > 10:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be between -10 and 10.")
+        return self._scale_factor
 
     @property
     def address(self) -> int:
@@ -91,11 +103,19 @@ class FieldValue:
         # Round it to what it should be after scaling:
         return round(value, -scale_factor if scale_factor < 0 else 0)
 
-    @value.setter
-    def value(self, value):
-        self.write(value)
-
     def write(self, value):
+        """
+        Warning:
+
+            Ensure you have read the LICENSE file before using this feature. Note the
+            section which begins:
+
+                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+                EXPRESS OR IMPLIED
+
+            Specifically, it is quite possible that you can cause damage to your equipment
+            through use of this feature. Be careful!
+        """
         logger.info(f"Attempting to write {value} to {self.name}")
         # TODO: ensure the type of value is correct
         if self.field.mode not in (Mode.W, Mode.RW):
@@ -103,20 +123,28 @@ class FieldValue:
         if not self._implemented:
             raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
         # Scale if needed:
+        scaled_value = value
         if self._should_be_scaled:
             # TODO: Time limit on scale_factor being applicable?
             # Scale it:
-            value = value / 10 ** self._scale_factor.value
+            scaled_value = value / 10 ** self._scale_factor.value
             # Round it to what it should be after scaling:
             # TODO: raise error if too many digits specified
-            value = int(round(value, 0))
+            scaled_value = int(round(scaled_value, 0))
 
         # OK, now convert to registers:
-        registers = self.field.to_registers(value)
-        logger.info(f"writing {value} to {self.name} as registers {registers} at address {self._address}")
+        registers = self.field.to_registers(scaled_value)
+        logger.info(f"writing {scaled_value} to {self.name} as registers {registers} at address {self._address}")
 
         # Do the write
         self._client._client.write_registers(self._address, registers)
+
+        # Now read it and check the value is what we intended:
+        self.read()
+        if value != self.value:
+            raise RuntimeError(
+                f"Write 'succeeded' but after re-reading to check, the current value is {self.value} and not {value}"
+            )
 
     def read(self):
         if self.field.mode not in (Mode.R, Mode.RW):
@@ -128,10 +156,12 @@ class FieldValue:
 
         # OK, read the appropriate registers:
         logger.info(f"Reading {self.name} from address {self._address}")
+        read_time = datetime.now()
         registers = self._client._client.read_holding_registers(address=self._address, count=self.field.size)
         logger.debug(f"Read {registers} for {self.name} from {self._address}")
 
         self._implemented, self._raw_value = self.field.from_registers(registers)
+        self._last_read = read_time
 
 
 @dc.dataclass

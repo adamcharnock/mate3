@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, List, Optional
+from typing import List
 
 from loguru import logger
 from pymodbus.constants import Defaults
 
 from mate3.devices import DeviceValues
-from mate3.field_values import FieldValue
 from mate3.modbus_client import CachingModbusClient, ModbusTcpClient, NonCachingModbusClient
-from mate3.sunspec.fields import Field, IntegerField, Mode, Uint16Field, Uint32Field
+from mate3.read import AllModelReads, ModelRead
+from mate3.sunspec.fields import Field, Mode, Uint16Field, Uint32Field
 from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
 
 
@@ -58,6 +58,10 @@ class Mate3Client:
         else:
             self._client = NonCachingModbusClient(self.host, self.port)
 
+        # Now read everything. Why? Because most use of the API assumes fields have already been read (e.g. to get
+        # the devices, or the addresses of fields, etc.)
+        self.read_all()
+
     def close(self):
         """
         Close the modbus connection to the mate.
@@ -101,7 +105,7 @@ class Mate3Client:
                 previous_range.extend(field)
         return ranges
 
-    def _read_model(self, device_address: int, first: bool):
+    def _read_model(self, device_address: int, first: bool, all_reads: AllModelReads):
         """
         Read an individual model at `address`. Use `first` to specify that this is the first block - see comment below.
         By default reads everything in the model - use `only` to specify a list of Fields to read, if you want to limit.
@@ -135,13 +139,14 @@ class Mate3Client:
         fields = sorted(fields, key=lambda f: f.start)
 
         # Get registers in large ranges, as this drastically improves performance and isn't so demanding of the mate3
-        field_reads = []
+        model_reads = ModelRead()
         for reading_range in self._get_reading_ranges(fields):
             logger.debug(
                 f"Reading range {reading_range.start} -> {reading_range.end}, of {len(reading_range.fields)} fields"
             )
             register_number = device_address + reading_range.start - 1  # -1 as starts are 1-indexed in fields
             registers = self._client.read_holding_registers(address=register_number, count=reading_range.size)
+            read_time = datetime.now()
 
             offset = 0
             for field in reading_range.fields:
@@ -153,122 +158,53 @@ class Mate3Client:
                             "Didn't get the right number of registers from reading range for this field."
                         )
                     implemented, raw_value = field.from_registers(field_registers)
-                    field_reads.append((field, address, raw_value, implemented))
+                    model_reads.add(
+                        field.name, raw_value=raw_value, implemented=implemented, address=address, time=read_time
+                    )
                 except Exception as e:
                     logger.warning(f"Error reading field {field.name} - so setting as not implemented. Message: {e}")
-                    field_reads.append((field, address, None, False))
+                    model_reads.add(field.name, raw_value=None, implemented=False, address=address, time=read_time)
                 offset += field.size
 
-        # OK, convert to field values. Note that we need to process scale factors first:
-        scale_factor_names = set()
-        for field, *_ in field_reads:
-            if isinstance(field, IntegerField) and field.scale_factor is not None:
-                scale_factor_names.add(field.scale_factor.name)
-        scale_factors = {}
-        for field, address, raw_value, implemented in field_reads:
-            if field.name in scale_factor_names:
-                if isinstance(field, IntegerField) and field.scale_factor is not None:
-                    raise RuntimeError(f"Scale factor {field.name} shouldn't have it's own scale factor!")
-                scale_factors[field.name] = FieldValue(
-                    client=self,
-                    field=field,
-                    scale_factor=None,
-                    address=address,
-                    raw_value=raw_value,
-                    implemented=implemented,
-                )
+        return model, model_reads
 
-        # Now process remaining non-scale-factors:
-        non_scale_factors = {}
-        for field, address, raw_value, implemented in field_reads:
-            if field.name not in scale_factor_names:
-                scale_factor = None
-                if isinstance(field, IntegerField) and field.scale_factor is not None:
-                    scale_factor = scale_factors[field.scale_factor.name]
-                non_scale_factors[field.name] = FieldValue(
-                    client=self,
-                    field=field,
-                    scale_factor=scale_factor,
-                    address=address,
-                    raw_value=raw_value,
-                    implemented=implemented,
-                )
-
-        # Combine 'em:
-        field_values = {**scale_factors, **non_scale_factors}
-
-        return model, field_values
-
-    def read(self):
+    def read_all(self):
         """
         Read all values from all devices. If you want to read only specified fields use e.g.
             client.devices.mate3.system_name.read()
+        This method, however, is optimised for reading everything.
         """
         register = self.sunspec_register
         max_models = 30
         first = True
-        model_field_values = {}
-        model_addresses = {}
+        all_reads = AllModelReads()
         for _ in range(max_models):
-            model, field_values = self._read_model(register, first)
+            model, model_reads = self._read_model(register, first, all_reads)
             first = False
 
             # Unknown device
             if not model:
                 continue
+
             # No more blocks to read
             if model == SunSpecEndModel:
                 break
 
-            # record for use out of loop:
-            model_field_values.setdefault(model, [])
-            model_field_values[model].append(field_values)
-            model_addresses.setdefault(model, [])
-            model_addresses[model].append(register)
+            # Save the model reads for this model:
+            all_reads.add(model, model_reads)
 
             # Move register to next block - that is, add the length of the block, which is what follows after the length
             # field. For normal fields, we'll already have read 2 registers (DI and length) so we must add this to our
             # total increment. For the SunSpecHeaderModel, we need to add 4 as DID is a UInt32 in this case (i.e. 2
             # registers) and there's a model ID field (1 register) and length (1 register)
-            register += field_values["length"].value + (4 if model == SunSpecHeaderModel else 2)
+            register += model_reads["length"].raw_value + (4 if model == SunSpecHeaderModel else 2)
 
         # create devices if needed:
         if self._devices is None:
-            self._devices = DeviceValues()
+            self._devices = DeviceValues(client=self)
 
         # update:
-        self._devices.update(model_field_values, model_addresses)
-
-    def write(self):
-        """
-        After having updated values on self.devices, call this function to write them to the mate itself.
-
-        Warning:
-
-            Ensure you have read the LICENSE file before using this feature. Note the
-            section which begins:
-
-                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-                EXPRESS OR IMPLIED
-
-            Specifically, it is quite possible that you can cause damage to your equipment
-            through use of this feature. Be careful!
-        """
-
-        # TODO: write in ranges?
-        for device in self._devices.connected_devices:
-            for field_value in device.fields():
-                if field_value.dirty:
-                    if field_value.field.mode not in (Mode.RW, Mode.W):
-                        raise RuntimeError(f"Can't write to field {field_value.name}")
-                    logger.info(f"writing {field_value._value_to_write} to {field_value.name}")
-                    address = device.address + field_value.field.start - 1  # -1 since start is 1-indexed
-                    # TODO: should we check that the device at the given address still has the right port?
-                    registers = field_value.field.to_registers(field_value._value_to_write)
-                    logger.debug(f"Setting register {address} to value {registers}")
-
-                    # Do the write
-                    self._client.write_registers(address, registers)
+        self._devices.update(all_reads)
 
     def read_all_modbus_values_unparsed(self):
         """

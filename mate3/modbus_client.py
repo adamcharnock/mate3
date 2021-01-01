@@ -48,8 +48,10 @@ class CachingModbusClient(NonCachingModbusClient):
         return cache
 
     def _write_cache(self):
-        with open(self._cache_path, "w") as f:
-            json.dump(self._cache, f)
+        # Only write if not using cache_only
+        if not self._cache_only:
+            with open(self._cache_path, "w") as f:
+                json.dump(self._cache, f)
 
     def read_holding_registers(self, address, count):
         """

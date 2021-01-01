@@ -29,7 +29,7 @@ def read(client, args):
                 ss = [f"\t{value.field.name.ljust(50)}"]
                 ss.append("Y".rjust(4) if value.implemented else "N".rjust(4))
                 if value.scale_factor is not None:
-                    ss.append(f"{value.scale_factor}".rjust(2))
+                    ss.append(f"{value.scale_factor.value}".rjust(2))
                     ss.append(f"{value.raw_value}".rjust(8))
                 else:
                     ss.append(" -")
@@ -196,13 +196,11 @@ def main():
             if args.host is None:
                 raise RuntimeError("If not using --cache-path, you must specify a host")
         with Mate3Client(host=args.host, port=port, cache_path=args.cache_path, cache_only=args.cache_only) as client:
-            client.read()
             read(client, args)
     else:
         if args.host is None:
             raise RuntimeError("You must specify a host")
         with Mate3Client(host=args.host, port=port) as client:
-            client.read()
             if args.cmd == "write":
                 write(client, args)
             elif args.cmd == "devices":

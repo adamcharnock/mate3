@@ -195,7 +195,7 @@ class DeviceValues:
             model_class=OutBackModel,
             config_class=OutBackSystemControlModel,
             config_values_class=OutBackSystemControlValues,
-            target=self.mate3s,
+            device_values=self.mate3s,
             device_class=Mate3DeviceValues,
         )
 
@@ -205,7 +205,7 @@ class DeviceValues:
             model_class=ChargeControllerModel,
             config_class=ChargeControllerConfigurationModel,
             config_values_class=ChargeControllerConfigurationValues,
-            target=self.charge_controllers,
+            device_values=self.charge_controllers,
             device_class=ChargeControllerDeviceValues,
         )
 
@@ -215,7 +215,7 @@ class DeviceValues:
             model_class=FLEXnetDCRealTimeModel,
             config_class=FLEXnetDCConfigurationModel,
             config_values_class=FLEXnetDCConfigurationValues,
-            target=self.fndcs,
+            device_values=self.fndcs,
             device_class=FNDCDeviceValues,
         )
 
@@ -225,7 +225,7 @@ class DeviceValues:
             model_class=FXInverterRealTimeModel,
             config_class=FXInverterConfigurationModel,
             config_values_class=FXInverterConfigurationValues,
-            target=self.fx_inverters,
+            device_values=self.fx_inverters,
             device_class=FXInverterDeviceValues,
         )
 
@@ -235,7 +235,7 @@ class DeviceValues:
             model_class=SinglePhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
-            target=self.single_phase_radian_inverters,
+            device_values=self.single_phase_radian_inverters,
             device_class=SinglePhaseRadianInverterDeviceValues,
         )
 
@@ -245,7 +245,7 @@ class DeviceValues:
             model_class=SplitPhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
-            target=self.split_phase_radian_inverters,
+            device_values=self.split_phase_radian_inverters,
             device_class=SplitPhaseRadianInverterDeviceValues,
         )
 
@@ -255,7 +255,7 @@ class DeviceValues:
         model_class: Model,
         config_class: Model,
         config_values_class: ModelValues,
-        target: Dict[int, ModelValues],
+        device_values: Dict[int, ModelValues],
         device_class: ModelValues,
     ) -> None:
 
@@ -291,38 +291,38 @@ class DeviceValues:
         for port in model_field_reads_per_port:
             model_reads_this_port = model_field_reads_per_port[port]
             config_reads_this_port = config_field_reads_per_port[port]
-            if port not in target:
+            if port not in device_values:
                 # OK, it's new - create it:
                 config_values = self._create_new_model_values(
                     model=config_class,
                     values_class=config_values_class,
                     device_address=config_reads_this_port["did"].address,
                 )
-                target[port] = self._create_new_model_values(
+                device_values[port] = self._create_new_model_values(
                     model=model_class,
                     values_class=device_class,
                     device_address=model_reads_this_port["did"].address,
                     config=config_values,
                 )
+
             # Either way, update the field values:
-            for field_name, field_read in model_reads_this_port.items():
-                field_value = getattr(target[port], field_name)
-                field_value._raw_value = field_read.raw_value
-                field_value._implemented = field_read.implemented
-                field_value._last_read = field_read.time
-            for field_name, field_read in config_reads_this_port.items():
-                field_value = getattr(target[port].config, field_name)
-                field_value._raw_value = field_read.raw_value
-                field_value._implemented = field_read.implemented
-                field_value._last_read = field_read.time
+            for reads, device_val in (
+                (model_reads_this_port, device_values[port]),
+                (config_reads_this_port, device_values[port].config),
+            ):
+                for field_name, field_read in reads.items():
+                    field_value = getattr(device_val, field_name)
+                    field_value._raw_value = field_read.raw_value
+                    field_value._implemented = field_read.implemented
+                    field_value._last_read = field_read.time
 
         # If there are any ports that were used for this device, but are no longer, remove them:
-        old_device_ports = set(list(target.keys())) - set(model_field_reads_per_port.keys())
+        old_device_ports = set(list(device_values.keys())) - set(model_field_reads_per_port.keys())
         for port in old_device_ports:
             logger.warning(
                 f"Device(s) of model {model_class} on ports {old_device_ports} have disappeared. These will be ignored."
             )
-            del target[port]
+            del device_values[port]
 
     def _create_new_model_values(
         self, model: Model, values_class: ModelValues, device_address: int, config: Optional[ModelValues] = None

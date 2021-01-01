@@ -283,29 +283,26 @@ class DeviceValues:
         model_field_reads = all_model_field_reads.get(model_class)
         config_field_reads = all_model_field_reads.get(config_class)
 
-        # Check we see both model and config or none:
-        number_missing = sum([model_field_reads is None, config_field_reads is None])
-        if number_missing == 2:
-            # Nothing to do - neither is present which means there are no devices.
+        # OK, there's a few options around whether the above variables contain anything.
+        # - Both present, then we're good - continue. All devices should have a configuration class.
+        # - Model isn't present - this means the device itself wasn't detected, so ignore. Note that usually this would
+        #   imply the config class is null (since the config shouldn't be there if the device isn't) except in the case
+        #   of Radian inverters, as the same config class is shared across both single and split phase devices (so that
+        #   if only one type is present, the other will have empty model values and non-empty config).
+        # - Both are missing - this is covered by the above.
+        # So, the short summary is we only care about devices wher ethe model field reads are present, and in all other
+        # cases there *should* be config fields too.
+        if model_field_reads is None:
             return
-        elif number_missing == 1:
-            # OK, this shouldn't happen - but to prevent things happening when it does, let's just log a warning but
-            # return (as above) so this device isn't added.
-            if model_field_reads is None:
+        else:
+            if config_field_reads is None:
                 logger.warning(
                     (
                         f"Only model ({model_class}) field reads and no config ({config_class}) fields were read. This"
                         f" is undefined behaviour, so ignoring {model_class}."
                     )
                 )
-            else:
-                logger.warning(
-                    (
-                        f"Only config ({config_class}) field reads and no model ({model_class}) fields were read. This"
-                        f" is undefined behaviour, so ignoring {config_class}."
-                    )
-                )
-            return
+                return
 
         if device_has_port:
             # Let's check ports. Keep in mind that we should be getting all devices of this type, across all ports, and

@@ -2,39 +2,11 @@
 
 [![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)
 
-This library provides complete support for all Outback devices (at least in theory, 
-I don't own all the devices so cannot test it). Writing data is also supported.
+This library provides complete support for all Outback devices (at least in theory, I don't own all the devices so cannot test it). Writing data is also supported.
 
-This data is accessed though the Outback Mate3s' Modbus interface. You must therefore 
-have a Mate3s which is connected to your local network using its ethernet port.
+This data is accessed though the Outback Mate3s' Modbus interface. You must therefore have a Mate3/Mate3s which is connected to your local network using its ethernet port.
 
 Tested on Python 3.7. May work on 3.6.
-
-## Warnings
-
-First, the big one:
-
-> **WARNING!** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) before using any of the `write` functionality. You could easily damage your equipment by setting incorrect values (directly or indirectly).
-
-In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time. On that note, the recommended approach if you need to poll over time is:
-
-```python
-while True:
-    with Mate3Client(...) as client:
-        client...
-    sleep(1)
-```
-
-As opposed to
-
-```python
-with Mate3Client(...) as client:
-    while True:
-        client...
-    sleep(1)
-```
-
-Why? It means you're getting point-in-time values, and don't have to worry about changes (such as ports being switched). There are exceptions, but you should know why you're doing it.
 
 ## Installation
 
@@ -51,55 +23,51 @@ After this you should be able to run the `mate3` command.
 More documentation is needed, but you can get a pretty code idea from [./examples/getting_started.py](./examples/getting_started.py), copied (somewhat) below. 
 
 ```python
-with Mate3Client("192.168.1.12") as client:
-        # Read all devices:
-        client.read()
-        
+# Creating a client allows you to interface with the Mate. It also does a read of all devices connected to it (via the
+# hub) on initialisation:
+with Mate3Client("...") as client:
         # What's the system name?
         mate = client.devices.mate3
         print(mate.system_name)
-        # >>> FieldValue[system_name] | Implemented | Read @ 2020-07-19 21:27:57.747231 | Value: --- | Clean
+        # >>> FieldValue[system_name] | Mode.RW | Implemented | Value: OutBack Power Technologies | Read @ 2021-01-01 17:50:54.373077
         
         # Get the battery voltage. Note that it's auto-scaled appropriately.
         fndc = client.devices.fndc
         print(fndc.battery_voltage)
-        # >>> FieldValue[battery_voltage] | Implemented | Read @ 2020-07-19 21:27:57.795158 | Scale factor: -1 | Unscaled value: 544 | Value: 54.4 | Clean
+        # >>> FieldValue[battery_voltage] | Mode.R | Implemented | Scale factor: -1 | Unscaled value: 506 | Value: 50.6 | ...
+         Read @ 2021-01-01 17:50:54.378941
 
-        # Get the (raw) values for the same device type on different ports
-        inverters = client.devices.fx_inverters
-        for port in inverters:
-            print(f"FET temp on port {port} = {inverters[port].fet_temperature.value}")
-        # >>> FET temp on port 1 = 36
-        # >>> FET temp on port 2 = 35
+        # Get the (raw) values for the same device type on different ports.
+        inverters = client.devices.single_phase_radian_inverters
+        for port, inverter in inverters.items():
+            print(f"Output KW for inverter on port {port} is {inverter.output_kw.value}")
+        # >>> Output KW for inverter on port 1 is 0.7
+        # >>> Output KW for inverter on port 2 is 0.0
 
-        # Read only battery voltage again and check only it's read time was updated (and not system name, as we didn't
-        # read it)
-        time.sleep(1)
-        client.read(only=[fndc.battery_voltage])
-        print(mate.system_name)
-        # >>> FieldValue[system_name] ... 2020-07-19 21:27:57 ...
+        # Values aren't 'live' - they're only updated whenever you initialise the client, call client.update_all() or
+        # re-read a particular value. Here's how we re-read the battery voltage. Note the change in the last_read field
+        time.sleep(0.1)
+        fndc.battery_voltage.read()
         print(fndc.battery_voltage)
-        # >>> FieldValue[battery_voltage] ... 2020-07-19 21:27:58 ...
-        
-        # Nice. What about modbus fields that aren't implemented?
-        print(mate.sched_1_ac_mode.implemented)
+        # >>> FieldValue[battery_voltage] | Mode.R | Implemented | Scale factor: -1 | Unscaled value: 506 | Value: 50.6 | Read @ 2021-01-01 17:50:54.483401
+
+        # Nice. Modbus fields that aren't implemented are easy to identify:
+        print(mate.alarm_email_enable.implemented)
         # >>> False
 
-        # Cool. Can we set a new value? Note that we don't need to worry about scaling etc.
-        cc = client.devices.charge_controller.config
-        volts = cc.absorb_volts
-        print(volts)
-        # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Clean
-        cc.absorb_volts.value = volts.value + 0.1
-        print(volts)
-        # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Dirty (value to write: 536)
-        
-        # OK, but what about fun fields like Enums? It's doable ...
-        new_value = cc.grid_tie_mode.field.options["Grid Tie Mode disabled"]
-        cc.grid_tie_mode.value = new_value
+        # We can write new values to the device too. Note that we don't need to worry about scaling etc.
+        # WARNING: this will actually write stuff to your mate - see the warning below!
+        mate.system_name.write("New system name")
+        print(mate.system_name)
+        # >>>  FieldValue[system_name] | Mode.RW | Implemented | Value: New system name | Read @ 2021-01-01 17:50:54.483986
 
-        # Finally, write any values that have changed to the device itself - BE CAREFUL!
-        client.write()
+        # All the fields and options are well defined so e.g. for enums you can see valid options e.g:
+        print(list(mate.ags_generator_type.field.options))
+        # >>> [<ags_generator_type.AC Gen: 0>, <ags_generator_type.DC Gen: 1>, <ags_generator_type.No Gen: 2>]
+
+        # In this case these are normal python Enums, so you can access them as expected, and assign them:
+        mate.ags_generator_type.write(mate.ags_generator_type.field.options["DC Gen"])
+        # >>> ags_generator_type.DC Gen
 ```
 
 ## Using the command line interface (CLI)
@@ -113,6 +81,31 @@ A simple CLI is available, with four main sub-commands:
 
 For each you can access the help (i.e. `mate3 <cmd> -h`) for more information.
 
+## Warnings
+
+First, the big one:
+
+> **WARNING!** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) before using any of the `write` functionality. You could easily damage your equipment by setting incorrect values (directly or indirectly).
+
+In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time. On that note, the recommended approach if you need to poll over time is:
+
+```python
+while True:
+    with Mate3Client(...) as client:
+        client...
+    sleep(10)
+```
+
+As opposed to
+
+```python
+with Mate3Client(...) as client:
+    while True:
+        client...
+    sleep(10)
+```
+
+Why? It means you're getting point-in-time values, and don't have to worry about changes (such as ports being switched). There are exceptions to this rule, but you should know why you're doing it.
 ## Troubleshooting
 
 Some ideas (which can be helpful for issues)

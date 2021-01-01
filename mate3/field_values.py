@@ -47,6 +47,7 @@ class FieldValue:
             ss.append(f"Unscaled value: {self._raw_value}")
         if self._implemented:
             ss.append(f"Value: {self.value}")
+        ss.append(f"Read @ {self.last_read}")
         return " | ".join(ss)
 
     @property
@@ -116,7 +117,7 @@ class FieldValue:
             Specifically, it is quite possible that you can cause damage to your equipment
             through use of this feature. Be careful!
         """
-        logger.info(f"Attempting to write {value} to {self.name}")
+        logger.debug(f"Attempting to write {value} to {self.name}")
         # TODO: ensure the type of value is correct
         if self.field.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to this field!")
@@ -134,7 +135,7 @@ class FieldValue:
 
         # OK, now convert to registers:
         registers = self.field.to_registers(scaled_value)
-        logger.info(f"writing {scaled_value} to {self.name} as registers {registers} at address {self._address}")
+        logger.debug(f"Writing {scaled_value} to {self.name} as registers {registers} at address {self._address}")
 
         # Do the write
         self._client._client.write_registers(self._address, registers)
@@ -155,7 +156,7 @@ class FieldValue:
             self.scale_factor.read()
 
         # OK, read the appropriate registers:
-        logger.info(f"Reading {self.name} from address {self._address}")
+        logger.debug(f"Reading {self.name} from address {self._address}")
         read_time = datetime.now()
         registers = self._client._client.read_holding_registers(address=self._address, count=self.field.size)
         logger.debug(f"Read {registers} for {self.name} from {self._address}")

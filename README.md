@@ -2,9 +2,13 @@
 
 [![PyPI version](https://badge.fury.io/py/mate3.svg)](https://badge.fury.io/py/mate3)
 
-This library provides complete support for all Outback devices (at least in theory, I don't own all the devices so cannot test it). Writing data is also supported.
+This Python library aims to provide complete support for all Outback devices connected to a Mate3/Mate3s (or AXS port?) via Modbus. You can:
 
-This data is accessed though the Outback Mate3s' Modbus interface. You must therefore have a Mate3/Mate3s which is connected to your local network using its ethernet port.
+- Read values in Python - and then do whatever you want with them e.g. monitoring/alerting/dynamic power management etc.
+- Write values - i.e. control your Outback system with Python.
+- (Hopefully) avoid ever having to know about Modbus at all. Just use the Python API or the CLI.
+- (Hopefully) get access to the full Outback spec in a 'user friendly' form. You don't need to know about the magic numbers in Enums or Bitfields (or the SunSpec), or how to interpret fault codes, and nor do you have to worry about twos-complements and other such things.
+- Co-develop without giving access to your system. That is, you can 'dump' a snapshot of your system and others can then interact with it (within reason) as if it were a real Mate3 over Modbus - which is great for testing/debugging/etc.
 
 Tested on Python 3.7. May work on 3.6.
 
@@ -16,7 +20,7 @@ The recommended installation is as follows:
 pip install mate3
 ```
 
-After this you should be able to run the `mate3` command.
+After this you should be able to run the `mate3` command. To access your Mate it must be connected to your local network using its ethernet port.
 
 ## Background info you probably should know ...
 

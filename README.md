@@ -56,46 +56,51 @@ with Mate3Client("192.168.1.12") as client:
         client.read()
         
         # What's the system name?
-        client.devices.mate3.system_name
+        mate = client.devices.mate3
+        print(mate.system_name)
         # >>> FieldValue[system_name] | Implemented | Read @ 2020-07-19 21:27:57.747231 | Value: --- | Clean
         
         # Get the battery voltage. Note that it's auto-scaled appropriately.
-        client.devices.fndc.battery_voltage
+        fndc = client.devices.fndc
+        print(fndc.battery_voltage)
         # >>> FieldValue[battery_voltage] | Implemented | Read @ 2020-07-19 21:27:57.795158 | Scale factor: -1 | Unscaled value: 544 | Value: 54.4 | Clean
 
         # Get the (raw) values for the same device type on different ports
-        for port in client.devices.fx_inverters:
-            print(f"FET temp on port {port} = {client.devices.fx_inverters[port].fet_temperature.value}")
+        inverters = client.devices.fx_inverters
+        for port in inverters:
+            print(f"FET temp on port {port} = {inverters[port].fet_temperature.value}")
         # >>> FET temp on port 1 = 36
         # >>> FET temp on port 2 = 35
 
-        # Read only battery voltage again and check only it's read time was updated but not system name
+        # Read only battery voltage again and check only it's read time was updated (and not system name, as we didn't
+        # read it)
         time.sleep(1)
-        client.read(only=[client.devices.fndc.battery_voltage])
-        client.devices.mate3.system_name
-        client.devices.fndc.battery_voltage
+        client.read(only=[fndc.battery_voltage])
+        print(mate.system_name)
         # >>> FieldValue[system_name] ... 2020-07-19 21:27:57 ...
+        print(fndc.battery_voltage)
         # >>> FieldValue[battery_voltage] ... 2020-07-19 21:27:58 ...
         
         # Nice. What about modbus fields that aren't implemented?
-        client.devices.mate3.sched_1_ac_mode.implemented
+        print(mate.sched_1_ac_mode.implemented)
         # >>> False
 
         # Cool. Can we set a new value? Note that we don't need to worry about scaling etc.
-        volts = client.devices.charge_controller.config.absorb_volts
+        cc = client.devices.charge_controller.config
+        volts = cc.absorb_volts
+        print(volts)
         # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Clean
-        client.devices.chjarge_controller.config.absorb_volts.value = volts.value + 0.1
+        cc.absorb_volts.value = volts.value + 0.1
+        print(volts)
         # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Dirty (value to write: 536)
         
-        # OK, but what about fun fields like Enums? It's doable, though a bit gross ...
-        new_value = client.devices.charge_controller.config.grid_tie_mode.field.options["Grid Tie Mode disabled"]
-        client.devices.charge_controller.config.grid_tie_mode.value = new_value
-
+        # OK, but what about fun fields like Enums? It's doable ...
+        new_value = cc.grid_tie_mode.field.options["Grid Tie Mode disabled"]
+        cc.grid_tie_mode.value = new_value
 
         # Finally, write any values that have changed to the device itself - BE CAREFUL!
         client.write()
 ```
-
 
 ## Using the command line interface (CLI)
 

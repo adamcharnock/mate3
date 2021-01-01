@@ -69,41 +69,47 @@ More documentation is needed, but you can get a pretty code idea from `./example
            client.read()
 
            # What's the system name?
-           client.devices.mate3.system_name
+           mate = client.devices.mate3
+           print(mate.system_name)
            # >>> FieldValue[system_name] | Implemented | Read @ 2020-07-19 21:27:57.747231 | Value: --- | Clean
 
            # Get the battery voltage. Note that it's auto-scaled appropriately.
-           client.devices.fndc.battery_voltage
+           fndc = client.devices.fndc
+           print(fndc.battery_voltage)
            # >>> FieldValue[battery_voltage] | Implemented | Read @ 2020-07-19 21:27:57.795158 | Scale factor: -1 | Unscaled value: 544 | Value: 54.4 | Clean
 
            # Get the (raw) values for the same device type on different ports
-           for port in client.devices.fx_inverters:
-               print(f"FET temp on port {port} = {client.devices.fx_inverters[port].fet_temperature.value}")
+           inverters = client.devices.fx_inverters
+           for port in inverters:
+               print(f"FET temp on port {port} = {inverters[port].fet_temperature.value}")
            # >>> FET temp on port 1 = 36
            # >>> FET temp on port 2 = 35
 
-           # Read only battery voltage again and check only it's read time was updated but not system name
+           # Read only battery voltage again and check only it's read time was updated (and not system name, as we didn't
+           # read it)
            time.sleep(1)
-           client.read(only=[client.devices.fndc.battery_voltage])
-           client.devices.mate3.system_name
-           client.devices.fndc.battery_voltage
+           client.read(only=[fndc.battery_voltage])
+           print(mate.system_name)
            # >>> FieldValue[system_name] ... 2020-07-19 21:27:57 ...
+           print(fndc.battery_voltage)
            # >>> FieldValue[battery_voltage] ... 2020-07-19 21:27:58 ...
 
            # Nice. What about modbus fields that aren't implemented?
-           client.devices.mate3.sched_1_ac_mode.implemented
+           print(mate.sched_1_ac_mode.implemented)
            # >>> False
 
            # Cool. Can we set a new value? Note that we don't need to worry about scaling etc.
-           volts = client.devices.charge_controller.config.absorb_volts
+           cc = client.devices.charge_controller.config
+           volts = cc.absorb_volts
+           print(volts)
            # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Clean
-           client.devices.chjarge_controller.config.absorb_volts.value = volts.value + 0.1
+           cc.absorb_volts.value = volts.value + 0.1
+           print(volts)
            # >>> ... | Scale factor: -1 | Unscaled value: 535 | Value: 53.5 | Dirty (value to write: 536)
 
-           # OK, but what about fun fields like Enums? It's doable, though a bit gross ...
-           new_value = client.devices.charge_controller.config.grid_tie_mode.field.options["Grid Tie Mode disabled"]
-           client.devices.charge_controller.config.grid_tie_mode.value = new_value
-
+           # OK, but what about fun fields like Enums? It's doable ...
+           new_value = cc.grid_tie_mode.field.options["Grid Tie Mode disabled"]
+           cc.grid_tie_mode.value = new_value
 
            # Finally, write any values that have changed to the device itself - BE CAREFUL!
            client.write()
@@ -120,6 +126,42 @@ A simple CLI is available, with four main sub-commands:
 * ``dump`` - dumps all of the raw modbus values to a (JSON) file in a format compatible with ``CachingModbusClient`` which you can then share with others to help in debugging any problems you may have. 
 
 For each you can access the help (i.e. ``mate3 <cmd> -h``\ ) for more information.
+
+Troubleshooting
+---------------
+
+Some ideas (which can be helpful for issues)
+
+Set log-level to DEBUG
+^^^^^^^^^^^^^^^^^^^^^^
+
+See ``mate3 -h`` for the CLI, otherwise the following (or similar) for python code:
+
+.. code-block:: python
+
+   from loguru import logger
+   logger.remove()
+   logger.add(sys.stderr, level="DEBUG")
+
+List the devices
+^^^^^^^^^^^^^^^^
+
+.. code-block:: sh
+
+   $ mate3 devices --host ...
+   name                                               address    port
+   ----                                               -------    ----
+   Mate3                                              40069      None
+   ChargeController                                   40986      4
+   ChargeControllerConfiguration                      41014      4
+   ...
+
+Are they all there?
+
+Create a dump of the raw modbus values
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+See ``mate3 dump -h``. You can send the resulting JSON file to someone to help debug. (Just note that it includes all the data about the Mate, e.g. any passwords etc.)
 
 Writing data to Postgres
 ------------------------

@@ -18,6 +18,41 @@ pip install mate3
 
 After this you should be able to run the `mate3` command.
 
+## Background info you probably should know ...
+
+Reading this will help you understand this libary and how to interact with your Mate.
+
+### Modbus
+
+Hopefully, you don't need to worry about Modbus at all - this library should abstract that away for you. The key thing to note is that Modbus is a communication protocol, and this library works by interacting with the Mate3 physical devices using synchronous messages. So:
+
+- The information isn't 'live' - it's only the latest state since we last read the values. Generally, you should be calling `read` or `write` before/after any operation you make.
+- Don't over-communicate! If you start doing too many `read`s or `write`s you might brick the Modbus interface of your Mate (requiring a reboot to fix). As a rule of thumb, you probably don't want to be reading more frequently than once per second (and even then, preferably only specific fields, and not the whole lot). Since it's a communication protocol (and it's not actually clear what the latency is inherent in the Mate), there's not much point reading faster that this anyway.
+- Given the above, you might want to use the caching options in the `Mate3Client`, which can allow you to completely avoid interacting with/bricking your Mate while you're developing code etc. It's really tedious having to restart it every time your have a bug in your code.
+- Weird things happen when encoding stuff into Modbus. Hopefully you'll never notice this, but if you see things where your `-1` is appearing as `65535` then yeh, that may be it.
+
+### SunSpec & Outback & Modbus
+
+You can check out the details of how Outback implements Modbus in [./mate3/sunspec/doc](./mate3/sunspec/doc), but the key things to note are:
+
+- SunSpec is a generic Modbus implementation for distributed energy systems include e.g. solar. There's a bunch of existing definitions for what e.g. charge controllers, inverters, etc. should be.
+- Outback use these, but they have their own additional information they include - which they refer to as 'configuration' definitions (generally as that's where the writeable fields live i.e. things you can change). Generally, when you're using this library you might see e.g. `charge_controller.config.absorb_volts`. Here the `charge_controller` is the SunSpec block, and we add on a special `config` field which is actually a pointer to the Outback configuration block. This is to try to abstract away the implementation details so you don't have to worry about their being multiple charge controller things, etc.
+
+### Pseudo-glossary
+
+Words are confusing. For now, take the below as a rough guide:
+  - `Field` - this is a definition of a field e.g. `absorb_volts` is `Uint16` with units of `"Volts"` etc.
+  - `Model` - This is generally referring to a specific Modbus 'block' - which is really just a collection of fields that are generally aligned to a specific device e.g. an inverter model will have an output KWH field, which a charge controller model won't. (Again, it's confusing here as Outback generally have two models per device.) In the case above `charge_controller` represents one (SunSpec) model, and `charge_controller.config` another (Outback) model. 
+  - `Device` - this is meant to represent a physical device and is basically our way of wrapping the Outback config model with the SunSpec one.
+  - `FieldValue` - this is kind of like a `Field` but with data (read from Modbus) included i.e. "the value of the field". It includes some nice things too like auto-scaling variables ('cos floats aren't a thing) and simple `read` or `write` APIs.
+
+## More documentation?
+
+At this stage, it doesn't exist - the best documentation is the code, or [the examples](./examples). A few other quick tips:
+
+- Turn intellisense on! There's a bunch of typing in this library, so it'll make your life much easier e.g. for finding all the fields accessible from your charge controller, etc.
+- [./mate3/sunspec/models.py](./mate3/sunspec/models.py) has all of the key definitions for every model, including all the fields (each of which has name/units/description/etc.). Error flags and enums are properly defined there too.
+
 ## Using the library
 
 More documentation is needed, but you can get a pretty code idea from [./examples/getting_started.py](./examples/getting_started.py), copied (somewhat) below. 
@@ -106,6 +141,7 @@ with Mate3Client(...) as client:
 ```
 
 Why? It means you're getting point-in-time values, and don't have to worry about changes (such as ports being switched). There are exceptions to this rule, but you should know why you're doing it.
+
 ## Troubleshooting
 
 Some ideas (which can be helpful for issues)
@@ -139,101 +175,11 @@ See `mate3 dump -h`. You can send the resulting JSON file to someone to help deb
 
 ## Writing data to Postgres
 
-> NB: this used to be in `mate3_pg` command, but has been moved to `./examples/postgres_monitor.py`.
-
-The `postgress_monitor.py` command reads data from your Mate3 and writes it to a Postgres database.
-
-In addition to a Mate3s connected to your network, you will need:
-
-* A running Postgres database
-* A definitions YAML file. ([example](https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml))
-
-Example use:
-
-```
-$ python postgres_monitor.py \
-    -H 192.168.0.123 \ 
-    --definitions /path/to/my/definitions.yaml \
-    --database-url postgres://username:password@host:5432/database_name \
-    --debug
-```
-
-You will need to replace `192.168.0.123` with your Mate3s' IP. Replace `/path/to/my/pg_config.yaml` with 
-a path to your definitions file (see [example](https://github.com/adamcharnock/mate3/blob/master/pg_config.yaml)).
-Replace the `username`, `password`, `host`, and `database_name` values with those for your Postgres database.
-
-Full details of the `postgres_monitor.py` command:
-
-```
-$ python postgres_monitor.py --help
-usage: mate3_pg [-h] --host HOST [--port PORT] [--interval INTERVAL] [--database-url DATABASE_URL] --definitions DEFINITIONS [--hypertables] [--quiet] [--debug]
-
-Read all available data from the Mate3 controller
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --host HOST, -H HOST  The host name or IP address of the Mate3
-  --port PORT, -p PORT  The port number address of the Mate3
-  --interval INTERVAL, -i INTERVAL
-                        Polling interval in seconds
-  --database-url DATABASE_URL
-                        Postgres database URL
-  --definitions DEFINITIONS
-                        YAML definition file
-  --hypertables         Should we create tables as hypertables? Use only if you are using TimescaleDB
-  --quiet, -q           Hide status output. Only errors will be shown
-  --debug               Show debug logging
-```  
+See [./examples/postgres_monitor/README.md](./examples/posgres_monitor/README.md)
 
 ## Contributing
 
-If you wish to edit the mate3 source (contributions are gladly received!), 
-then you can get the project directly from GitHub:
-
-```sh
-# Install poetry if you don't have it already (if you're unsure, you don't have it)
-pip install poetry
-
-# Get the source
-git clone https://github.com/adamcharnock/mate3.git
-cd mate3
-
-# Install mate3 and its dependencies. This also makes the mate3 command available.
-poetry install
-
-# Run the tests - there aren't many, so feel free to add more!
-pytest .
-```
-
-After this you should be able to run the `mate3` command and edit the project's source code.
-
-## Release process
-
-```sh
-# Check everything has been comitted
-git diff
-
-# Up the version
-poetry version {major|minor|bug}
-
-# Update setup.py et al
-dephell deps convert
-
-# Review the resulting changes
-git diff
-
-# Build
-poetry publish --build
-
-# Docker: build & push
-docker build -t adamcharnock/mate3:{VERSION_HERE} .
-docker push adamcharnock/mate3:{VERSION_HERE}
-
-# Commit
-git ci  -m "Version bump"
-git push
-git push --tags
-```
+See [./CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Credits
 

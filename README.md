@@ -48,14 +48,14 @@ Words are confusing. For now, take the below as a rough guide:
 
 ## More documentation?
 
-At this stage, it doesn't exist - the best documentation is the code, or [the examples](./examples). A few other quick tips:
+At this stage, it doesn't exist - the best documentation is the code and [the examples](./examples), though this only works well for those who know Python. A few other quick tips:
 
 - Turn intellisense on! There's a bunch of typing in this library, so it'll make your life much easier e.g. for finding all the fields accessible from your charge controller, etc.
 - [./mate3/sunspec/models.py](./mate3/sunspec/models.py) has all of the key definitions for every model, including all the fields (each of which has name/units/description/etc.). Error flags and enums are properly defined there too.
 
 ## Using the library
 
-More documentation is needed, but you can get a pretty code idea from [./examples/getting_started.py](./examples/getting_started.py), copied (somewhat) below. 
+More documentation is needed (see above), but you can get a pretty code idea from [./examples/getting_started.py](./examples/getting_started.py), copied (somewhat) below.
 
 ```python
 # Creating a client allows you to interface with the Mate. It also does a read of all devices connected to it (via the
@@ -122,25 +122,7 @@ First, the big one:
 
 > **WARNING!** Please make sure you read [the license](https://github.com/adamcharnock/mate3/blob/master/LICENSE) before using any of the `write` functionality. You could easily damage your equipment by setting incorrect values (directly or indirectly).
 
-In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time. On that note, the recommended approach if you need to poll over time is:
-
-```python
-while True:
-    with Mate3Client(...) as client:
-        client...
-    sleep(10)
-```
-
-As opposed to
-
-```python
-with Mate3Client(...) as client:
-    while True:
-        client...
-    sleep(10)
-```
-
-Why? It means you're getting point-in-time values, and don't have to worry about changes (such as ports being switched). There are exceptions to this rule, but you should know why you're doing it.
+In addition, there are other edges cases that may cause problems, mostly related to if a device is re-assigned a new port. For example, you have two inverters, read some values, then switch their ports over in the Hub before writing some values - which may now go to the 'wrong' one. For now, it's safest not to do that, unless you restart the `Mate3Client` each time. On that note, the recommended approach if you need to poll over time is to recreate the `Mate3Client` on every poll (as opposed to re-using one), as that'll help avoid these (or other) issues. There are exceptions to this rule, but you should know why you're breaking it before you do so.
 
 ## Troubleshooting
 

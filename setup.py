@@ -24,7 +24,7 @@ if os.path.exists(readme_path):
 setup(
     long_description=readme,
     name='mate3',
-    version='0.5.2',
+    version='0.5.3',
     description='Outback Mate3s Python Library',
     python_requires='==3.*,>=3.7.0',
     project_urls={"homepage": "https://github.com/adamcharnock/mate3/", "repository": "https://github.com/adamcharnock/mate3/"},
@@ -36,6 +36,6 @@ setup(
     packages=[],
     package_dir={"": "."},
     package_data={},
-    install_requires=['loguru==0.*,>=0.5.3', 'pymodbus==2.*,>=2.4.0'],
-    extras_require={"dev": ["black==18.*,>=18.3.0.a0", "dephell>=0.7.6", "pytest==6.*,>=6.2.1"]},
+    install_requires=['fixedint==0.*,>=0.1.6', 'loguru==0.*,>=0.5.3', 'pymodbus==2.*,>=2.4.0'],
+    extras_require={"dev": ["black==18.*,>=18.3.0.a0", "dephell>=0.7.6", "pytest==6.*,>=6.2.1", "pytest-dictsdiff==0.*,>=0.5.8", "pytest-subtests==0.*,>=0.4.0"]},
 )

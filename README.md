@@ -207,6 +207,9 @@ cd mate3
 
 # Install mate3 and its dependencies. This also makes the mate3 command available.
 poetry install
+
+# Run the tests - there aren't many, so feel free to add more!
+pytest .
 ```
 
 After this you should be able to run the `mate3` command and edit the project's source code.
@@ -217,11 +220,11 @@ After this you should be able to run the `mate3` command and edit the project's 
 # Check everything has been comitted
 git diff
 
-# Update setup.py et al
-dephell deps convert
-
 # Up the version
 poetry version {major|minor|bug}
+
+# Update setup.py et al
+dephell deps convert
 
 # Review the resulting changes
 git diff

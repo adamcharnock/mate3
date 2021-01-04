@@ -11,6 +11,7 @@ from loguru import logger
 from pymodbus.constants import Defaults
 
 from mate3.api import Mate3Client
+from mate3.modbus_client import CachingModbusClient
 from mate3.sunspec.fields import Mode
 
 
@@ -79,8 +80,7 @@ def write(client, args):
         path, value = set_arg.split("=")
         field = get_field(client.devices, attr_idx_pattern.findall(path))
         value = eval(value, globals(), locals())  # TODO: get rid of eval!
-        field.value = value
-    client.write()
+        field.write(value)
 
 
 def list_devices(client):
@@ -122,16 +122,15 @@ def main():
         "--loglevel",
         "-l",
         dest="loglevel",
-        default="WARNING",
+        default="INFO",
         required=False,
         help="Logging level",
         choices=("DEBUG", "INFO", "WARNING", "ERROR"),
     )
 
-    parser = argparse.ArgumentParser(description="CLI for the Mate3 controller", parents=[base_parser])
-    sub_parsers = parser.add_subparsers(dest="cmd", help="Use mate3 <cmd> -h for help")
-    read_parser = sub_parsers.add_parser("read", help="Read mate3 values", parents=[base_parser])
-    read_parser.add_argument(
+    # And some we want to have cache options, and others we don't
+    cache_parser = argparse.ArgumentParser(add_help=False)
+    cache_parser.add_argument(
         "--cache-path",
         "-c",
         dest="cache_path",
@@ -139,13 +138,17 @@ def main():
         required=False,
         help="Path to a cache to use instead of host/port.",
     )
-    read_parser.add_argument(
+    cache_parser.add_argument(
         "--cache-only",
         dest="cache_only",
         action="store_true",
         required=False,
         help="Pass this option if you only want to use the provided cache.",
     )
+
+    parser = argparse.ArgumentParser(description="CLI for the Mate3 controller", parents=[base_parser])
+    sub_parsers = parser.add_subparsers(dest="cmd", help="Use mate3 <cmd> -h for help")
+    read_parser = sub_parsers.add_parser("read", help="Read mate3 values", parents=[base_parser, cache_parser])
     read_parser.add_argument(
         "--format",
         "-f",
@@ -155,7 +158,14 @@ def main():
         help="Output format",
         choices=("text", "prettyjson", "json"),
     )
-    write_parser = sub_parsers.add_parser("write", help="Write mate3 values", parents=[base_parser])
+    write_parser = sub_parsers.add_parser("write", help="Write mate3 values", parents=[base_parser, cache_parser])
+    write_parser.add_argument(
+        "--cache-writeable",
+        dest="cache_writeable",
+        action="store_true",
+        required=False,
+        help="Pass this option if you want your writes to the cache to persist to disk i.e. update --cache-path.",
+    )
     write_parser.add_argument(
         "--set",
         "-s",
@@ -167,7 +177,7 @@ def main():
         ),
         action="append",
     )
-    devices_parser = sub_parsers.add_parser("devices", help="List the devices", parents=[base_parser])
+    devices_parser = sub_parsers.add_parser("devices", help="List the devices", parents=[base_parser, cache_parser])
     dump_modbus_reads_parser = sub_parsers.add_parser("dump", help="Dump a full modbus read", parents=[base_parser])
     dump_modbus_reads_parser.add_argument("dump_path", help="Path to modbus dump (*.json)")
 
@@ -183,28 +193,35 @@ def main():
     # Get the client:
     port = Defaults.Port if args.port is None else args.port
 
-    # If dump, let's do it:
+    # If dump, let's do it without a normal client:
     if args.cmd == "dump":
+        if args.host is None:
+            raise RuntimeError("You must specify a host!")
         dump_modbus_reads(args, port)
-    elif args.cmd == "read":
-        if args.cache_only and args.cache_path is None:
-            raise RuntimeError("You must specify --cache-path if you're using --cache-only")
-        if args.cache_path is not None:
-            if args.cache_only and (args.host is not None or args.port is not None):
-                raise RuntimeError("If using --cache-only, you can't specify a host/port")
-        else:
-            if args.host is None:
-                raise RuntimeError("If not using --cache-path, you must specify a host")
-        with Mate3Client(host=args.host, port=port, cache_path=args.cache_path, cache_only=args.cache_only) as client:
-            read(client, args)
+        exit()
+
+    # All others can use caching, so let's test the cache args:
+    assert hasattr(args, "cache_path")
+    if args.cache_only and args.cache_path is None:
+        raise RuntimeError("You must specify --cache-path if you're using --cache-only")
+    if args.cache_path is not None:
+        if args.cache_only and (args.host is not None or args.port is not None):
+            raise RuntimeError("If using --cache-only, you can't specify a host/port")
     else:
         if args.host is None:
-            raise RuntimeError("You must specify a host")
-        with Mate3Client(host=args.host, port=port) as client:
-            if args.cmd == "write":
-                write(client, args)
-            elif args.cmd == "devices":
-                list_devices(client)
+            raise RuntimeError("If not using --cache-path, you must specify a host")
+
+    # Otherwise do some tests and then
+    writeable = args.cmd == "write" and args.cache_writeable
+    with Mate3Client(
+        host=args.host, port=port, cache_path=args.cache_path, cache_only=args.cache_only, cache_writeable=writeable
+    ) as client:
+        if args.cmd == "read":
+            read(client, args)
+        elif args.cmd == "write":
+            write(client, args)
+        elif args.cmd == "devices":
+            list_devices(client)
 
 
 if __name__ == "__main__":

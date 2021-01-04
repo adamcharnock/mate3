@@ -40,7 +40,9 @@ def _test_read_gives_expected_results(client, system_dir):
 @pytest.mark.parametrize("system_dir", KNOWN_SYSTEMS)
 def test_known_system(subtests, system_dir):
     # Read it (which is a test in itself)
-    with Mate3Client(host=None, cache_path=system_dir / "modbus.json", cache_only=True) as client:
+    with Mate3Client(
+        host=None, cache_path=system_dir / "modbus.json", cache_only=True, cache_writeable=False
+    ) as client:
         with subtests.test("Reading gives expected results"):
             _test_read_gives_expected_results(client, system_dir)
         with subtests.test("Writing the same values back gives the same results"):

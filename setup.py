@@ -37,5 +37,5 @@ setup(
     package_dir={"": "."},
     package_data={},
     install_requires=['fixedint==0.*,>=0.1.6', 'loguru==0.*,>=0.5.3', 'pymodbus==2.*,>=2.4.0'],
-    extras_require={"dev": ["black==18.*,>=18.3.0.a0", "dephell>=0.7.6", "pytest==6.*,>=6.2.1", "pytest-dictsdiff==0.*,>=0.5.8", "pytest-subtests==0.*,>=0.4.0"]},
+    extras_require={"dev": ["black==18.*,>=18.3.0.a0", "dephell>=0.7.6", "pytest==6.*,>=6.2.1", "pytest-console-scripts==1.*,>=1.1.0", "pytest-dictsdiff==0.*,>=0.5.8", "pytest-subtests==0.*,>=0.4.0"]},
 )

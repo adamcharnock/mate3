@@ -23,6 +23,7 @@ dephell = ">=0.7.6"
 pytest = "^6.2.1"
 pytest-dictsdiff = "^0.5.8"
 pytest-subtests = "^0.4.0"
+pytest-console-scripts = "^1.1.0"
 
 [tool.poetry.scripts]
 mate3 = 'mate3.main:main'
@@ -34,3 +35,4 @@ build-backend = "poetry.masonry.api"
 [tool.pytest.ini_options]
 # Ignore the below error as recommended by pytest-subtests
 filterwarnings = [ "ignore:A private pytest class or function was used." ]
+script_launch_mode = "subprocess"

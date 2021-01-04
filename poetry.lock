@@ -424,6 +424,19 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "mock"
+version = "4.0.3"
+description = "Rolling backport of unittest.mock for all Pythons"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+build = ["twine", "wheel", "blurb"]
+docs = ["sphinx"]
+test = ["pytest (<5.4)", "pytest-cov"]
+
+[[package]]
 name = "multidict"
 version = "5.1.0"
 description = "multidict implementation"
@@ -542,6 +555,18 @@ toml = "*"
 
 [package.extras]
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
+
+[[package]]
+name = "pytest-console-scripts"
+version = "1.1.0"
+description = "Pytest plugin for testing console scripts"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+mock = ">=2.0.0"
+pytest = ">=4.0.0"
 
 [[package]]
 name = "pytest-dictsdiff"
@@ -706,7 +731,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "aee54372131609fcc1405759a38555ac00d74b8de17fd6c290666339e17c1aab"
+content-hash = "cce8aa4d9fb7ff3086045e238fb29d6c6a9f3e9f361d9459808a097e14cb6dbd"
 
 [metadata.files]
 aiohttp = [
@@ -918,6 +943,10 @@ mistune = [
     {file = "mistune-0.8.4-py2.py3-none-any.whl", hash = "sha256:88a1051873018da288eee8538d476dffe1262495144b33ecb586c4ab266bb8d4"},
     {file = "mistune-0.8.4.tar.gz", hash = "sha256:59a3429db53c50b5c6bcc8a07f8848cb00d7dc8bdb431a4ab41920d201d4756e"},
 ]
+mock = [
+    {file = "mock-4.0.3-py3-none-any.whl", hash = "sha256:122fcb64ee37cfad5b3f48d7a7d51875d7031aaf3d8be7c42e2bee25044eee62"},
+    {file = "mock-4.0.3.tar.gz", hash = "sha256:7d3fbbde18228f4ff2f1f119a45cdffa458b4c0dee32eb4d2bb2f82554bac7bc"},
+]
 multidict = [
     {file = "multidict-5.1.0-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:b7993704f1a4b204e71debe6095150d43b2ee6150fa4f44d6d966ec356a8d61f"},
     {file = "multidict-5.1.0-cp36-cp36m-manylinux1_i686.whl", hash = "sha256:9dd6e9b1a913d096ac95d0399bd737e00f2af1e1594a787e00f7975778c8b2bf"},
@@ -992,6 +1021,9 @@ pyserial = [
 pytest = [
     {file = "pytest-6.2.1-py3-none-any.whl", hash = "sha256:1969f797a1a0dbd8ccf0fecc80262312729afea9c17f1d70ebf85c5e76c6f7c8"},
     {file = "pytest-6.2.1.tar.gz", hash = "sha256:66e419b1899bc27346cb2c993e12c5e5e8daba9073c1fbce33b9807abc95c306"},
+]
+pytest-console-scripts = [
+    {file = "pytest-console-scripts-1.1.0.tar.gz", hash = "sha256:c1344853e80d8096403e36b270254a094071d0c4f1533e94a91d7386f0f1ccfd"},
 ]
 pytest-dictsdiff = [
     {file = "pytest-dictsdiff-0.5.8.tar.gz", hash = "sha256:3fca5c706232ab723ab2a06b41c195a6abf1f0df56fb3bf67d6bc83a305dd659"},

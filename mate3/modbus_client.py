@@ -58,7 +58,7 @@ class CachingModbusClient(NonCachingModbusClient):
 
     def _write_cache(self):
         # Only write if changes:
-        if self._hash() != self._original_cache_hash:
+        if self._hash() == self._original_cache_hash:
             logger.debug("No changes to cache so not saving")
             return
 
@@ -75,8 +75,8 @@ class CachingModbusClient(NonCachingModbusClient):
         """
         hsh = md5()
         for k, v in self._cache.items():
-            hsh.update(k)
-            hsh.update(v)
+            hsh.update(k.to_bytes(32, byteorder="little", signed=False))
+            hsh.update(v.to_bytes(32, byteorder="little", signed=False))
         return hsh.hexdigest()
 
     def read_holding_registers(self, address, count):

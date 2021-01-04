@@ -24,7 +24,7 @@ if os.path.exists(readme_path):
 setup(
     long_description=readme,
     name='mate3',
-    version='0.6.1',
+    version='0.6.2',
     description='Outback Mate3s Python Library',
     python_requires='==3.*,>=3.7.0',
     project_urls={"homepage": "https://github.com/adamcharnock/mate3/", "repository": "https://github.com/adamcharnock/mate3/"},

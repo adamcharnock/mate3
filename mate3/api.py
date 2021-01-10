@@ -39,11 +39,19 @@ class Mate3Client:
 
     sunspec_register: int = 40000
 
-    def __init__(self, host: str, port: int = Defaults.Port, cache_path: str = None, cache_only: bool = False):
+    def __init__(
+        self,
+        host: str,
+        port: int = Defaults.Port,
+        cache_path: str = None,
+        cache_only: bool = False,
+        cache_writeable: bool = False,
+    ):
         self.host: str = host
         self.port: int = port
         self._cache_path: str = cache_path
         self._cache_only: bool = cache_only
+        self._cache_writeable: bool = cache_writeable
         self._client: ModbusTcpClient = None
         self._devices: DeviceValues = None
 
@@ -53,7 +61,11 @@ class Mate3Client:
         """
         if self._cache_path is not None:
             self._client = CachingModbusClient(
-                host=self.host, port=self.port, cache_path=self._cache_path, cache_only=self._cache_only
+                host=self.host,
+                port=self.port,
+                cache_path=self._cache_path,
+                cache_only=self._cache_only,
+                writeable=self._cache_writeable,
             )
         else:
             self._client = NonCachingModbusClient(self.host, self.port)

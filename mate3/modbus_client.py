@@ -48,8 +48,10 @@ class CachingModbusClient(NonCachingModbusClient):
         return cache
 
     def _write_cache(self):
-        with open(self._cache_path, "w") as f:
-            json.dump(self._cache, f)
+        # Only write if not using cache_only
+        if not self._cache_only:
+            with open(self._cache_path, "w") as f:
+                json.dump(self._cache, f)
 
     def read_holding_registers(self, address, count):
         """
@@ -61,7 +63,9 @@ class CachingModbusClient(NonCachingModbusClient):
         if any(addr not in self._cache for addr in addresses):
             if self._cache_only:
                 # If we're cache_only, then cache miss is an error
-                raise ValueError("Uncached lookup!")
+                raise ValueError(
+                    f"Uncached lookup at addresses {[addr for addr in addresses if addr not in self._cache]}"
+                )
             registers = super().read_holding_registers(address=address, count=count)
             for addr, bites in zip(addresses, registers):
                 self._cache[addr] = bites

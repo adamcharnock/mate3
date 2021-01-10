@@ -1,19 +1,12 @@
 import dataclasses as dc
-from datetime import datetime, timedelta
+from datetime import datetime
+from functools import wraps
 from typing import Any, Iterable, Optional
 
 from loguru import logger
 
-from mate3.sunspec.fields import Field, IntegerField, Mode
+from mate3.sunspec.fields import Field, Mode
 from mate3.sunspec.model_base import Model
-
-
-@dc.dataclass
-class FieldRead:
-    value: Any
-    implemented: bool
-    time: datetime
-    scale_factor: Optional[Any] = None
 
 
 class FieldValue:
@@ -22,16 +15,23 @@ class FieldValue:
     automatically applying scale factors, and marking things as dirty etc.
     """
 
-    _scale_factor_cache_time = timedelta(seconds=60)
-
-    def __init__(self, field):
-        self.field: Field = field
-        self._last_read: Optional[datetime] = None
-        self._dirty: bool = False
-        self._implemented: Optional[bool] = None
-        self._value_to_write: Any = None
-        self._raw_value: Any = None
-        self._scale_factor: Optional[int] = None
+    def __init__(
+        self,
+        client: "Mate3Client",  # Can't type it to Mate3Client as circular imports suck ...
+        field: Field,
+        scale_factor: Optional["FieldValue"],
+        address: int,
+        raw_value: Any,
+        implemented: bool,
+        read_time: datetime,
+    ):
+        self._client = client
+        self.field = field
+        self._scale_factor = scale_factor
+        self._address = address
+        self._raw_value = raw_value
+        self._implemented = implemented
+        self._last_read = read_time
 
     @property
     def name(self) -> str:
@@ -40,51 +40,58 @@ class FieldValue:
 
     def __repr__(self):
         ss = [f"FieldValue[{self.field.name}]"]
+        ss.append(f"{self.field.mode}")
         ss.append("Implemented" if self._implemented else "Not implemented")
-        ss.append(f"Read @ {self._last_read}")
-        if self._scale_factor:
-            ss.append(f"Scale factor: {self._scale_factor}")
+        if self._scale_factor is not None:
+            ss.append(f"Scale factor: {self._scale_factor.value}")
             ss.append(f"Unscaled value: {self._raw_value}")
         if self._implemented:
             ss.append(f"Value: {self.value}")
-            s = f"Dirty (value to write: {self._value_to_write})" if self._dirty else "Clean"
-            ss.append(s)
+        ss.append(f"Read @ {self.last_read}")
         return " | ".join(ss)
+
+    @property
+    def implemented(self) -> bool:
+        return self._implemented
 
     @property
     def last_read(self) -> datetime:
         return self._last_read
 
     @property
-    def dirty(self) -> bool:
-        return self._dirty
+    def scale_factor(self) -> Optional[int]:
+        if self._scale_factor is None:
+            return None
 
-    @property
-    def implemented(self) -> bool:
-        if self._last_read is None:
-            raise RuntimeError("Can't access 'implemented' before the field value has been read at least once.")
-        return self._implemented
-
-    @property
-    def scale_factor(self) -> int:
-        if self._last_read is None:
-            raise RuntimeError("Can't access 'scale_factor' before the field value has been read at least once.")
+        # Sense check the scale factor
+        if not self._scale_factor.implemented:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be implemented.")
+        if self._scale_factor.scale_factor is not None:
+            raise RuntimeError(f"Scale factor {self._scale_factor} shouldn't have it's own scale factor!")
+        if self._scale_factor.value is None:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should not be None.")
+        if not isinstance(self._scale_factor.value, int):
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be an integer.")
+        if self._scale_factor.value < -10 or self._scale_factor.value > 10:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be between -10 and 10.")
         return self._scale_factor
 
     @property
+    def address(self) -> int:
+        return self._address
+
+    @property
     def raw_value(self) -> Any:
-        if self._last_read is None:
-            raise RuntimeError("Can't access 'raw_value' before the field value has been read at least once.")
+        if self.field.mode not in (Mode.R, Mode.RW):
+            raise RuntimeError("Can't read from this field!")
         return self._raw_value
 
     @property
     def _should_be_scaled(self):
-        return isinstance(self.field, IntegerField) and self.field.scale_factor is not None
+        return self._scale_factor is not None
 
     @property
     def value(self) -> Any:
-        if self._last_read is None:
-            raise RuntimeError("Can't access 'value' before the field value has been read at least once.")
         if self.field.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from this field!")
         if not self._implemented:
@@ -92,74 +99,70 @@ class FieldValue:
         if not self._should_be_scaled:
             return self._raw_value
         # OK, should be scaled, so let's scale it:
-        value = self._raw_value * 10 ** self._scale_factor
+        scale_factor = self._scale_factor.value
+        value = self._raw_value * 10 ** scale_factor
         # Round it to what it should be after scaling:
-        return round(value, -self._scale_factor if self._scale_factor < 0 else 0)
+        return round(value, -scale_factor if scale_factor < 0 else 0)
 
-    @value.setter
-    def value(self, value):
+    def write(self, value):
+        """
+        Warning:
+
+            Ensure you have read the LICENSE file before using this feature. Note the
+            section which begins:
+
+                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+                EXPRESS OR IMPLIED
+
+            Specifically, it is quite possible that you can cause damage to your equipment
+            through use of this feature. Be careful!
+        """
+        logger.debug(f"Attempting to write {value} to {self.name}")
         # TODO: ensure the type of value is correct
         if self.field.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to this field!")
-        if self._last_read is None:
-            raise RuntimeError("You should read a field at least once before writing")
         if not self._implemented:
             raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
+        # Scale if needed:
+        scaled_value = value
         if self._should_be_scaled:
-            # Time limit on scale_factor being applicable?
-            if (datetime.now() - self._last_read) > self._scale_factor_cache_time:
-                raise ValueError(
-                    (
-                        f"You need to read this value within {self._scale_factor_cache_time} of writing to 'ensure'",
-                        " the scale factor is up-to-date before you write.",
-                    )
-                )
+            # TODO: Time limit on scale_factor being applicable?
             # Scale it:
-            value = value / 10 ** self._scale_factor
+            scaled_value = value / 10 ** self._scale_factor.value
             # Round it to what it should be after scaling:
             # TODO: raise error if too many digits specified
-            self._value_to_write = int(round(value, 0))
-        else:
-            self._value_to_write = value
-        self._dirty = True
+            scaled_value = int(round(scaled_value, 0))
 
-    def _update_on_read(self, read: FieldRead):
-        """
-        This method is called to update the state of this FieldValue to represent that latest read from modbus.
-        """
-        if self._should_be_scaled:
-            if read.scale_factor is None:
-                raise RuntimeError(f"scale_factor_read required for field {self.field}")
-            if not read.scale_factor.implemented:
-                raise RuntimeError("scale_factor_read should be implemented!")
-            if (read.time - read.scale_factor.time).total_seconds() > 60:
-                raise RuntimeError(
-                    (
-                        "The scale factor on this field was updated more than a minute since this field was. Scale "
-                        "factors *shouldn't* change anyway, but there'd be problems if they did, so better safe than "
-                        "sorry. However, you should never hit this error (as we try to ensure the scale factor is "
-                        "always read when the field is - so if you see it, please file an issue."
-                    )
-                )
-            scale_factor_read = read.scale_factor.value
-            if not isinstance(scale_factor_read, int):
-                raise RuntimeError("scale_factor should be an integer!")
-            if scale_factor_read < -10 or scale_factor_read > 10:
-                raise RuntimeError("scale_factor should be between -10 and 10")
-        else:
-            if read.scale_factor is not None:
-                raise RuntimeError(f"No scale_factor should be provided for field {self.field}")
+        # OK, now convert to registers:
+        registers = self.field.to_registers(scaled_value)
+        logger.debug(f"Writing {scaled_value} to {self.name} as registers {registers} at address {self._address}")
 
-        self._raw_value = read.value
-        self._scale_factor = None if read.scale_factor is None else read.scale_factor.value
-        self._implemented = read.implemented
-        self._last_read = read.time
-        if self._value_to_write is not None:
-            logger.warning(
-                "A value has been set to be written, but was re-read after this, so the write will be ignored "
+        # Do the write
+        self._client._client.write_registers(self._address, registers)
+
+        # Now read it and check the value is what we intended:
+        self.read()
+        if value != self.value:
+            raise RuntimeError(
+                f"Write 'succeeded' but after re-reading to check, the current value is {self.value} and not {value}"
             )
-            self._value_to_write = None
-        self._dirty = False
+
+    def read(self):
+        if self.field.mode not in (Mode.R, Mode.RW):
+            raise RuntimeError("Can't read from this field!")
+
+        # First, read the scale factor if needed:
+        if self._should_be_scaled:
+            self.scale_factor.read()
+
+        # OK, read the appropriate registers:
+        logger.debug(f"Reading {self.name} from address {self._address}")
+        read_time = datetime.now()
+        registers = self._client._client.read_holding_registers(address=self._address, count=self.field.size)
+        logger.debug(f"Read {registers} for {self.name} from {self._address}")
+
+        self._implemented, self._raw_value = self.field.from_registers(registers)
+        self._last_read = read_time
 
 
 @dc.dataclass

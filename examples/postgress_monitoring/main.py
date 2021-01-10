@@ -1,22 +1,21 @@
 import argparse
-from sys import argv
-from typing import NamedTuple, List
 import logging
-
-from pymodbus.constants import Defaults
-from pymodbus.exceptions import ModbusIOException, ConnectionException
+import time
+from sys import argv
+from typing import List, NamedTuple
 
 from mate3.api import Mate3Client
 from mate3.devices import DeviceValues
 from mate3.field_values import FieldValue
 from mate3.sunspec.fields import IntegerField
-import time
+from pymodbus.constants import Defaults
+from pymodbus.exceptions import ConnectionException, ModbusIOException
 
 logger = logging.getLogger("mate3.mate3_pg")
 
 
 try:
-    from yaml import load, FullLoader
+    from yaml import FullLoader, load
 except ImportError:
     raise ImportError("To use this command you must install the pyyaml package")
 
@@ -48,7 +47,7 @@ def read_definitions(f, devices: DeviceValues) -> List[Table]:
             port = int(in_definition["port"])
             device = getattr(devices, in_definition["device"])[port]
             definitions.append(
-                Definition(field_value=getattr(device, in_definition["field"]), db_column=in_definition["db_column"],)
+                Definition(field_value=getattr(device, in_definition["field"]), db_column=in_definition["db_column"])
             )
 
         tables.append(Table(table_name, definitions))
@@ -136,15 +135,9 @@ def insert(conn, tables: List[Table], devices: DeviceValues):
 def main():
     parser = argparse.ArgumentParser(description="Read all available data from the Mate3 controller")
 
-    parser.add_argument(
-        "--host", "-H", dest="host", help="The host name or IP address of the Mate3", required=True,
-    )
-    parser.add_argument(
-        "--port", "-p", dest="port", default=Defaults.Port, help="The port number address of the Mate3",
-    )
-    parser.add_argument(
-        "--interval", "-i", dest="interval", default=5, help="Polling interval in seconds", type=int,
-    )
+    parser.add_argument("--host", "-H", dest="host", help="The host name or IP address of the Mate3", required=True)
+    parser.add_argument("--port", "-p", dest="port", default=Defaults.Port, help="The port number address of the Mate3")
+    parser.add_argument("--interval", "-i", dest="interval", default=5, help="Polling interval in seconds", type=int)
     parser.add_argument(
         "--database-url",
         dest="database_url",
@@ -166,11 +159,9 @@ def main():
         action="store_true",
     )
     parser.add_argument(
-        "--quiet", "-q", dest="quiet", help="Hide status output. Only errors will be shown", action="store_true",
+        "--quiet", "-q", dest="quiet", help="Hide status output. Only errors will be shown", action="store_true"
     )
-    parser.add_argument(
-        "--debug", dest="debug", help="Show debug logging", action="store_true",
-    )
+    parser.add_argument("--debug", dest="debug", help="Show debug logging", action="store_true")
 
     args = parser.parse_args(argv[1:])
 
@@ -192,7 +183,6 @@ def main():
 
         # Initial read to get table definitions etc.:
         with Mate3Client(host=args.host, port=args.port) as client:
-            client.read()
             devices = client.devices
         tables = read_definitions(args.definitions, client.devices)
         create_tables(conn, tables, hypertables=args.hypertables)
@@ -207,7 +197,6 @@ def main():
                     # We keep the connection open for the minimum time possible
                     # as the mate3s can only sustain one modbus connection at a once.
                     with Mate3Client(host=args.host, port=args.port) as client:
-                        client.read()
                         devices = client.devices
 
                     # Insert into postgres

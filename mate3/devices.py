@@ -4,6 +4,8 @@ from typing import Any, Dict, Iterable, List, Optional
 from loguru import logger
 
 from mate3.field_values import FieldValue, ModelValues
+from mate3.read import AllModelReads
+from mate3.sunspec.fields import IntegerField
 from mate3.sunspec.model_base import Model
 from mate3.sunspec.models import (
     ChargeControllerConfigurationModel,
@@ -94,7 +96,8 @@ class DeviceValues:
     to access values etc.
     """
 
-    def __init__(self):
+    def __init__(self, client):
+        self._client = client
         self.mate3s: Dict[None, Mate3DeviceValues] = {}
         self.charge_controllers: Dict[int, ChargeControllerDeviceValues] = {}
         self.fndcs: Dict[int, FNDCDeviceValues] = {}
@@ -181,107 +184,83 @@ class DeviceValues:
         """
         return self._get_single_device("split_phase_radian_inverter")
 
-    def update(self, all_model_field_reads: Dict[Model, List[Any]], model_addresses: Dict[Model, List[int]]) -> None:
+    def update(self, all_reads: AllModelReads) -> None:
         """
         This is the key method, and is used to update the state of the devices with new values.
         """
 
-        # Check that all values for each model have a different port:
-        for model, model_field_reads in all_model_field_reads.items():
-            ports = []
-            for field_reads in model_field_reads:
-                port_field = field_reads.get("port_number")
-                if port_field:
-                    ports.append(port_field.value)
-            if len(set(ports)) < len(ports):
-                raise RuntimeError(f"Multiple devices with the same (including missing) port for model {model}")
-
         # Update mate:
         self._update_model_and_config(
-            all_model_field_reads=all_model_field_reads,
+            all_reads=all_reads,
             model_class=OutBackModel,
             config_class=OutBackSystemControlModel,
             config_values_class=OutBackSystemControlValues,
-            target=self.mate3s,
+            device_values=self.mate3s,
             device_class=Mate3DeviceValues,
-            device_has_port=False,
-            model_addresses=model_addresses,
         )
 
         # Charge controller
         self._update_model_and_config(
-            all_model_field_reads=all_model_field_reads,
+            all_reads=all_reads,
             model_class=ChargeControllerModel,
             config_class=ChargeControllerConfigurationModel,
             config_values_class=ChargeControllerConfigurationValues,
-            target=self.charge_controllers,
+            device_values=self.charge_controllers,
             device_class=ChargeControllerDeviceValues,
-            model_addresses=model_addresses,
         )
 
         # FNDCs
         self._update_model_and_config(
-            all_model_field_reads=all_model_field_reads,
+            all_reads=all_reads,
             model_class=FLEXnetDCRealTimeModel,
             config_class=FLEXnetDCConfigurationModel,
             config_values_class=FLEXnetDCConfigurationValues,
-            target=self.fndcs,
+            device_values=self.fndcs,
             device_class=FNDCDeviceValues,
-            model_addresses=model_addresses,
         )
 
         # FX inverters
         self._update_model_and_config(
-            all_model_field_reads=all_model_field_reads,
+            all_reads=all_reads,
             model_class=FXInverterRealTimeModel,
             config_class=FXInverterConfigurationModel,
             config_values_class=FXInverterConfigurationValues,
-            target=self.fx_inverters,
+            device_values=self.fx_inverters,
             device_class=FXInverterDeviceValues,
-            model_addresses=model_addresses,
         )
 
         # Single phase radian inverters
         self._update_model_and_config(
-            all_model_field_reads=all_model_field_reads,
+            all_reads=all_reads,
             model_class=SinglePhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
-            target=self.single_phase_radian_inverters,
+            device_values=self.single_phase_radian_inverters,
             device_class=SinglePhaseRadianInverterDeviceValues,
-            model_addresses=model_addresses,
         )
 
         # Split phase radian inverters
         self._update_model_and_config(
-            all_model_field_reads=all_model_field_reads,
+            all_reads=all_reads,
             model_class=SplitPhaseRadianInverterRealTimeModel,
             config_class=RadianInverterConfigurationModel,
             config_values_class=RadianInverterConfigurationValues,
-            target=self.split_phase_radian_inverters,
+            device_values=self.split_phase_radian_inverters,
             device_class=SplitPhaseRadianInverterDeviceValues,
-            model_addresses=model_addresses,
         )
 
     def _update_model_and_config(
         self,
-        all_model_field_reads: Dict,
+        all_reads: AllModelReads,
         model_class: Model,
         config_class: Model,
         config_values_class: ModelValues,
-        target: Dict[int, ModelValues],
+        device_values: Dict[int, ModelValues],
         device_class: ModelValues,
-        model_addresses: Dict[Model, List[int]],
-        device_has_port: bool = True,
     ) -> None:
-        """
-        Note that all connected devices should always be updated, as every read loop we still read the length and port
-        of each device, regardless of what `only` fields were specified in `read`. Note that not all devices will be
-        connected, in which case neither will be in the reads.
-        """
 
-        model_field_reads = all_model_field_reads.get(model_class)
-        config_field_reads = all_model_field_reads.get(config_class)
+        model_field_reads_per_port = all_reads.get_reads_per_model_by_port(model_class)
+        config_field_reads_per_port = all_reads.get_reads_per_model_by_port(config_class)
 
         # OK, there's a few options around whether the above variables contain anything.
         # - Both present, then we're good - continue. All devices should have a configuration class.
@@ -290,87 +269,85 @@ class DeviceValues:
         #   of Radian inverters, as the same config class is shared across both single and split phase devices (so that
         #   if only one type is present, the other will have empty model values and non-empty config).
         # - Both are missing - this is covered by the above.
-        # So, the short summary is we only care about devices wher ethe model field reads are present, and in all other
-        # cases there *should* be config fields too.
-        if model_field_reads is None:
+        # So, the short summary is we only care about devices where the model field values are present, and in all other
+        # cases there *should* be config field values too.
+        if model_field_reads_per_port is None:
             return
         else:
-            if config_field_reads is None:
+            if config_field_reads_per_port is None:
                 logger.warning(
                     (
-                        f"Only model ({model_class}) field reads and no config ({config_class}) fields were read. This"
+                        f"Only model ({model_class}) field values and no config ({config_class}) fields were read. This"
                         f" is undefined behaviour, so ignoring {model_class}."
                     )
                 )
                 return
 
-        if device_has_port:
-            # Let's check ports. Keep in mind that we should be getting all devices of this type, across all ports, and
-            # not just one, as you can't specify to only read off one port. E.g. if you've got two inverters on separate
-            # ports then you'll always get both, not just one. This may change in future.
-            def check_ports(all_field_reads):
-                ports = {field_reads["port_number"].value for field_reads in all_field_reads}
-                if len(ports) > len(set(ports)):
-                    raise RuntimeError("Multiple models for the same port!")
-                return ports
+        # Check model and config have the same ports:
+        if set(model_field_reads_per_port).symmetric_difference(set(config_field_reads_per_port)):
+            raise RuntimeError("Config and models have different ports!")
 
-            model_ports = check_ports(model_field_reads)
-            config_ports = check_ports(config_field_reads)
-
-            # The ports should be the same between model and config (since the separation of the model and config are
-            # just implementation details of the Outback SunSpec - they're still the same device, so should have the
-            # same port).
-            if model_ports.symmetric_difference(config_ports):
-                raise RuntimeError("Config and models have different ports!")
-
-            ports = model_ports
-        else:
-            ports = set([None])
-            if len(model_field_reads) != 1 or len(config_field_reads) != 1:
-                raise RuntimeError("Can't use device_has_port=False unless there's only one model and config.")
-
-        # Create any new devices for the given ports.
-        for port in ports:
-            if port not in target:
-                config_values = self._create_empty_model_values(model=config_class, values_cls=config_values_class)
-                target[port] = self._create_empty_model_values(
-                    model=model_class, values_cls=device_class, config=config_values
+        # Create/update any devices for the given ports:
+        for port in model_field_reads_per_port:
+            model_reads_this_port = model_field_reads_per_port[port]
+            config_reads_this_port = config_field_reads_per_port[port]
+            if port not in device_values:
+                # OK, it's new - create it:
+                config_values = self._create_new_model_values(
+                    model=config_class,
+                    values_class=config_values_class,
+                    device_address=config_reads_this_port["did"].address,
+                )
+                device_values[port] = self._create_new_model_values(
+                    model=model_class,
+                    values_class=device_class,
+                    device_address=model_reads_this_port["did"].address,
+                    config=config_values,
                 )
 
+            # Either way, update the field values:
+            for reads, device_val in (
+                (model_reads_this_port, device_values[port]),
+                (config_reads_this_port, device_values[port].config),
+            ):
+                for field_name, field_read in reads.items():
+                    field_value = getattr(device_val, field_name)
+                    field_value._raw_value = field_read.raw_value
+                    field_value._implemented = field_read.implemented
+                    field_value._last_read = field_read.time
+
         # If there are any ports that were used for this device, but are no longer, remove them:
-        old_device_ports = set(list(target.keys())) - set(ports)
+        old_device_ports = set(list(device_values.keys())) - set(model_field_reads_per_port.keys())
         for port in old_device_ports:
             logger.warning(
                 f"Device(s) of model {model_class} on ports {old_device_ports} have disappeared. These will be ignored."
             )
-            del target[port]
+            del device_values[port]
 
-        # OK, we're done creating/deleting the device containers - now update their values with the field reads:
-        def update_values(cls, is_config):
-            for field_reads, address in zip(all_model_field_reads[cls], model_addresses[cls]):
-                port = field_reads["port_number"].value if "port_number" in field_reads else None
-                device = target[port]
-                if is_config:
-                    device = device.config
-                for field_name, read in field_reads.items():
-                    getattr(device, field_name)._update_on_read(read)
-                # Update addresses:
-                if device.address is not None and address != device.address:
-                    logger.warning(
-                        (
-                            f"The address of {model_class} on port={port} has changed from {device.address} to "
-                            f"{address}. It will be updated to the new value, but this is could lead to unexpected "
-                            "behaviour e.g. if you've switched the ports of two inverters."
-                        )
-                    )
+    def _create_new_model_values(
+        self, model: Model, values_class: ModelValues, device_address: int, config: Optional[ModelValues] = None
+    ):
 
-                device.address = address
+        # Create empty FieldValues
+        field_values = {}
+        scale_factors = {}
+        for field in model.fields():
+            address = device_address + field.start - 1
+            field_values[field.name] = FieldValue(
+                client=self._client,
+                field=field,
+                address=address,
+                scale_factor=None,
+                raw_value=None,
+                implemented=True,
+                read_time=None,
+            )
+            if isinstance(field, IntegerField) and field.scale_factor is not None:
+                scale_factors[field.name] = field.scale_factor.name
 
-        update_values(model_class, False)
-        update_values(config_class, True)
+        # Now assign scale factors:
+        for field, scale_factor in scale_factors.items():
+            field_values[field]._scale_factor = field_values[scale_factor]
 
-    def _create_empty_model_values(self, model: Model, values_cls: ModelValues, config: Optional[Model] = None):
-        values = {field.name: FieldValue(field) for field in model.fields()}
-        values["model"] = model
-        values["address"] = None
-        return values_cls(**values) if config is None else values_cls(**values, config=config)
+        kwargs = {"model": model, "address": device_address, **field_values}
+        return values_class(**kwargs) if config is None else values_class(config=config, **kwargs)

@@ -1,1 +1,0 @@
-class NoDefinitionFoundForDevice(Exception): pass

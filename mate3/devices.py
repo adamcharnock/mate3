@@ -313,6 +313,7 @@ class DeviceValues:
                 for field_name, field_read in reads.items():
                     field_value = getattr(device_val, field_name)
                     field_value._raw_value = field_read.raw_value
+                    field_value._registers = field_read.registers
                     field_value._implemented = field_read.implemented
                     field_value._last_read = field_read.time
 
@@ -337,6 +338,7 @@ class DeviceValues:
                 client=self._client,
                 field=field,
                 address=address,
+                registers=[],
                 scale_factor=None,
                 raw_value=None,
                 implemented=True,

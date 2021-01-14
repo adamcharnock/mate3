@@ -348,8 +348,8 @@ class BitfieldTable:
         """
         Sometimes the 'off' value is specified in the table too e.g.
             Virtual Name            Mask    Value   Description
-            OB_Inverter_AC_Input	0x0004	0x0004	Inverter AC Input Use
-            OB_Inverter_AC_Input	0x0004	0x0000	Inverter AC Input Drop
+            OB_Inverter_AC_Input    0x0004  x0004   Inverter AC Input Use
+            OB_Inverter_AC_Input    0x0004  0x0000  Inverter AC Input Drop
         In this case, we only keep the 'on' one (where value is !0) and then update the description of value + mask.
         """
         on_by_name = {}
@@ -384,7 +384,7 @@ class BitfieldTable:
 
     def generate_definition(self):
         class_name = self.python_name
-        code = f"@unique\nclass {class_name}(BitfieldDescriptionMixin, IntFlag):\n"
+        code = f"@unique\nclass {class_name}(DescribedIntFlag):\n"
         for row in self.rows:
             mask = int(row.mask, base=16)
             code += f'    {row.python_name} = {mask}, "{row.description}"\n'
@@ -525,7 +525,7 @@ from mate3.sunspec.fields import (
     EnumInt16Field,
     Bit16Field,
     Bit32Field,
-    BitfieldDescriptionMixin,
+    DescribedIntFlag,
     AddressField
 )
 from mate3.sunspec.model_base import Model

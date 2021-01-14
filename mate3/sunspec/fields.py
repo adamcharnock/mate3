@@ -277,12 +277,12 @@ class AddressField(Field):
         return (num >> 16, num & 0xFFFF)
 
 
-class BitfieldDescriptionMixin:
+class DescribedIntFlag(IntFlag):
     """
-    A mixin that allows us to define something as
+    An IntFlag we can use like this:
 
         @unique
-        class MyFlags(BitfieldDescriptionMixin, IntFlag):
+        class MyFlags(DescribedIntFlag):
             a = 1, "a description"
             b = 2, "b description"
 

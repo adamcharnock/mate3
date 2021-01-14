@@ -1,6 +1,6 @@
 import dataclasses as dc
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 
 
 @dc.dataclass
@@ -9,6 +9,7 @@ class FieldRead:
     implemented: bool
     address: int
     time: datetime
+    registers: List[int]
 
 
 class ModelRead(dict):
@@ -16,8 +17,10 @@ class ModelRead(dict):
     A class for storing all the reads for a given model for a given device.
     """
 
-    def add(self, field_name, raw_value, implemented, address, time):
-        self[field_name] = FieldRead(raw_value=raw_value, implemented=implemented, address=address, time=time)
+    def add(self, field_name, registers, raw_value, implemented, address, time):
+        self[field_name] = FieldRead(
+            registers=registers, raw_value=raw_value, implemented=implemented, address=address, time=time
+        )
 
 
 class AllModelReads(dict):

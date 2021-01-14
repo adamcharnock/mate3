@@ -11,7 +11,6 @@ from loguru import logger
 from pymodbus.constants import Defaults
 
 from mate3.api import Mate3Client
-from mate3.modbus_client import CachingModbusClient
 from mate3.sunspec.fields import Mode
 
 

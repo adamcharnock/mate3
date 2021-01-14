@@ -1,6 +1,5 @@
 import dataclasses as dc
 from datetime import datetime
-from functools import wraps
 from typing import Any, Iterable, Optional
 
 from loguru import logger
@@ -17,7 +16,7 @@ class FieldValue:
 
     def __init__(
         self,
-        client: "Mate3Client",  # Can't type it to Mate3Client as circular imports suck ...
+        client,  # TODO: Can't type it to Mate3Client as circular imports suck ...
         field: Field,
         scale_factor: Optional["FieldValue"],
         address: int,

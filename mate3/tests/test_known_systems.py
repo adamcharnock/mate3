@@ -1,5 +1,4 @@
 import json
-from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -56,4 +55,3 @@ def test_known_system(subtests, system_dir):
                         value.write(value.value)
             new_cache = client._client._cache
             assert check_objects(cache, new_cache)
-

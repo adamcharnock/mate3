@@ -384,7 +384,7 @@ class BitfieldTable:
 
     def generate_definition(self):
         class_name = self.python_name
-        code = f"@unique\nclass {class_name}(BitfieldDescriptionMixin, IntFlag):\n"
+        code = f"@unique\nclass {class_name}(DescribedIntFlag):\n"
         for row in self.rows:
             mask = int(row.mask, base=16)
             code += f'    {row.python_name} = {mask}, "{row.description}"\n'
@@ -525,7 +525,7 @@ from mate3.sunspec.fields import (
     EnumInt16Field,
     Bit16Field,
     Bit32Field,
-    BitfieldDescriptionMixin,
+    DescribedIntFlag,
     AddressField
 )
 from mate3.sunspec.model_base import Model

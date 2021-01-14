@@ -12,14 +12,14 @@ from mate3.sunspec.fields import (
     EnumInt16Field,
     Bit16Field,
     Bit32Field,
-    BitfieldDescriptionMixin,
+    DescribedIntFlag,
     AddressField
 )
 from mate3.sunspec.model_base import Model
 
 
 @unique
-class CCconfigFaultsFlags(BitfieldDescriptionMixin, IntFlag):
+class CCconfigFaultsFlags(DescribedIntFlag):
     fault_input_active = 16, "EX80 Fault Input Active"
     shorted_battery_temperature_sensor = 32, "Shorted Battery Temp sensor"
     over_temperature = 64, "Over Tempurature Fault"
@@ -27,13 +27,13 @@ class CCconfigFaultsFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class FNStatusFlags(BitfieldDescriptionMixin, IntFlag):
+class FNStatusFlags(DescribedIntFlag):
     relay_status = 1, "AUX Relay Enabled (Unset means 'AUX Relay Disabled')"
     charged_parms = 2, "Charged Parms Met (Unset means 'Charged Parms Not Met')"
 
 
 @unique
-class FXErrorFlags(BitfieldDescriptionMixin, IntFlag):
+class FXErrorFlags(DescribedIntFlag):
     low_vac = 1, "Low AC output voltage"
     stacking_error = 2, "Stacking error"
     over_temperature = 4, "Over temperature error"
@@ -45,7 +45,7 @@ class FXErrorFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class FXSellStatusFlags(BitfieldDescriptionMixin, IntFlag):
+class FXSellStatusFlags(DescribedIntFlag):
     ac_input_frequency_too_high = 1, "AC input frequency too high"
     ac_input_frequency_too_low = 2, "AC input frequency too low"
     ac_input_voltage_too_low = 4, "AC input voltage too low"
@@ -57,7 +57,7 @@ class FXSellStatusFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class FXWarningFlags(BitfieldDescriptionMixin, IntFlag):
+class FXWarningFlags(DescribedIntFlag):
     ac_input_frequency_too_high = 1, "AC input frequency too high"
     ac_input_frequency_too_low = 2, "AC input frequency too low"
     ac_input_voltage_too_low = 4, "AC input voltage too low"
@@ -69,7 +69,7 @@ class FXWarningFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class GSSingleErrorFlags(BitfieldDescriptionMixin, IntFlag):
+class GSSingleErrorFlags(DescribedIntFlag):
     low_vac = 1, "Low AC output voltage"
     stacking_error = 2, "Stacking error"
     over_temperature = 4, "Over temperature error"
@@ -81,7 +81,7 @@ class GSSingleErrorFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class GSSingleSellStatusFlags(BitfieldDescriptionMixin, IntFlag):
+class GSSingleSellStatusFlags(DescribedIntFlag):
     ac_input_frequency_too_high = 1, "AC input frequency too high"
     ac_input_frequency_too_low = 2, "AC input frequency too low"
     ac_input_voltage_too_low = 4, "AC input voltage too low"
@@ -92,7 +92,7 @@ class GSSingleSellStatusFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class GSSingleWarningFlags(BitfieldDescriptionMixin, IntFlag):
+class GSSingleWarningFlags(DescribedIntFlag):
     ac_input_frequency_too_high = 1, "AC input frequency too high"
     ac_input_frequency_too_low = 2, "AC input frequency too low"
     ac_input_voltage_too_low = 4, "AC input voltage too low"
@@ -104,7 +104,7 @@ class GSSingleWarningFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class GSSplitErrorFlags(BitfieldDescriptionMixin, IntFlag):
+class GSSplitErrorFlags(DescribedIntFlag):
     low_vac = 1, "Low AC output voltage"
     stacking_error = 2, "Stacking error"
     over_temperature = 4, "Over temperature error"
@@ -116,7 +116,7 @@ class GSSplitErrorFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class GSSplitSellStatusFlags(BitfieldDescriptionMixin, IntFlag):
+class GSSplitSellStatusFlags(DescribedIntFlag):
     ac_input_frequency_too_high = 1, "AC input frequency too high"
     ac_input_frequency_too_low = 2, "AC input frequency too low"
     ac_input_voltage_too_low = 4, "AC input voltage too low"
@@ -127,7 +127,7 @@ class GSSplitSellStatusFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class GSSplitWarningFlags(BitfieldDescriptionMixin, IntFlag):
+class GSSplitWarningFlags(DescribedIntFlag):
     ac_input_frequency_too_high = 1, "AC input frequency too high"
     ac_input_frequency_too_low = 2, "AC input frequency too low"
     ac_input_voltage_too_low = 4, "AC input voltage too low"
@@ -139,7 +139,7 @@ class GSSplitWarningFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class IEvent1Flags(BitfieldDescriptionMixin, IntFlag):
+class IEvent1Flags(DescribedIntFlag):
     battery_voltage = 2, "High Battery Voltage (Unset means 'Normal Battery Voltage')"
     ac_input = 4, "AC Input Disconnected (Unset means 'AC Input Connected')"
     inverter = 64, "Inverter Off (Unset means 'Inverter On')"
@@ -152,7 +152,7 @@ class IEvent1Flags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class OBControlStatusFlags(BitfieldDescriptionMixin, IntFlag):
+class OBControlStatusFlags(DescribedIntFlag):
     charging_absorb = 1, "Absorb Charging"
     float_charging = 2, "Float Charging"
     inverter_ac_input = 4, "Inverter AC Input Use (Unset means 'Inverter AC Input Drop')"
@@ -171,7 +171,7 @@ class OBControlStatusFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class OutBackErrorFlags(BitfieldDescriptionMixin, IntFlag):
+class OutBackErrorFlags(DescribedIntFlag):
     write_high_limit = 1, "High limit last write"
     write_low_limit = 2, "Low limit last write"
     write_invalid = 4, "Last write invalid"
@@ -190,12 +190,12 @@ class OutBackErrorFlags(BitfieldDescriptionMixin, IntFlag):
 
 
 @unique
-class OutBackStatusFlags(BitfieldDescriptionMixin, IntFlag):
+class OutBackStatusFlags(DescribedIntFlag):
     out_back_status_firmware_update_complete = 1, "Firmware Update Complete"
 
 
 @unique
-class OutBackUpdateDeviceFirmwarePortFlags(BitfieldDescriptionMixin, IntFlag):
+class OutBackUpdateDeviceFirmwarePortFlags(DescribedIntFlag):
     portnumber = 255, "Port Number"
     update_percentage = 65280, "Firmware Update Percentage"
 

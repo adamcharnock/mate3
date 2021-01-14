@@ -103,7 +103,7 @@ class Int16Field(IntegerField):
     as 65535. However, python will happily read this in as 65535, so we need to convert back to -1. Turns out the
     easiest way is using the fixedint package, and just calling `int(Int16(65535))` which gives -1. Likewise when we
     want to write we've got to go from -1 tp 65535 - you can just call `int(UInt16(-1))` as UInt16 casts the Python
-    internal twos-complement representation into 16 bits, which is just what we want. It seems to work, but yeh, it's 
+    internal twos-complement representation into 16 bits, which is just what we want. It seems to work, but yeh, it's
     mostly 'cos it's less confusing than bit manipulation.
     """
 
@@ -212,7 +212,7 @@ class Bit32Field(BitfieldMixin, Uint32Field):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
     before using the flags, etc.
-    
+
     NB: According to the spec this shouldn't exist. But Outback have created it anyway. We'll assume it's just meant to
     be a bit16 for now ...
     """

@@ -5,18 +5,15 @@ from functools import lru_cache
 from pathlib import Path
 
 from loguru import logger
+from mate3.sunspec.fields import Field, Mode
 from openpyxl import load_workbook
 
-from mate3.sunspec.fields import Field, Mode
-
-# from typing import Optional
-
-
-PATH = Path(__file__).parent.parent / "doc" / "Outback.Power.SunSpec.Map.xlsx"
+ROOT = Path(__file__).parent.parent
+PATH = ROOT / "doc" / "OutBack.Power.SunSpec.Map.xlsx"
 REGISTERS_SHEET = "SunSpecMap"
 BITFIELDS_SHEET = "Bitfields"
-MODELS_MODULE = Path(__file__).parent.parent / "models.py"
-VALUES_MODULE = Path(__file__).parent.parent / "values.py"
+MODELS_MODULE = ROOT / "models.py"
+VALUES_MODULE = ROOT / "values.py"
 MODELS_COLUMNS = OrderedDict(
     [
         ("did", {"column_names": ("DID",), "type": int}),
@@ -88,7 +85,7 @@ def python_name_from_field(name):
 
 def find_common_prefixes(rows):
     """
-    Find any common prefixes for the registry names given in the provided lines, after splitting on _. E.g. 
+    Find any common prefixes for the registry names given in the provided lines, after splitting on _. E.g.
 
     PREFIX_a
     PREFIX_b_c
@@ -351,8 +348,8 @@ class BitfieldTable:
         """
         Sometimes the 'off' value is specified in the table too e.g.
             Virtual Name            Mask    Value   Description
-            OB_Inverter_AC_Input	0x0004	0x0004	Inverter AC Input Use 
-            OB_Inverter_AC_Input	0x0004	0x0000	Inverter AC Input Drop 
+            OB_Inverter_AC_Input	0x0004	0x0004	Inverter AC Input Use
+            OB_Inverter_AC_Input	0x0004	0x0000	Inverter AC Input Drop
         In this case, we only keep the 'on' one (where value is !0) and then update the description of value + mask.
         """
         on_by_name = {}
@@ -408,6 +405,7 @@ def read_model_table(row_iter):
     # this for 100 rows (as there are some 'empty' error tables in between) then we assume there are no more tables.
     more_tables = True
     row = None
+    previous_row = None
     try:
         for _ in range(100):
             row = next(row_iter)
@@ -539,10 +537,9 @@ from mate3.sunspec.model_base import Model
     bitfield_tables = sorted(bitfield_tables, key=lambda x: x.python_name)
     for table in bitfield_tables:
         code += table.generate_definition()
-        code += "\n"
+        code += "\n\n"
 
-    code += f"""
-class SunSpecHeaderModel(Model):
+    code += f"""class SunSpecHeaderModel(Model):
     did: Uint32Field = Uint32Field("did", 1, 2, Mode.R)
     model_id: Uint16Field = Uint16Field("model_id", 3, 1, Mode.R)
     length: Uint16Field = Uint16Field("length", 4, 1, Mode.R)
@@ -569,7 +566,7 @@ SunSpecEndModel.__model_fields__ = [SunSpecEndModel.did, SunSpecEndModel.length]
     bitfield_lookup = {t.name: t.python_name for t in bitfield_tables}
     for table in model_tables:
         code += table.generate_definition(bitfield_lookup)
-        code += "\n"
+        code += "\n\n"
 
     code += "MODEL_DEVICE_IDS = {\n"
     code += f"    {0x53756e53}: SunSpecHeaderModel,\n"

@@ -24,7 +24,7 @@ class AllModelReads(dict):
     """
     A class for storing all the reads for all models. It's basically just a dict
         Dict[<model class>, List[ModelRead]]
-    I.e. for each model class, a list of all the (full) reads of that model type (which can be multiple e.g. if there 
+    I.e. for each model class, a list of all the (full) reads of that model type (which can be multiple e.g. if there
     are two of the same inverter.)
     """
 
@@ -36,7 +36,7 @@ class AllModelReads(dict):
         """
         Generally there are multiple devices for a given model (e.g. multiple FX inverters), and the way we delineate
         them is by the port (which they are plugged into the Hub with). So it's pretty common to want to get, for each
-        model, the ModelReads in a dict <port>: <model_read>. 
+        model, the ModelReads in a dict <port>: <model_read>.
         """
         if model not in self:
             return None

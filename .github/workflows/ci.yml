@@ -35,8 +35,8 @@ jobs:
         path: ~/.venv
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
     - name: Install poetry dependencies if required
-      run: poetry install
       if: steps.cache.outputs.cache-hit != 'true'
+      run: poetry install
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -48,7 +48,7 @@ jobs:
         poetry run flake8 mate3/sunspec/models.py --ignore=E501 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Check black has been run (excluding auto-generated code)
       run: |
-        poetry black . --check --exclude='setup.py|models.py'
+        poetry run black . --check --exclude='setup.py|models.py'
     - name: Test with pytest
       run: |
-        poetry pytest
+        poetry run pytest

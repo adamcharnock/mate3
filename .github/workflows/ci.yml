@@ -33,7 +33,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.venv
-        key: venv-${{ runner.os }}-{{matrix.python-version}}-${{ hashFiles('**/poetry.lock') }}
+        key: venv-${{ runner.os }}-${{matrix.python-version}}-${{ hashFiles('**/poetry.lock') }}
     - name: Install poetry dependencies if required
       run: poetry install
       if: steps.cache.outputs.cache-hit != 'true'

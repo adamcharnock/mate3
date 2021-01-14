@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -33,9 +33,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.venv
-        key: venv-${{ runner.os }}-${{matrix.python-version}}-${{ hashFiles('**/poetry.lock') }}
+        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
     - name: Install poetry dependencies if required
-      run: poetry install
+      run: poetry install -v
       if: steps.cache.outputs.cache-hit != 'true'
     - name: Lint with flake8
       run: |

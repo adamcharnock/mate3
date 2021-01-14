@@ -348,8 +348,8 @@ class BitfieldTable:
         """
         Sometimes the 'off' value is specified in the table too e.g.
             Virtual Name            Mask    Value   Description
-            OB_Inverter_AC_Input	0x0004	0x0004	Inverter AC Input Use
-            OB_Inverter_AC_Input	0x0004	0x0000	Inverter AC Input Drop
+            OB_Inverter_AC_Input    0x0004  x0004   Inverter AC Input Use
+            OB_Inverter_AC_Input    0x0004  0x0000  Inverter AC Input Drop
         In this case, we only keep the 'on' one (where value is !0) and then update the description of value + mask.
         """
         on_by_name = {}

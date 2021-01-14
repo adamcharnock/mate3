@@ -1,6 +1,6 @@
 import dataclasses as dc
 from datetime import datetime
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Tuple
 
 from loguru import logger
 
@@ -20,6 +20,7 @@ class FieldValue:
         field: Field,
         scale_factor: Optional["FieldValue"],
         address: int,
+        registers: Iterable[int],
         raw_value: Any,
         implemented: bool,
         read_time: datetime,
@@ -28,6 +29,7 @@ class FieldValue:
         self.field = field
         self._scale_factor = scale_factor
         self._address = address
+        self._registers = tuple(registers)  # immutability is nice
         self._raw_value = raw_value
         self._implemented = implemented
         self._last_read = read_time
@@ -78,6 +80,10 @@ class FieldValue:
     @property
     def address(self) -> int:
         return self._address
+
+    @property
+    def registers(self) -> Tuple[int]:
+        return self._registers
 
     @property
     def raw_value(self) -> Any:
@@ -163,6 +169,20 @@ class FieldValue:
         self._implemented, self._raw_value = self.field.from_registers(registers)
         self._last_read = read_time
 
+    def to_dict(self):
+        return {
+            "implemented": self.implemented,
+            "scale_factor": self.scale_factor.value if self.scale_factor is not None else None,
+            "address": self.address,
+            "registers": self.registers,
+            "raw_value": self.raw_value
+            if self.raw_value is None or isinstance(self.raw_value, (str, int, float))
+            else repr(self.raw_value),
+            "value": self.value
+            if self.value is None or isinstance(self.value, (str, int, float))
+            else repr(self.value),
+        }
+
 
 @dc.dataclass
 class ModelValues:
@@ -173,7 +193,7 @@ class ModelValues:
     model: Model = dc.field(metadata={"field": False})
     address: Optional[int] = dc.field(metadata={"field": False})
 
-    def fields(self, modes: Optional[Iterable[Mode]] = None):
+    def fields(self, modes: Optional[Iterable[Mode]] = None) -> Iterable[FieldValue]:
         """
         Often we want to loop through all the fields for a model - ignoring those that aren't 'real' fields such as
         _address above, or the 'config' field that often gets added when a device has the 'realtime' and 'config'

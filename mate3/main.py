@@ -44,16 +44,7 @@ def read(client, args):
             name = device.__class__.__name__
             values = {}
             for value in device.fields([Mode.R, Mode.RW]):
-                values[value.field.name] = {
-                    "implemented": value.implemented,
-                    "scale_factor": value.scale_factor.value if value.scale_factor is not None else None,
-                    "raw_value": value.raw_value
-                    if value.raw_value is None or isinstance(value.raw_value, (str, int, float))
-                    else repr(value.raw_value),
-                    "value": value.value
-                    if value.value is None or isinstance(value.value, (str, int, float))
-                    else repr(value.value),
-                }
+                values[value.field.name] = value.to_dict()
             devices.append({"name": name, "address": device.address, "values": values})
         indent = None if args.format == "json" else 4
         print(json.dumps(devices, indent=indent))

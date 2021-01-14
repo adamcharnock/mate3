@@ -17,16 +17,7 @@ def _test_read_gives_expected_results(client, system_dir):
         name = device.__class__.__name__
         values = {}
         for value in device.fields([Mode.R, Mode.RW]):
-            values[value.field.name] = {
-                "implemented": value.implemented,
-                "scale_factor": None if value.scale_factor is None else value.scale_factor.value,
-                "raw_value": value.raw_value
-                if value.raw_value is None or isinstance(value.raw_value, (str, int, float))
-                else repr(value.raw_value),
-                "value": value.value
-                if value.value is None or isinstance(value.value, (str, int, float))
-                else repr(value.value),
-            }
+            values[value.field.name] = value.to_dict()
         read_devices.append({"name": name, "address": device.address, "values": values})
 
     # Compare them with what we expect:

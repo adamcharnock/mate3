@@ -171,11 +171,23 @@ class Mate3Client:
                         )
                     implemented, raw_value = field.from_registers(field_registers)
                     model_reads.add(
-                        field.name, raw_value=raw_value, implemented=implemented, address=address, time=read_time
+                        field_name=field.name,
+                        registers=field_registers,
+                        raw_value=raw_value,
+                        implemented=implemented,
+                        address=address,
+                        time=read_time,
                     )
                 except Exception as e:
                     logger.warning(f"Error reading field {field.name} - so setting as not implemented. Message: {e}")
-                    model_reads.add(field.name, raw_value=None, implemented=False, address=address, time=read_time)
+                    model_reads.add(
+                        field_name=field.name,
+                        registers=[],
+                        raw_value=None,
+                        implemented=False,
+                        address=address,
+                        time=read_time,
+                    )
                 offset += field.size
 
         return model, model_reads

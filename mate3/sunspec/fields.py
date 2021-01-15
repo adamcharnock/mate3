@@ -5,8 +5,6 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum, IntFlag
 from typing import Optional
 
-from fixedint import Int16, UInt16
-
 
 class Mode(Enum):
     R = "r"
@@ -112,14 +110,14 @@ class Int16Field(IntegerField):
         if val == 0x8000:
             # As per sunspec, this is "not implemented"
             return False, None
-        return True, int(Int16(val))
+        return True, int.from_bytes(val.to_bytes(2, byteorder="little", signed=False), byteorder="little", signed=True)
 
     def _to_registers(self, value):
         if not isinstance(value, int):
             raise ValueError("Expected an integer!")
         if value < -0x7FFF or value > 0x7FFF:
             raise ValueError("int16 must be between -+0x7fff")
-        return (int(UInt16(value)),)
+        return (int.from_bytes(value.to_bytes(2, "little", signed=True), byteorder="little", signed=False),)
 
 
 @dc.dataclass

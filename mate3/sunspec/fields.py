@@ -5,10 +5,10 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from enum import Enum, IntFlag
 from functools import wraps
-from typing import Any, Optional, Tuple, Type
+from typing import Any, Optional, Tuple
 
 from loguru import logger
-from pymodbus.constants import Endian
+from mate3.sunspec.payload import get_decoder, get_encoder
 from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
 
 
@@ -103,9 +103,7 @@ class Field(metaclass=ABCMeta):
             return
 
         # OK, not cached - let's read and decode:
-        decoder = BinaryPayloadDecoder.fromRegisters(
-            registers=self._last_read.registers, byteorder=Endian.Big, wordorder=Endian.Big
-        )
+        decoder = get_decoder(self._last_read.registers)
         self._cached_value, self._cached_implemented = self.decode_from_registers(decoder)
 
         # Mark as usable in cache:
@@ -165,7 +163,7 @@ class Field(metaclass=ABCMeta):
             raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
 
         # OK, now convert to registers:
-        encoder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Big)
+        encoder = get_encoder()
         self.encode_to_payload(value, encoder)
         registers = encoder.to_registers()
         logger.debug(f"Writing {self.value} to {self.name} as registers {registers} at address {self.address}")

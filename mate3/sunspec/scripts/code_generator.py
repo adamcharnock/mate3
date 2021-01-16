@@ -1,11 +1,10 @@
 import re
 from collections import OrderedDict
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 from loguru import logger
-from mate3.sunspec.fields import Field, Mode
+from mate3.sunspec.fields import Mode
 from openpyxl import load_workbook
 
 ROOT = Path(__file__).parent.parent

@@ -1,9 +1,8 @@
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
 from loguru import logger
-from pymodbus.constants import Defaults, Endian
+from pymodbus.constants import Defaults
 from pymodbus.payload import BinaryPayloadDecoder
 
 from mate3.devices import (
@@ -28,26 +27,7 @@ from mate3.sunspec.models import (
     SunSpecEndModel,
     SunSpecHeaderModel,
 )
-
-
-@dataclass(frozen=False)
-class ReadingRange:
-    """
-    Mate's work better reading a contiguous range of values at once as opposed to indivudally. This is a simple wrapper
-    for such a contiguous range.
-    """
-
-    fields: List[Field]
-    start: int
-    size: int
-
-    @property
-    def end(self):
-        return self.start + self.size
-
-    def extend(self, field: Field):
-        self.fields.append(field)
-        self.size += field.size
+from mate3.sunspec.payload import get_decoder
 
 
 class Mate3Client:
@@ -225,7 +205,7 @@ class Mate3Client:
         """
         # Read the first register for the device ID:
         registers = self._client.read_holding_registers(address=device_address, count=2)
-        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big, wordorder=Endian.Big)
+        decoder = get_decoder(registers)
 
         # If first, then this is the SunSpecHeaderModel, which has a device ID of Uint32 type not Uint16 like the rest.
         if first:

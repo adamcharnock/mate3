@@ -1,15 +1,9 @@
 import json
-from datetime import datetime
 from hashlib import md5
 from pathlib import Path
-from typing import Iterable
 
 from loguru import logger
 from pymodbus.client.sync import ModbusTcpClient
-from pymodbus.constants import Endian
-from pymodbus.payload import BinaryPayloadDecoder
-
-from mate3.sunspec.fields import Field, FieldRead
 
 
 class NonCachingModbusClient(ModbusTcpClient):
@@ -51,7 +45,7 @@ class CachingModbusClient(NonCachingModbusClient):
             self._original_cache_hash = self._hash()
         else:
             if self._cache_only:
-                raise RuntimeError("Cache doesn't exist!")
+                raise RuntimeError(f"Cache doesn't exist at '{self._cache_path}'")
         self._cache_only = cache_only
         if not self._cache_only:
             super().__init__(*args, **kwargs)

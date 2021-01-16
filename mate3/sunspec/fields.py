@@ -2,8 +2,14 @@ import dataclasses as dc
 import socket
 import struct
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from enum import Enum, IntFlag
-from typing import Optional
+from functools import wraps
+from typing import Any, Optional, Tuple
+from uuid import uuid4
+
+from pymodbus.constants import Endian
+from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
 
 
 class Mode(Enum):
@@ -13,155 +19,235 @@ class Mode(Enum):
 
 
 @dc.dataclass
-class Field(metaclass=ABCMeta):
-    """
-    A Field is a representation of a field on a SunSpec model, with nice utilities such as converting to/from the
-    underlying registers.
-    """
+class FieldRead:
+    address: int
+    time: datetime
+    registers: Tuple[int]
+    guid: int = dc.field(default_factory=lambda: uuid4().int)
 
-    name: str
-    start: int
-    size: int
-    mode: Mode
-    description: Optional[str] = None
+
+def has_been_read(f):
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        if self._last_read is None:
+            raise RuntimeError(f"{f} can only be called after field {self.name} has been read")
+        return f(self, *args, **kwargs)
+
+    return wrapper
+
+
+class Field(metaclass=ABCMeta):
+    def __init__(self, name: str, start: int, size: int, mode: Mode, description: Optional[str] = None):
+        self.name = name
+        self.start = start
+        self.size = size
+        self.mode = mode
+        self.description = description
+
+        # Internal state (all None until read)
+        self._last_read: Optional[FieldRead] = None
+        self._value = None
+        self._implemented = None
 
     @property
     def end(self):
         return self.start + self.size
 
-    def from_registers(self, registers):
+    @property
+    def last_read(self):
+        return self._last_read
+
+    @last_read.setter
+    def last_read(self, read: FieldRead):
+        self._last_read = read
+
+    @property
+    @has_been_read
+    def value(self):
         """
-        Decode registers into the actual value.
+        OK, we get a bit clever here in that we only decode fields lazily. This is for two reasons - firstly, it can
+        save decoding everything on the first run (when you're getting devices etc.) and secondly it resolves some
+        inter-field dependency (e.g. to read a scaled field we first need to read the scale factor ... and you say we
+        could do that, but reading sequential fields can be nicer for the mate3)
         """
         if self.mode not in (Mode.R, Mode.RW):
-            raise RuntimeError("Can't read from a write-only field!")
-        if not all(isinstance(i, int) for i in registers):
-            raise ValueError("Registers should be an iterable of ints!")
-        if len(registers) != self.size:
-            raise ValueError(f"Expected {self.size} registers!")
-        return self._from_registers(registers)
+            raise RuntimeError("Can't read from this field!")
+        if not self.implemented:
+            return None
+        decoder = BinaryPayloadDecoder.fromRegisters(
+            registers=self._last_read.registers, byteorder=Endian.Big, wordorder=Endian.Big
+        )
 
-    def to_registers(self, value):
-        """
-        Encode a value into registers.
-        """
-        if self.mode not in (Mode.W, Mode.RW):
-            raise RuntimeError("Can't write to a read-only field!")
-        registers = self._to_registers(value)
-        if len(registers) != self.size:
-            raise ValueError(f"Expected {self.size} registers!")
-        return registers
+        return self.decode_from_registers(decoder)
 
     @abstractmethod
-    def _from_registers(self, registers):
-        """
-        Method to override that actually does the conversion, sans checks.
-        """
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Any:
         pass
 
     @abstractmethod
-    def _to_registers(self, value):
-        """
-        Method to override that actually does the conversion, sans checks.
-        """
+    def encode_to_payload(self, value: Any, encoder: BinaryPayloadBuilder):
         pass
 
+    @property
+    def implemented(self) -> bool:
+        return self._implemented
 
-@dc.dataclass
+
 class IntegerField(Field):
     """
     And IntegerField will have an integer value, and optionally has units and a scale factor.
     """
 
-    units: Optional[str] = None
-    scale_factor: Optional[Field] = None  # TODO: should be IntegerField but can't refer to itself in definition ...
+    def __init__(self, *args, units: Optional[str] = None, **kwargs):
+        self.units = units
+        super().__init__(*args, **kwargs)
+
+    @property
+    @abstractmethod
+    def _modbus_decode_type(self) -> str:
+        """
+        Something like '8bit_int'
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def _not_implemented_value(self) -> Any:
+        """
+        E.g. -0x8000 for Int16
+        """
+        pass
+
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> int:
+        return getattr(decoder, "decode_" + self._modbus_decode_type)()
+
+    def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder):
+        if not isinstance(value, int):
+            raise TypeError("value needs to be an int!")
+        return getattr(encoder, "add_" + self._modbus_decode_type)(value)
+
+    @property
+    def implemented(self) -> bool:
+        return self.value != self._not_implemented_value
 
 
-@dc.dataclass
 class Uint16Field(IntegerField):
-    def _from_registers(self, registers):
-        val = registers[0]
-        if val == 0xFFFF:
-            # As per sunspec, this is "not implemented"
-            return False, None
-        return True, val
-
-    def _to_registers(self, value):
-        if not isinstance(value, int):
-            raise ValueError("Expected an integer!")
-        if value < 0 or value > 0xFFFF - 1:
-            raise ValueError("int16 must be between 0 and 0xffff - 1")
-        return (value,)
+    _modbus_decode_type = "16bit_uint"
+    _not_implemented_value = 0xFFFF
 
 
-@dc.dataclass
 class Int16Field(IntegerField):
-    """
-    Note that values are stored in twos-compliment for 16 bits in modbus registers so e.g. the value -1 will be stored
-    as 65535. However, python will happily read this in as 65535, so we need to convert back to -1. Turns out the
-    easiest way is using the fixedint package, and just calling `int(Int16(65535))` which gives -1. Likewise when we
-    want to write we've got to go from -1 tp 65535 - you can just call `int(UInt16(-1))` as UInt16 casts the Python
-    internal twos-complement representation into 16 bits, which is just what we want. It seems to work, but yeh, it's
-    mostly 'cos it's less confusing than bit manipulation.
-    """
-
-    def _from_registers(self, registers):
-        val = registers[0]
-        if val == 0x8000:
-            # As per sunspec, this is "not implemented"
-            return False, None
-        return True, int.from_bytes(val.to_bytes(2, byteorder="little", signed=False), byteorder="little", signed=True)
-
-    def _to_registers(self, value):
-        if not isinstance(value, int):
-            raise ValueError("Expected an integer!")
-        if value < -0x7FFF or value > 0x7FFF:
-            raise ValueError("int16 must be between -+0x7fff")
-        return (int.from_bytes(value.to_bytes(2, "little", signed=True), byteorder="little", signed=False),)
+    _modbus_decode_type = "16bit_int"
+    # 0x8000 is the not-implemented value before decoding, as per spec, which is -0x8000 after decoding:
+    _not_implemented_value = -0x8000
 
 
-@dc.dataclass
 class Uint32Field(IntegerField):
-    def _from_registers(self, registers):
-        val = (registers[0] << 16) | registers[1]
-        if val == 0xFFFFFFFF:
-            # As per sunspec, this is "not implemented"
-            return False, None
-        return True, val
-
-    def _to_registers(self, value):
-        if not isinstance(value, int):
-            raise ValueError("Expected an integer!")
-        if value < 0 or value > 0xFFFFFFFF - 1:
-            raise ValueError("int16 must be between 0 and 0xffffffff-1")
-        return (value >> 16, value & 0xFFFF)
+    _modbus_decode_type = "32bit_uint"
+    _not_implemented_value = 0xFFFFFFFF
 
 
-@dc.dataclass
+class Int32Field(IntegerField):
+    _modbus_decode_type = "32bit_int"
+    # 0x80000000 is the not-implement value before decoding, as per spec, which is -0x80000000 after decoding:
+    # TODO: check this!
+    _not_implemented_value = -0x80000000
+
+
+class FloatField(IntegerField):
+    def __init__(
+        self,
+        *args,
+        scale_factor: int,
+        **kwargs,
+    ):
+        if not isinstance(scale_factor, int):
+            raise TypeError("scale_factor should be an int!")
+        self._scale_factor = scale_factor
+        super().__init__(*args, **kwargs)
+
+    @property
+    def scale_factor(self) -> Optional[int]:
+        return self._scale_factor
+
+    def _check_scale_factor(self):
+        if not self._scale_factor.implemented:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be implemented.")
+        if self._scale_factor.scale_factor is not None:
+            raise RuntimeError(f"Scale factor {self._scale_factor} shouldn't have it's own scale factor!")
+        if self._scale_factor.value is None:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should not be None.")
+        sf = self.scale_factor.value
+        if not isinstance(sf, int):
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be an integer.")
+        if sf < -10 or sf > 10:
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be between -10 and 10.")
+        return sf
+
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> float:
+
+        # First get our scale factor:
+        sf = self._check_scale_factor()
+
+        # Sweet. Now get the integer value and scale it:
+        value = super().decode_from_registers(decoder)
+        value *= 10 ** sf
+        # Round it to what it should be after scaling:
+        return round(value, -sf if sf < 0 else 0)
+
+    def encode_to_payload(self, value: float, encoder: BinaryPayloadBuilder) -> None:
+        if not isinstance(value, float):
+            raise TypeError("value must be a Float")
+
+        # Get our scale factor:
+        sf = self._check_scale_factor()
+
+        # Raise to the right power:
+        scaled_value = value / (10 ** sf)
+        # Round it to what it should be after scaling:
+        # TODO: raise error if too many digits specified
+        scaled_value = int(round(scaled_value, 0))
+
+        return super().encode_to_payload(value, encoder)
+
+
+class FloatInt16Field(FloatField, Int16Field):
+    pass
+
+
+class FloatInt32Field(FloatField, Int32Field):
+    pass
+
+
+class FloatUint16Field(FloatField, Uint16Field):
+    pass
+
+
+class FloatUint32Field(FloatField, Uint32Field):
+    pass
+
+
 class StringField(Field):
-    def _from_registers(self, registers):
-        # As per sunspec, if all registers are 0, then not implemented:
-        if all(i == 0 for i in registers):
-            return False, None
-        int8s = []
-        for i in registers:
-            int8s.append(i >> 8)
-            int8s.append(i & 255)
-        chars = map(chr, int8s)
-        return True, "".join(chars).strip("\0")
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> str:
+        bites = decoder.decode_string(size=self.size * 2)  # Size * 2 as size is in 16 bit units, i.e. 2 bytes.
+        return bites.rstrip(b"\x00")
 
-    def _to_registers(self, value):
+    @property
+    @has_been_read
+    def implemented(self) -> bool:
+        return self.last_read.value != "\x00" * self.size * 2
+
+    def encode_to_payload(self, value: str, encoder: BinaryPayloadBuilder):
         if not isinstance(value, str):
             raise ValueError("Expected str!")
         if len(value) > self.size * 2:
             raise ValueError(f"String must be less than {self.size * 2} characters")
         # Pad with "\0" if needed:
         value = value.ljust(self.size * 2, "\0")
-        int8s = [ord(i) for i in value]
-        int16s = []
-        for i in range(self.size):
-            int16s.append((int8s[i * 2] << 8) | int8s[i * 2 + 1])
-        return tuple(int16s)
+        # Encode to ascii:
+        value = value.encode("ascii")
+        # Finally, do it:
+        return encoder.add_string(value)
 
 
 class BitfieldMixin:
@@ -169,6 +255,10 @@ class BitfieldMixin:
     This would have been simpler if they were normal on/off flags, however Outback has specified different meaning to
     "on" and "off", unfortunately.
     """
+
+    def __init__(self, *args, flags: IntFlag, **kwargs):
+        self.flags = flags
+        super().__init__(*args, **kwargs)
 
     def _get_flags(self, value, mx, not_implemented):
         # TODO: as per spec ... "if the most significant bit in a bitfield is set, all other bits shall be ignored"
@@ -185,14 +275,11 @@ class BitfieldMixin:
         return flags.value
 
 
-@dc.dataclass
 class Bit16Field(BitfieldMixin, Uint16Field):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
     before using the flags, etc.
     """
-
-    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults already defined
 
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
@@ -205,7 +292,6 @@ class Bit16Field(BitfieldMixin, Uint16Field):
         return super()._to_registers(value)
 
 
-@dc.dataclass
 class Bit32Field(BitfieldMixin, Uint32Field):
     """
     The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
@@ -215,13 +301,11 @@ class Bit32Field(BitfieldMixin, Uint32Field):
     be a bit16 for now ...
     """
 
-    flags: IntFlag = None  # None isn't possible - just need it for dataclass since there are defaults already defined
-
     def _from_registers(self, registers):
         implemented, value = super()._from_registers(registers)
         if not implemented:
             return False, None
-        return self._get_flags(value, mx=0x7FFF, not_implemented=0xFFFF)
+        return self._get_flags(value, mx=0x7FFFFFFF, not_implemented=0xFFFFFFFF)
 
     def _to_registers(self, flags):
         value = self._set_flags(flags)
@@ -229,6 +313,10 @@ class Bit32Field(BitfieldMixin, Uint32Field):
 
 
 class EnumMixin:
+    def __init__(self, *args, options: Enum, **kwargs):
+        self.options = options
+        super().__init__(*args, **kwargs)
+
     def _get_option(self, val):
         if val is None:
             return None
@@ -250,29 +338,27 @@ class EnumMixin:
         return super()._to_registers(value)
 
 
-@dc.dataclass
 class EnumUint16Field(EnumMixin, Uint16Field):
-    options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
+    pass
 
 
-@dc.dataclass
 class EnumInt16Field(EnumMixin, Int16Field):
-    options: Enum = None  # None isn't possible - just need it for dataclass since there are defaults defined in parents
+    pass
 
 
-@dc.dataclass
-class AddressField(Field):
-    def _from_registers(self, registers):
-        val = (registers[0] << 16) | registers[1]
-        if val == 0:
-            # As per spec, this isn't implemented
-            return False, None
-        return True, socket.inet_ntoa(struct.pack("!I", val))
+class AddressField(Uint32Field):
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> str:
+        uint32 = super().decode_from_registers(decoder)
+        return socket.inet_ntoa(struct.pack("!I", uint32))
 
-    def _to_registers(self, value):
-        bites = socket.inet_aton(value)
-        num = struct.unpack("!I", bites)[0]
-        return (num >> 16, num & 0xFFFF)
+    @property
+    @has_been_read
+    def implemented(self) -> bool:
+        # Not implemented if raw value is 0, which equates to 0.0.0.0 when inet_ntoa'd
+        return self._last_read.value != "0.0.0.0"
+
+    # def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder):
+    #     return getattr(encoder, "add_" + self._modbus_decode_type)(value)
 
 
 class DescribedIntFlag(IntFlag):

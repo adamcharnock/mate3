@@ -152,77 +152,32 @@ class ModelTable:
 
     def generate_definition(self, bitfields):
         class_name = self.python_name
-        code = f"class {class_name}Model(Model):\n"
-        afters = []
-        names = []
+        code = f"""class {class_name}Model(Model):
+    
+    def __init__(self):
+"""
+
+        # Process rows:
+        processed = []
         for row in self.rows:
-            name, defn, after = self._generate_field(row=row, class_name=class_name, bitfields=bitfields)
-            if name:
-                names.append(name)
+            processed.append(self._generate_field(row=row, class_name=class_name, bitfields=bitfields))
+
+        # Sort them so scale factors come at the end:
+        processed = sorted(processed, key=lambda x: x[2])
+        for name, defn, scale_factor in processed:
             code += defn
-            afters += after
-        # add the names:
-        names = ", ".join([f"{class_name}Model.{name}" for name in names])
-        afters.append(f"{class_name}Model.__model_fields__ = [{names}]")
-        if afters:
-            code += "\n\n"
-            for after in afters:
-                code += after
-        code += "\n"
         return code
 
-    def generate_values(self):
-        class_name = self.python_name
-        code = f"@dataclass\nclass {class_name}Values(ModelValues):\n"
-        # code += f"    __definition__ = models.{class_name}Model\n"
-        for row in self.rows:
-            name = row.python_name
-            if name in ("sun_spec_did", "sun_spec_length"):
-                name = name.replace("sun_spec_", "")
-            code += f"    {name}: FieldValue\n"
-        return code
-
-    @lru_cache()
-    def _get_scale_factor_python_name(self, scale_factor):
-        rows = [r for r in self.rows if r.name == scale_factor]
-        if len(rows) != 1:
-            raise RuntimeError(f"Expected to find a single scale_factor '{scale_factor}' but found {len(rows)}")
-        return rows[0].python_name
-
-    def _generate_base_field(self, row):
-        for field_name in Field.__dataclass_fields__:
-            # ignore the name:
-            if field_name == "name":
-                continue
-            value = getattr(row, field_name)
-            # ignore none description as that's the default:
-            if field_name == "description" and value is None:
-                continue
-            # Mode -> enum
-            if field_name == "mode":
-                value = Mode(row.mode.lower().replace("/", ""))
-            # strings:
-            if isinstance(value, str):
-                value = '"' + value + '"'
-            if field_name in ("start", "size", "mode"):
-                yield f"{value}"
-            else:
-                yield f"{field_name}={value}"
-
-    def _generate_integer_field(self, row, python_name, class_name):
-        # Units:
-        if row.units:
-            yield False, f'units="{row.units}"'
-        # Find the scale factor:
-        scale_factor = row.scale_factor
-        if scale_factor:
-            scale_factor = self._get_scale_factor_python_name(scale_factor)
-            yield True, f"{class_name}Model.{python_name}.scale_factor = {class_name}Model.{scale_factor}\n"
-        # else:
-        #    yield False, ""
-
-    def _generate_bit_field(self, row, bitfields):
-        yield f"flags={bitfields[row.name]}"
+    # def generate_values(self):
+    #     class_name = self.python_name
+    #     code = f"@dataclass\nclass {class_name}Values(ModelValues):\n"
+    #     # code += f"    __definition__ = models.{class_name}Model\n"
+    #     for row in self.rows:
+    #         name = row.python_name
+    #         if name in ("sun_spec_did", "sun_spec_length"):
+    #             name = name.replace("sun_spec_", "")
+    #         code += f"    {name}: FieldValue\n"
+    #     return code
 
     def _generate_enumerated_field(self, row):
         # ok, generate always seems to following the form 1=..., 2=..., etc. or ...=1, ...=2, So let's look for that
@@ -287,8 +242,8 @@ class ModelTable:
         if name in ("sun_spec_did", "sun_spec_length"):
             name = name.replace("sun_spec_", "")
         field_type = None
-        field_args = list(self._generate_base_field(row))
-        afters = []
+        field_args = [f'"{name}"', f"{row.start}", f"{row.size}", f"{Mode(row.mode.lower().replace('/', ''))}"]
+        has_scale_factor = False
         if row.type in ("uint16", "int16", "uint32", "int32"):
             int_field = True
             units = row.units.lower().strip() if row.units is not None else None
@@ -297,9 +252,9 @@ class ModelTable:
                 # if we don't know about that bitfield, skip it - generally these are ones kept for future use
                 if row.name not in bitfields:
                     logger.warning(f"skipping {row.name} as unknown bitfield. Row: {row}")
-                    return "", "", []
+                    return "", "", has_scale_factor
                 field_type = f"Bit{16 * row.size}"
-                field_args += list(self._generate_bit_field(row, bitfields))
+                field_args.append(f"flags={bitfields[row.name]}")
             elif units == "enumerated" or (
                 row.description is not None
                 and re.match(r"^\s*0\s*=\s*Disabled\s*[,;]\s*1\s*=\s*Enabled\s*$", row.description)
@@ -320,17 +275,30 @@ class ModelTable:
                 field_type = "Address"
 
             if int_field:
-                for after, args in self._generate_integer_field(row, name, class_name):
-                    if after:
-                        afters.append(args)
-                    else:
-                        field_args.append(args)
+                if row.units:
+                    field_args.append(f'units="{row.units}"')
                 field_type = row.type.title()
+                if row.scale_factor is not None:
+                    scale_factors = [r for r in self.rows if r.name == row.scale_factor]
+                    if len(scale_factors) != 1:
+                        raise RuntimeError("Couldn't get scale factors!")
+                    field_args.append(f"scale_factor=self.{scale_factors[0].python_name}")
+                    field_type = f"Float{field_type}"
+                    has_scale_factor = True
         elif row.type.startswith("string"):
             field_type = "String"
         else:
             raise ValueError(f"Don't know what to do with type {row.type}")
-        return name, f"    {name}: {field_type}Field = {field_type}Field(\"{name}\", {', '.join(field_args)})\n", afters
+
+        # Add description at the end
+        if row.description:
+            field_args.append(f'description="{row.description}"')
+
+        return (
+            name,
+            f"        self.{name}: {field_type}Field = {field_type}Field({', '.join(field_args)})\n",
+            has_scale_factor,
+        )
 
 
 class BitfieldTable:
@@ -368,7 +336,7 @@ class BitfieldTable:
         for row in off_by_name.values():
             logger.warning(
                 (
-                    f"{row.name} has an on value ({on_by_name[row.name].description}), and an off {row.description}. "
+                    f"{row.name} has an on value ({on_by_name[row.name].description}), and an off ({row.description}). "
                     "Assuming these are opposites, so ignoring the off value so we have a proper bitfield."
                 )
             )
@@ -521,6 +489,9 @@ from mate3.sunspec.fields import (
     Int16Field,
     Uint16Field,
     Uint32Field,
+    FloatInt16Field,
+    FloatUint16Field,
+    FloatUint32Field,
     EnumUint16Field,
     EnumInt16Field,
     Bit16Field,
@@ -540,26 +511,23 @@ from mate3.sunspec.model_base import Model
         code += "\n\n"
 
     code += f"""class SunSpecHeaderModel(Model):
-    did: Uint32Field = Uint32Field("did", 1, 2, Mode.R)
-    model_id: Uint16Field = Uint16Field("model_id", 3, 1, Mode.R)
-    length: Uint16Field = Uint16Field("length", 4, 1, Mode.R)
-    manufacturer: StringField = StringField("manufacturer", 5, 16, Mode.R)
-    model: StringField = StringField("model", 21, 16, Mode.R)
-    options: StringField = StringField("options", 37, 8, Mode.R)
-    version: StringField = StringField("version", 45, 8, Mode.R)
-    serial_number: StringField = StringField("serial_number", 53, 16, Mode.R)
-
-
-SunSpecHeaderModel.__model_fields__ = [SunSpecHeaderModel.did, SunSpecHeaderModel.model_id, SunSpecHeaderModel.length, SunSpecHeaderModel.manufacturer, SunSpecHeaderModel.model, SunSpecHeaderModel.options, SunSpecHeaderModel.version, SunSpecHeaderModel.serial_number]
+    def __init__(self):
+        self.did: Uint32Field = Uint32Field("did", 1, 2, Mode.R)
+        self.model_id: Uint16Field = Uint16Field("model_id", 3, 1, Mode.R)
+        self.length: Uint16Field = Uint16Field("length", 4, 1, Mode.R)
+        self.manufacturer: StringField = StringField("manufacturer", 5, 16, Mode.R)
+        self.model: StringField = StringField("model", 21, 16, Mode.R)
+        self.options: StringField = StringField("options", 37, 8, Mode.R)
+        self.version: StringField = StringField("version", 45, 8, Mode.R)
+        self.serial_number: StringField = StringField("serial_number", 53, 16, Mode.R)
 
 
 class SunSpecEndModel(Model):
-    did: Uint16Field = Uint16Field("did", 1, 1, Mode.R, description="Should be {0xFFFF}")
-    length: Uint16Field = Uint16Field("length", 2, 1, Mode.R, description="Should be 0")
+    def __init__(self):
+        self.did: Uint16Field = Uint16Field("did", 1, 1, Mode.R, description="Should be {0xFFFF}")
+        self.length: Uint16Field = Uint16Field("length", 2, 1, Mode.R, description="Should be 0")
 
 
-SunSpecEndModel.__model_fields__ = [SunSpecEndModel.did, SunSpecEndModel.length]
-\n
 """
     model_tables = read_models(wb)
     model_tables = sorted(model_tables, key=lambda x: x.did)
@@ -578,47 +546,48 @@ SunSpecEndModel.__model_fields__ = [SunSpecEndModel.did, SunSpecEndModel.length]
     with open(str(MODELS_MODULE), "w") as f:
         f.write(code)
 
-    # now values:
-    code = f'''"""{WARNING}"""
 
-from dataclasses import dataclass
+#     # now values:
+#     code = f'''"""{WARNING}"""
 
-from mate3.field_values import FieldValue, ModelValues
-from mate3.sunspec import models
+# from dataclasses import dataclass
 
-
-@dataclass
-class SunSpecHeaderValues(ModelValues):
-    did: FieldValue
-    model_id: FieldValue
-    length: FieldValue
-    manufacturer: FieldValue
-    model: FieldValue
-    options: FieldValue
-    version: FieldValue
-    serial_number: FieldValue
+# from mate3.field_values import FieldValue, ModelValues
+# from mate3.sunspec import models
 
 
-@dataclass
-class SunSpecEndValues(ModelValues):
-    did: FieldValue
-    length: FieldValue
+# @dataclass
+# class SunSpecHeaderValues(ModelValues):
+#     did: FieldValue
+#     model_id: FieldValue
+#     length: FieldValue
+#     manufacturer: FieldValue
+#     model: FieldValue
+#     options: FieldValue
+#     version: FieldValue
+#     serial_number: FieldValue
 
 
-'''
-    for table in model_tables:
-        code += table.generate_values()
-        code += "\n\n"
+# @dataclass
+# class SunSpecEndValues(ModelValues):
+#     did: FieldValue
+#     length: FieldValue
 
-    code += "MODELS_TO_VALUES = {\n"
-    code += "    models.SunSpecHeaderModel: SunSpecHeaderValues,\n"
-    code += "    models.SunSpecEndModel: SunSpecEndValues,\n"
-    for table in model_tables:
-        code += f"    models.{table.python_name}Model: {table.python_name}Values,\n"
-    code += "}\n"
 
-    with open(str(VALUES_MODULE), "w") as f:
-        f.write(code)
+# '''
+#     for table in model_tables:
+#         code += table.generate_values()
+#         code += "\n\n"
+
+#     code += "MODELS_TO_VALUES = {\n"
+#     code += "    models.SunSpecHeaderModel: SunSpecHeaderValues,\n"
+#     code += "    models.SunSpecEndModel: SunSpecEndValues,\n"
+#     for table in model_tables:
+#         code += f"    models.{table.python_name}Model: {table.python_name}Values,\n"
+#     code += "}\n"
+
+#     with open(str(VALUES_MODULE), "w") as f:
+#         f.write(code)
 
 
 if __name__ == "__main__":

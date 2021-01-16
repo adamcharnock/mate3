@@ -1,5 +1,5 @@
 import dataclasses as dc
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, List, Optional
 
 from loguru import logger
 
@@ -184,10 +184,13 @@ class DeviceValues:
         """
         return self._get_single_device("split_phase_radian_inverter")
 
-    def update(self, all_reads: AllModelReads) -> None:
-        """
-        This is the key method, and is used to update the state of the devices with new values.
-        """
+    def update(self, models: List[Model]) -> None:
+
+        for model in models:
+            if isinstance(model, OutBackModel):
+                self.mate3s[None] = model
+
+        return
 
         # Update mate:
         self._update_model_and_config(

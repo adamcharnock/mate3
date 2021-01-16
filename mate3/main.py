@@ -25,16 +25,16 @@ def read(client, args):
             # values:
             print("\t" + " | ".join(["name".ljust(50), "impl", "sf", "unscaled", "value".ljust(20)]))
             print("\t" + " | ".join(["-" * 50, "----", "--", "--------", "-" * 20]))
-            for value in device.fields([Mode.R, Mode.RW]):
-                ss = [f"\t{value.field.name.ljust(50)}"]
-                ss.append("Y".rjust(4) if value.implemented else "N".rjust(4))
-                if value.scale_factor is not None:
-                    ss.append(f"{value.scale_factor.value}".rjust(2))
-                    ss.append(f"{value.raw_value}".rjust(8))
-                else:
-                    ss.append(" -")
-                    ss.append(" " * 7 + "-")
-                ss.append(f"{repr(value.value)}".ljust(20) if value.implemented else "-".ljust(20))
+            for field in device.fields([Mode.R, Mode.RW]):
+                ss = [f"\t{field.name.ljust(50)}"]
+                ss.append("Y".rjust(4) if field.implemented else "N".rjust(4))
+                # if field.scale_factor is not None:
+                #     ss.append(f"{value.scale_factor.value}".rjust(2))
+                #     ss.append(f"{value.raw_value}".rjust(8))
+                # else:
+                ss.append(" -")
+                ss.append(" " * 7 + "-")
+                ss.append(f"{repr(field.value)}".ljust(20) if field.implemented else "-".ljust(20))
                 print(" | ".join(ss))
             print()
 

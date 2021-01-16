@@ -35,11 +35,11 @@ def read(client, args):
 
     elif args.format in ("json", "prettyjson"):
         devices = []
-        for device in client.devices.connected_devices:
+        for device in client.connected_devices:
             name = device.__class__.__name__
             values = {}
             for value in device.fields([Mode.R, Mode.RW]):
-                values[value.field.name] = value.to_dict()
+                values[value.name] = value.to_dict()
             devices.append({"name": name, "address": device.address, "values": values})
         indent = None if args.format == "json" else 4
         print(json.dumps(devices, indent=indent))
@@ -63,7 +63,7 @@ def write(client, args):
 
     for set_arg in args.set:
         path, value = set_arg.split("=")
-        field = get_field(client.devices, attr_idx_pattern.findall(path))
+        field = get_field(client, attr_idx_pattern.findall(path))
         value = eval(value, globals(), locals())  # TODO: get rid of eval!
         field.write(value)
 
@@ -71,7 +71,7 @@ def write(client, args):
 def list_devices(client):
     print("name".ljust(50), "address".ljust(10), "port")
     print("----".ljust(50), "-------".ljust(10), "----")
-    for device in client.devices.connected_devices:
+    for device in client.connected_devices:
         name = device.__class__.__name__.replace("DeviceValues", "").replace("Values", "")
         port = device.port_number.value if hasattr(device, "port_number") else None
         print(name.ljust(50), str(device.address).ljust(10), port)

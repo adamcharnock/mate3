@@ -19,10 +19,12 @@ def _test_read_gives_expected_results(client, system_dir):
         for value in device.fields([Mode.R, Mode.RW]):
             values[value.name] = value.to_dict()
         read_devices.append({"name": name, "address": device.address, "values": values})
+    read_devices = sorted(read_devices, key=lambda x: x["address"])
 
     # Compare them with what we expect:
     with open(system_dir / "expected.json") as f:
         expected_devices = json.load(f)
+    expected_devices = sorted(expected_devices, key=lambda x: x["address"])
 
     assert check_objects(expected_devices, read_devices)
 

@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from enum import Enum, IntFlag
 from functools import wraps
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Type
 
 from loguru import logger
 from pymodbus.constants import Endian
@@ -61,7 +61,7 @@ class Field(metaclass=ABCMeta):
         return self._last_read
 
     def __repr__(self):
-        name = f"Field[{self.name}]"
+        name = f"{self.__class__.__name__}[{self.name}]"
         if self._last_read is None:
             return f"{name} (Unread)"
         ss = [name]
@@ -293,8 +293,11 @@ class FloatField(IntegerField):
         return round(value, -sf if sf < 0 else 0), True
 
     def encode_to_payload(self, value: float, encoder: BinaryPayloadBuilder) -> None:
-        if not isinstance(value, float):
+        # Must be float or int (int can happen when sf >= 0)
+        if not isinstance(value, (int, float)):
             raise TypeError("value must be a Float")
+
+        # TODO: check value doesn't have extra decimal places/significant figures
 
         # Get our scale factor:
         sf = self._check_scale_factor()
@@ -305,7 +308,7 @@ class FloatField(IntegerField):
         # TODO: raise error if too many digits specified
         scaled_value = int(round(scaled_value, 0))
 
-        super().encode_to_payload(value, encoder)
+        super().encode_to_payload(scaled_value, encoder)
 
     def read(self, *args, **kwargs):
         # First, read the scale factor, then do the normal read:
@@ -346,102 +349,6 @@ class StringField(Field):
         encoder.add_string(value)
 
 
-class BitfieldMixin:
-    """
-    This would have been simpler if they were normal on/off flags, however Outback has specified different meaning to
-    "on" and "off", unfortunately.
-    """
-
-    def __init__(self, *args, flags: IntFlag, **kwargs):
-        self.flags = flags
-        super().__init__(*args, **kwargs)
-
-    def _get_flags(self, value, mx, not_implemented):
-        # TODO: as per spec ... "if the most significant bit in a bitfield is set, all other bits shall be ignored"
-        if value == not_implemented:
-            # As per sunspec, this is "not implemented"
-            return False, None
-        elif value < 0 or value > mx:
-            raise ValueError(f"{self.__class__.__name__} should be between 0 and {mx}")
-        return True, self.flags(value)
-
-    def _set_flags(self, flags):
-        if not isinstance(flags, self.flags):
-            raise ValueError("Should be a flag of type {self.flags}")
-        return flags.value
-
-
-class Bit16Field(BitfieldMixin, Uint16Field):
-    """
-    The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
-    before using the flags, etc.
-    """
-
-    def _from_registers(self, registers):
-        implemented, value = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return self._get_flags(value, mx=0x7FFF, not_implemented=0xFFFF)
-
-    def _to_registers(self, flags):
-        value = self._set_flags(flags)
-        return super()._to_registers(value)
-
-
-class Bit32Field(BitfieldMixin, Uint32Field):
-    """
-    The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g. checks the value is implemented
-    before using the flags, etc.
-
-    NB: According to the spec this shouldn't exist. But Outback have created it anyway. We'll assume it's just meant to
-    be a bit16 for now ...
-    """
-
-    def _from_registers(self, registers):
-        implemented, value = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return self._get_flags(value, mx=0x7FFFFFFF, not_implemented=0xFFFFFFFF)
-
-    def _to_registers(self, flags):
-        value = self._set_flags(flags)
-        return super()._to_registers(value)
-
-
-class EnumMixin:
-    def __init__(self, *args, options: Enum, **kwargs):
-        self.options = options
-        super().__init__(*args, **kwargs)
-
-    def _get_option(self, val):
-        if val is None:
-            return None
-        return self.options(val)
-
-    def _set_option(self, val):
-        if not isinstance(val, self.options):
-            raise ValueError(f"Expected {self.options}")
-        return val.value
-
-    def _from_registers(self, registers):
-        implemented, val = super()._from_registers(registers)
-        if not implemented:
-            return False, None
-        return True, self._get_option(val)
-
-    def _to_registers(self, value):
-        value = self._set_option(value)
-        return super()._to_registers(value)
-
-
-class EnumUint16Field(EnumMixin, Uint16Field):
-    pass
-
-
-class EnumInt16Field(EnumMixin, Int16Field):
-    pass
-
-
 class AddressField(Uint32Field):
     def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[str, bool]:
         uint32, _ = super().decode_from_registers(decoder)
@@ -449,9 +356,10 @@ class AddressField(Uint32Field):
             return None, False
         return socket.inet_ntoa(struct.pack("!I", uint32)), True
 
-    def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder):
-        raise NotImplementedError()
-        getattr(encoder, "add_" + self._modbus_decode_type)(value)
+    def encode_to_payload(self, value: str, encoder: BinaryPayloadBuilder):
+        bites = socket.inet_aton(value)
+        num = struct.unpack("!I", bites)[0]
+        super().encode_to_payload(num, encoder)
 
 
 class DescribedIntFlag(IntFlag):
@@ -487,3 +395,75 @@ class DescribedIntFlag(IntFlag):
             if flag.value & self.value == flag.value:
                 flags.append(flag)
         return flags
+
+
+class BitfieldMixin(metaclass=ABCMeta):
+    """
+    This would have been simpler if they were normal on/off flags, however Outback has specified different meaning to
+    "on" and "off", unfortunately. The actual IntFlags are in the flags attr, and this is a basic wrapper that e.g.
+    checks the value is implemented before using the flags, etc.
+    """
+
+    def __init__(self, *args, flags: DescribedIntFlag, **kwargs):
+        self.flags = flags
+        super().__init__(*args, **kwargs)
+
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[int, bool]:
+        value, implemented = super().decode_from_registers(decoder)
+        if not implemented:
+            return None, False
+        # TODO: as per spec ... "if the most significant bit in a bitfield is set, all other bits shall be ignored"
+        return self.flags(value), True
+
+    def encode_to_payload(self, value: DescribedIntFlag, encoder: BinaryPayloadBuilder) -> None:
+        if not isinstance(value, self.flags):
+            raise TypeError(f"value must be of type {self.flags}")
+        return super().encode_to_payload(value.value, encoder)
+
+
+class Bit16Field(BitfieldMixin, Uint16Field):
+    pass
+
+
+class Bit32Field(BitfieldMixin, Uint32Field):
+    """
+    NB: According to the spec this shouldn't exist. But Outback have created it anyway. We'll assume it's just meant to
+    be a bit16 for now ...
+    """
+
+    pass
+
+
+class EnumMixin:
+    def __init__(self, *args, enum: Enum, **kwargs):
+        self.enum = enum
+        super().__init__(*args, **kwargs)
+
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[int, bool]:
+        value, implemented = super().decode_from_registers(decoder)
+        if not implemented:
+            return None, False
+        try:
+            value = self.enum(value)
+        except ValueError:
+            logger.warning(
+                (
+                    f"{value} is not a valid value for enum {self.enum} with options {list(self.enum)} so setting as "
+                    "not implemented"
+                )
+            )
+            return None, False
+        return value, True
+
+    def encode_to_payload(self, value: Enum, encoder: BinaryPayloadBuilder) -> None:
+        if not isinstance(value, self.enum):
+            raise TypeError(f"value should be an instance of {self.enum}")
+        return super().encode_to_payload(value.value, encoder)
+
+
+class EnumUint16Field(EnumMixin, Uint16Field):
+    pass
+
+
+class EnumInt16Field(EnumMixin, Int16Field):
+    pass

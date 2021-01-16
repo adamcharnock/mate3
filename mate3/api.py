@@ -408,39 +408,40 @@ class Mate3Client:
 
         return models_per_port
 
-    # def read_all_modbus_values_unparsed(self):
-    #     """
-    #     This method just reads all of the values from the modbus devices, with no care about parsing them. All it
-    #     assumes is the standard structure of two registers (DID + length), except for the header.
-    #     """
-    #     register = self.sunspec_register
-    #     max_models = 30
-    #     first = True
-    #     reads = {}
-    #     for _ in range(max_models):
-    #         # Data starts generally at 3rd register, except for start (SunSpecHeaderModel) where it starts at 5th
-    #         data_offset = 4 if first else 2
-    #         registers = self._client.read_holding_registers(address=register, count=data_offset)
-    #         # The length is the last register (i.e. the one before data)
-    #         _, length = Uint16Field._from_registers(None, registers[-1:])
+    def read_all_modbus_values_unparsed(self):
+        """
+        This method just reads all of the values from the modbus devices, with no care about parsing them. All it
+        assumes is the standard structure of two registers (DID + length), except for the header.
+        """
+        register = self.sunspec_register
+        max_models = 30
+        first = True
+        reads = {}
+        for _ in range(max_models):
+            # Data starts generally at 3rd register, except for start (SunSpecHeaderModel) where it starts at 5th
+            data_offset = 4 if first else 2
+            registers = self._client.read_holding_registers(address=register, count=data_offset)
+            # The length is the last register (i.e. the one before data)
+            decoder = BinaryPayloadDecoder.fromRegisters(registers[-1:], byteorder=Endian.Big, wordorder=Endian.Big)
+            length = decoder.decode_16bit_uint()
 
-    #         # We're done when length == 0 i.e. SunSpecEndModel
-    #         if length == 0:
-    #             break
+            # We're done when length == 0 i.e. SunSpecEndModel
+            if length == 0:
+                break
 
-    #         # Now read everything (in maximum bunches of 100)
-    #         batch = 100
-    #         for start_offset in range(0, length, batch):
-    #             count = min(batch, length - start_offset)
-    #             registers = self._client.read_holding_registers(
-    #                 address=register + data_offset + start_offset, count=count
-    #             )
-    #             addresses = [register + i for i in range(count)]
-    #             for addr, bites in zip(addresses, registers):
-    #                 reads[addr] = bites
+            # Now read everything (in maximum bunches of 100)
+            batch = 100
+            for start_offset in range(0, length, batch):
+                count = min(batch, length - start_offset)
+                registers = self._client.read_holding_registers(
+                    address=register + data_offset + start_offset, count=count
+                )
+                addresses = [register + i for i in range(count)]
+                for addr, bites in zip(addresses, registers):
+                    reads[addr] = bites
 
-    #         # See comment in self.read re the increment of 2 or 4
-    #         register += length + (4 if first else 2)
-    #         first = False
+            # See comment in self.read re the increment of 2 or 4
+            register += length + (4 if first else 2)
+            first = False
 
-    #     return reads
+        return reads

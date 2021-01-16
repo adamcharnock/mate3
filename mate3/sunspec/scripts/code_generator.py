@@ -222,7 +222,7 @@ class ModelTable:
             unique_options[v] = k
 
         enum = f'Enum("{row.python_name}", {str(list(sorted(unique_options.items())))})'
-        yield f"options={enum}"
+        yield f"enum={enum}"
 
     def _generate_field(self, row, class_name, bitfields):
         """Generate a single Field definition for a table Model class"""

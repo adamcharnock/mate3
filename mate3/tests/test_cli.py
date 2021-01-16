@@ -20,6 +20,6 @@ def test_devices(script_runner):
 
 def test_write(script_runner):
     ret = script_runner.run(
-        "mate3", "write", f"--cache-path={CACHE_PATH}", "--cache-only", '--set=mate3.system_name="testing"'
+        "mate3", "write", f"--cache-path={CACHE_PATH}", "--cache-only", '--set=mate3.system_name=b"testing"'
     )
     assert ret.success

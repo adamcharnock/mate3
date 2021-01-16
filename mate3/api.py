@@ -1,16 +1,33 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 from loguru import logger
 from pymodbus.constants import Defaults, Endian
 from pymodbus.payload import BinaryPayloadDecoder
 
-from mate3.devices import DeviceValues
+from mate3.devices import (
+    DEVICE_IDS,
+    ChargeControllerDevice,
+    FNDCDevice,
+    FXInverterDevice,
+    Mate3Device,
+    OPTICSDevice,
+    SinglePhaseRadianInverterDevice,
+    SplitPhaseRadianInverterDevice,
+)
 from mate3.modbus_client import CachingModbusClient, ModbusTcpClient, NonCachingModbusClient
-from mate3.read import AllModelReads, ModelRead
-from mate3.sunspec.fields import Field, FieldRead, Mode, Uint16Field, Uint32Field
-from mate3.sunspec.models import MODEL_DEVICE_IDS, SunSpecEndModel, SunSpecHeaderModel
+from mate3.sunspec.fields import Field, FieldRead, Mode
+from mate3.sunspec.model_base import Model
+from mate3.sunspec.models import (
+    ChargeControllerConfigurationModel,
+    FLEXnetDCConfigurationModel,
+    FXInverterConfigurationModel,
+    OutBackSystemControlModel,
+    RadianInverterConfigurationModel,
+    SunSpecEndModel,
+    SunSpecHeaderModel,
+)
 
 
 @dataclass(frozen=False)
@@ -54,7 +71,15 @@ class Mate3Client:
         self._cache_only: bool = cache_only
         self._cache_writeable: bool = cache_writeable
         self._client: ModbusTcpClient = None
-        self._devices: DeviceValues = None
+
+        # Set up devices
+        self.mate3s: Dict[None, Mate3Device] = {}
+        self.charge_controllers: Dict[int, ChargeControllerDevice] = {}
+        self.fndcs: Dict[int, FNDCDevice] = {}
+        self.fx_inverters: Dict[int, FXInverterDevice] = {}
+        self.single_phase_radian_inverters: Dict[int, SinglePhaseRadianInverterDevice] = {}
+        self.split_phase_radian_inverters: Dict[int, SplitPhaseRadianInverterDevice] = {}
+        self.opticses: Dict[int, OPTICSDevice] = {}
 
     def connect(self):
         """
@@ -71,9 +96,8 @@ class Mate3Client:
         else:
             self._client = NonCachingModbusClient(self.host, self.port)
 
-        # Now read everything. Why? Because most use of the API assumes fields have already been read (e.g. to get
-        # the devices, or the addresses of fields, etc.)
-        self.read_all()
+        # Now read everything and initialise with the devices. NB - yes, this should only happen once on connection.
+        self._read_all_devices_and_initialise()
 
     def close(self):
         """
@@ -88,11 +112,91 @@ class Mate3Client:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def _get_single_device(self, name: str) -> Model:
+        """
+        Helper function so that e.g. if there's only one charge controller in self.charge_controllers, you can call
+        self.charge_controller to get it.
+        """
+        devices = getattr(self, f"{name}es" if name.endswith("s") else f"{name}s")
+        if len(devices) != 1:
+            raise RuntimeError(
+                (
+                    f"Must be one, and only one, {name} device to be able to use `{name}` attribute - but there are "
+                    f"{len(devices)}"
+                )
+            )
+        return list(devices.values())[0]
+
     @property
-    def devices(self) -> DeviceValues:
-        if self._devices is None:
-            raise RuntimeError("Can't access devices until after first read")
-        return self._devices
+    def connected_devices(self) -> Iterable[Model]:
+        # First ones which should only have a single device:
+        yield self.mate3
+
+        # And those without a config, but per port:
+        if self.opticses:
+            yield from self.opticses.values()
+
+        # Now those with device and config. (NB: we're explicit here as opposed to relying on hasattr(device, 'config')
+        # just in case a model actually had a 'config' field.)
+        for d in (
+            "charge_controllers",
+            "fndcs",
+            "fx_inverters",
+            "single_phase_radian_inverters",
+            "split_phase_radian_inverters",
+        ):
+            for device in getattr(self, d).values():
+                yield device
+                yield device.config
+
+    @property
+    def mate3(self) -> Mate3Device:
+        """
+        Return the mate3.
+        """
+        return self._get_single_device("mate3")
+
+    @property
+    def charge_controller(self) -> ChargeControllerDevice:
+        """
+        Return the charge controller if there's only one.
+        """
+        return self._get_single_device("charge_controller")
+
+    @property
+    def fndc(self) -> FNDCDevice:
+        """
+        Return the FNDC if there's only one.
+        """
+        return self._get_single_device("fndc")
+
+    @property
+    def fx_inverter(self) -> FXInverterDevice:
+        """
+        Return the FX inverter if there's only one.
+        """
+        return self._get_single_device("fx_inverter")
+
+    @property
+    def single_phase_radian_inverter(self) -> SinglePhaseRadianInverterDevice:
+        """
+        Return the single phase radian inverter if there's only one.
+        """
+        return self._get_single_device("single_phase_radian_inverter")
+
+    @property
+    def split_phase_radian_inverter(self) -> SplitPhaseRadianInverterDevice:
+        """
+        Return the split phase radian inverter if there's only one.
+        """
+        return self._get_single_device("split_phase_radian_inverter")
+
+    @property
+    def optics(self) -> OPTICSDevice:
+        """
+        Return the OPTICS if there's only one.
+        """
+        return self._get_single_device("optics")
 
     def _read_contiguous_fields(self, address: int, fields: Iterable[Field]):
 
@@ -102,7 +206,6 @@ class Mate3Client:
         read_time = datetime.now()
 
         # Now use the decoder to decode the fields:
-        decoder = BinaryPayloadDecoder.fromRegisters(registers=registers, byteorder=Endian.Big, wordorder=Endian.Big)
         registers_pointer = 0
         for field in fields:
             end_register_pointer = registers_pointer + field.size
@@ -130,12 +233,12 @@ class Mate3Client:
         else:
             device_id = decoder.decode_16bit_uint()
 
-        if device_id not in MODEL_DEVICE_IDS:
+        if device_id not in DEVICE_IDS:
             logger.warning(f"Unknown model type with device ID {device_id}")
             return None
 
         # Instantiate the model:
-        model = MODEL_DEVICE_IDS[device_id]()
+        model = DEVICE_IDS[device_id]()
 
         # TODO: Make sure we don't read past the end of length (as reported by device). This shouldn't happen except in
         # e.g. a case where the (old) device model firmware returns only 10 fields, and then 'new' one (whatever we're
@@ -163,22 +266,20 @@ class Mate3Client:
                 block_fields.append(field)
                 block_size += field.size
 
-        # Get registers in large ranges, as this drastically improves performance and isn't so demanding of the mate3
+        # Now read:
         for block_fields in blocks:
             start_address = device_address + block_fields[0].start - 1  # -1 as starts are 1-indexed in fields
             count = sum(f.size for f in fields)
             logger.debug(f"Reading block of {len(block_fields)} fields from {start_address} (count={count})")
             self._read_contiguous_fields(address=start_address, fields=block_fields)
 
-        # TODO: scale factors
-
         return model
 
-    def read_all(self):
+    def _read_all_devices_and_initialise(self):
         """
-        Read all values from all devices. If you want to read only specified fields use e.g.
-            client.devices.mate3.system_name.read()
-        This method, however, is optimised for reading everything.
+        On set up, read all devices so we know about them. In general, you should only do this once, and afterward read/
+        write on each individual field. If, for some reason, you want to re-read everything (e.g. you just plugged in a
+        new device), then you should just re-create a new Mate3Client.
         """
         register = self.sunspec_register
         max_models = 30
@@ -206,12 +307,102 @@ class Mate3Client:
             # registers) and there's a model ID field (1 register) and length (1 register)
             register += model.length.value + (4 if isinstance(model, SunSpecHeaderModel) else 2)
 
-        # create devices if needed:
-        if self._devices is None:
-            self._devices = DeviceValues(client=self)
+        # OK, now assign everything:
+        self._update_device(models, self.mate3s, Mate3Device, OutBackSystemControlModel)
+        self._update_device(models, self.charge_controllers, ChargeControllerDevice, ChargeControllerConfigurationModel)
+        self._update_device(models, self.fndcs, FNDCDevice, FLEXnetDCConfigurationModel)
+        self._update_device(models, self.fx_inverters, FXInverterDevice, FXInverterConfigurationModel)
+        self._update_device(
+            models,
+            self.single_phase_radian_inverters,
+            SinglePhaseRadianInverterDevice,
+            RadianInverterConfigurationModel,
+        )
+        self._update_device(
+            models, self.split_phase_radian_inverters, SplitPhaseRadianInverterDevice, RadianInverterConfigurationModel
+        )
+        self._update_device(models, self.opticses, OPTICSDevice, None)
 
-        # update:
-        self._devices.update(models)
+    def _update_device(
+        self,
+        models: List[Model],
+        devices_per_port_attr: Dict[int, Model],
+        model_class: Model,
+        config_class: Optional[Model],
+    ) -> None:
+
+        # Since we're starting from scratch, ensure there are no current devices:
+        if devices_per_port_attr:
+            raise RuntimeError(f"devices_by_port should be empty!")
+
+        devices_per_port = self._get_models_per_port(models, model_class)
+
+        # If config_class is None, then the class has no config, so easy:
+        if config_class is None:
+            for port, device in devices_per_port.items():
+                devices_per_port_attr[port] = device
+            return
+
+        configs_per_port = self._get_models_per_port(models, config_class)
+
+        # OK, there's a few options around whether the above variables contain anything.
+        # - Both present, then we're good - continue. All devices should have a configuration class.
+        # - Device isn't present - this means the device itself wasn't detected, so ignore. Note that usually this would
+        #   imply the config class is null (since the config shouldn't be there if the device isn't) except in the case
+        #   of Radian inverters, as the same config class is shared across both single and split phase devices (so that
+        #   if only one type is present, the other will have empty model values and non-empty config).
+        # - Both are missing - this is covered by the above.
+        # So, the short summary is we only care about devices where the devices are present, and in all other cases
+        # there *should* be config field values too.
+        if not devices_per_port:
+            return
+        else:
+            if not configs_per_port:
+                logger.warning(
+                    (
+                        f"Only model ({model_class}) field values and no config ({config_class}) fields were read. This"
+                        f" is undefined behaviour, so ignoring {model_class}."
+                    )
+                )
+                return
+
+        # Check model and config have the same ports:
+        if set(devices_per_port).symmetric_difference(set(configs_per_port)):
+            raise RuntimeError("Config and models have different ports!")
+
+        # Assign any devices for the given ports:
+        for port in devices_per_port:
+
+            # Fail if it already exists ... since we're starting from scratch there shouldn't be anything in there.
+            if port in devices_per_port_attr:
+                raise RuntimeError(f"Device already at port {port}!")
+
+            device = devices_per_port_attr[port] = devices_per_port[port]
+            device.config = configs_per_port[port]
+
+    def _get_models_per_port(self, models: List[Model], model_class: Model):
+        """
+        Generally there are multiple devices for a given model (e.g. multiple FX inverters), and the way we delineate
+        them is by the port (which they are plugged into the Hub with). So it's pretty common to want to get, for each
+        model, the models in a dict <port>: <model_read>.
+        """
+
+        # Filter to only the model we care about:
+        models_per_port = {}
+        ports = []
+        for model in models:
+            if isinstance(model, model_class):
+                port = None
+                if hasattr(model, "port_number"):
+                    port = model.port_number.value
+                models_per_port[port] = model
+                ports.append(port)
+
+        # Check we don't have multiple devices with the same port:
+        if len(ports) > len(set(ports)):
+            raise RuntimeError(f"Multiple {model_class} models have the same port!")
+
+        return models_per_port
 
     # def read_all_modbus_values_unparsed(self):
     #     """

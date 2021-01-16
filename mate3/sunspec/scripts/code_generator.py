@@ -168,17 +168,6 @@ class ModelTable:
             code += defn
         return code
 
-    # def generate_values(self):
-    #     class_name = self.python_name
-    #     code = f"@dataclass\nclass {class_name}Values(ModelValues):\n"
-    #     # code += f"    __definition__ = models.{class_name}Model\n"
-    #     for row in self.rows:
-    #         name = row.python_name
-    #         if name in ("sun_spec_did", "sun_spec_length"):
-    #             name = name.replace("sun_spec_", "")
-    #         code += f"    {name}: FieldValue\n"
-    #     return code
-
     def _generate_enumerated_field(self, row):
         # ok, generate always seems to following the form 1=..., 2=..., etc. or ...=1, ...=2, So let's look for that
         starts_number = list(re.finditer(r"(\-?[0-9]+)\s?=\s?(.*?)(?=\-?[0-9]+\s?=|$)", row.description))
@@ -545,49 +534,6 @@ class SunSpecEndModel(Model):
 
     with open(str(MODELS_MODULE), "w") as f:
         f.write(code)
-
-
-#     # now values:
-#     code = f'''"""{WARNING}"""
-
-# from dataclasses import dataclass
-
-# from mate3.field_values import FieldValue, ModelValues
-# from mate3.sunspec import models
-
-
-# @dataclass
-# class SunSpecHeaderValues(ModelValues):
-#     did: FieldValue
-#     model_id: FieldValue
-#     length: FieldValue
-#     manufacturer: FieldValue
-#     model: FieldValue
-#     options: FieldValue
-#     version: FieldValue
-#     serial_number: FieldValue
-
-
-# @dataclass
-# class SunSpecEndValues(ModelValues):
-#     did: FieldValue
-#     length: FieldValue
-
-
-# '''
-#     for table in model_tables:
-#         code += table.generate_values()
-#         code += "\n\n"
-
-#     code += "MODELS_TO_VALUES = {\n"
-#     code += "    models.SunSpecHeaderModel: SunSpecHeaderValues,\n"
-#     code += "    models.SunSpecEndModel: SunSpecEndValues,\n"
-#     for table in model_tables:
-#         code += f"    models.{table.python_name}Model: {table.python_name}Values,\n"
-#     code += "}\n"
-
-#     with open(str(VALUES_MODULE), "w") as f:
-#         f.write(code)
 
 
 if __name__ == "__main__":

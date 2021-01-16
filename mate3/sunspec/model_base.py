@@ -15,5 +15,7 @@ class Model:
         models.
         """
         for field in vars(self).values():
-            if modes is None or field.mode in modes:
-                yield field
+            # Only iterate Fields - that way, when other things get put on (such as .config) we're OK:
+            if isinstance(field, Field):
+                if modes is None or field.mode in modes:
+                    yield field

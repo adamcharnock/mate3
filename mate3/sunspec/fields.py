@@ -6,8 +6,8 @@ from datetime import datetime
 from enum import Enum, IntFlag
 from functools import wraps
 from typing import Any, Optional, Tuple
-from uuid import uuid4
 
+from loguru import logger
 from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
 
@@ -23,7 +23,6 @@ class FieldRead:
     address: int
     time: datetime
     registers: Tuple[int]
-    guid: int = dc.field(default_factory=lambda: uuid4().int)
 
 
 def has_been_read(f):
@@ -46,8 +45,9 @@ class Field(metaclass=ABCMeta):
 
         # Internal state (all None until read)
         self._last_read: Optional[FieldRead] = None
-        self._value = None
-        self._implemented = None
+        self._can_reuse_cached: bool = False
+        self._cached_value = None
+        self._cached_implemented = None
 
     @property
     def end(self):
@@ -57,40 +57,133 @@ class Field(metaclass=ABCMeta):
     def last_read(self):
         return self._last_read
 
-    @last_read.setter
-    def last_read(self, read: FieldRead):
-        self._last_read = read
+    def __repr__(self):
+        name = f"Field[{self.field.name}]"
+        if self._last_read is None:
+            return f"{name} (Unread)"
+        ss = [name]
+        ss.append(f"{self.field.mode}")
+        ss.append("Implemented" if self.implemented else "Not implemented")
+        ss.append(f"Value: {self.value}")
+        return " | ".join(ss)
 
     @property
     @has_been_read
-    def value(self):
+    def address(self) -> int:
+        return self._last_read.address
+
+    @property
+    def registers(self) -> Tuple[int]:
+        return self._last_read.registers
+
+    @last_read.setter
+    def last_read(self, read: FieldRead):
+        self._last_read = read
+        self._can_reuse_cached = False
+        self._cached_value = None
+        self._cached_implemented = None
+
+    def _decode(self):
         """
         OK, we get a bit clever here in that we only decode fields lazily. This is for two reasons - firstly, it can
         save decoding everything on the first run (when you're getting devices etc.) and secondly it resolves some
         inter-field dependency (e.g. to read a scaled field we first need to read the scale factor ... and you say we
-        could do that, but reading sequential fields can be nicer for the mate3)
+        could do that, but reading sequential fields can be nicer for the mate3, and scale factors often aren't
+        sequential with their field.). Put another way, it allows us to decouple reading fields (i.e. hitting modbus)
+        from the decoding into pretty python types etc. So, if the _last_read is something we've seen before, just reuse
+        cached decoding from last time. Otherwise, decode and then cache. This way we only decode when needed, but are
+        also speedy about it if it's done multiple time.
         """
         if self.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from this field!")
-        if not self.implemented:
-            return None
+        if self._can_reuse_cached:
+            return
+
+        # OK, not cached - let's read and decode:
         decoder = BinaryPayloadDecoder.fromRegisters(
             registers=self._last_read.registers, byteorder=Endian.Big, wordorder=Endian.Big
         )
+        self._cached_value, self._cached_implemented = self.decode_from_registers(decoder)
 
-        return self.decode_from_registers(decoder)
-
-    @abstractmethod
-    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Any:
-        pass
-
-    @abstractmethod
-    def encode_to_payload(self, value: Any, encoder: BinaryPayloadBuilder):
-        pass
+    @property
+    @has_been_read
+    def value(self):
+        self._decode()
+        return self._cached_value
 
     @property
     def implemented(self) -> bool:
-        return self._implemented
+        self._decode()
+        return self._cached_implemented
+
+    @abstractmethod
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[Any, bool]:
+        """
+        Returns: pretty python value, and whether ir implemented
+        """
+        pass
+
+    @abstractmethod
+    def encode_to_payload(self, value: Any, encoder: BinaryPayloadBuilder) -> None:
+        pass
+
+    def to_dict(self):
+        return {
+            "implemented": self.implemented,
+            "address": self.address,
+            "registers": self.registers,
+            "value": self.value
+            if self.value is None or isinstance(self.value, (str, int, float))
+            else repr(self.value),
+        }
+
+    def write(self, value):
+        """
+        Warning:
+
+            Ensure you have read the LICENSE file before using this feature. Note the
+            section which begins:
+
+                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+                EXPRESS OR IMPLIED
+
+            Specifically, it is quite possible that you can cause damage to your equipment
+            through use of this feature. Be careful!
+        """
+        logger.debug(f"Attempting to write {value} to {self.name}")
+
+        if self.field.mode not in (Mode.W, Mode.RW):
+            raise RuntimeError("Can't write to this field!")
+
+        if not self.implemented:
+            raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
+
+        # OK, now convert to registers:
+        encoder = BinaryPayloadBuilder(registers=self._last_read.registers, byteorder=Endian.Big, wordorder=Endian.Big)
+        self.encode_to_payload(value, encoder)
+        registers = encoder.build()
+        logger.debug(f"Writing {self.value} to {self.name} as registers {registers} at address {self.address}")
+
+        # Do the write
+        self._client._client.write_registers(self.address, registers)
+
+        # Now read it and check the value is what we intended:
+        self.read()
+        if value != self.value:
+            raise RuntimeError(
+                f"Write 'succeeded' but after re-reading to check, the current value is {self.value} and not {value}"
+            )
+
+    def read(self):
+        if self.field.mode not in (Mode.R, Mode.RW):
+            raise RuntimeError("Can't read from this field!")
+
+        # OK, read the appropriate registers:
+        logger.debug(f"Reading {self.name} from address {self.address}")
+        read_time = datetime.now()
+        registers = self._client._client.read_holding_registers(address=self.address, count=self.field.size)
+        logger.debug(f"Read {registers} for {self.name} from {self.address}")
+        self.last_read = FieldRead(address=self.address, time=read_time, registers=registers)
 
 
 class IntegerField(Field):
@@ -118,17 +211,15 @@ class IntegerField(Field):
         """
         pass
 
-    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> int:
-        return getattr(decoder, "decode_" + self._modbus_decode_type)()
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[int, bool]:
+        value = getattr(decoder, "decode_" + self._modbus_decode_type)()
+        implemented = value != self._not_implemented_value
+        return value if implemented else None, implemented
 
-    def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder):
+    def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder) -> None:
         if not isinstance(value, int):
             raise TypeError("value needs to be an int!")
-        return getattr(encoder, "add_" + self._modbus_decode_type)(value)
-
-    @property
-    def implemented(self) -> bool:
-        return self.value != self._not_implemented_value
+        getattr(encoder, "add_" + self._modbus_decode_type)(value)
 
 
 class Uint16Field(IntegerField):
@@ -158,11 +249,9 @@ class FloatField(IntegerField):
     def __init__(
         self,
         *args,
-        scale_factor: int,
+        scale_factor: IntegerField,
         **kwargs,
     ):
-        if not isinstance(scale_factor, int):
-            raise TypeError("scale_factor should be an int!")
         self._scale_factor = scale_factor
         super().__init__(*args, **kwargs)
 
@@ -171,10 +260,10 @@ class FloatField(IntegerField):
         return self._scale_factor
 
     def _check_scale_factor(self):
+        if not isinstance(self._scale_factor, IntegerField):
+            raise RuntimeError(f"Scale factor {self._scale_factor} should be an IntegerField.")
         if not self._scale_factor.implemented:
             raise RuntimeError(f"Scale factor {self._scale_factor} should be implemented.")
-        if self._scale_factor.scale_factor is not None:
-            raise RuntimeError(f"Scale factor {self._scale_factor} shouldn't have it's own scale factor!")
         if self._scale_factor.value is None:
             raise RuntimeError(f"Scale factor {self._scale_factor} should not be None.")
         sf = self.scale_factor.value
@@ -184,16 +273,18 @@ class FloatField(IntegerField):
             raise RuntimeError(f"Scale factor {self._scale_factor} should be between -10 and 10.")
         return sf
 
-    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> float:
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[float, bool]:
 
         # First get our scale factor:
         sf = self._check_scale_factor()
 
-        # Sweet. Now get the integer value and scale it:
-        value = super().decode_from_registers(decoder)
+        # Sweet. Now get the integer value the integer way:
+        value, implemented = super().decode_from_registers(decoder)
+        if not implemented:
+            return None, implemented
+        # OK, scale it and round it to what it should be after scaling:
         value *= 10 ** sf
-        # Round it to what it should be after scaling:
-        return round(value, -sf if sf < 0 else 0)
+        return round(value, -sf if sf < 0 else 0), True
 
     def encode_to_payload(self, value: float, encoder: BinaryPayloadBuilder) -> None:
         if not isinstance(value, float):
@@ -208,7 +299,12 @@ class FloatField(IntegerField):
         # TODO: raise error if too many digits specified
         scaled_value = int(round(scaled_value, 0))
 
-        return super().encode_to_payload(value, encoder)
+        super().encode_to_payload(value, encoder)
+
+    def read(self, *args, **kwargs):
+        # First, read the scale factor, then do the normal read:
+        self.scale_factor.read()
+        return super().read(*args, **kwargs)
 
 
 class FloatInt16Field(FloatField, Int16Field):
@@ -228,16 +324,12 @@ class FloatUint32Field(FloatField, Uint32Field):
 
 
 class StringField(Field):
-    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> str:
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[str, bool]:
         bites = decoder.decode_string(size=self.size * 2)  # Size * 2 as size is in 16 bit units, i.e. 2 bytes.
-        return bites.rstrip(b"\x00")
+        implemented = bites != b"\x00" * self.size * 2
+        return bites.rstrip(b"\x00") if implemented else None, implemented
 
-    @property
-    @has_been_read
-    def implemented(self) -> bool:
-        return self.last_read.value != "\x00" * self.size * 2
-
-    def encode_to_payload(self, value: str, encoder: BinaryPayloadBuilder):
+    def encode_to_payload(self, value: str, encoder: BinaryPayloadBuilder) -> None:
         if not isinstance(value, str):
             raise ValueError("Expected str!")
         if len(value) > self.size * 2:
@@ -247,7 +339,7 @@ class StringField(Field):
         # Encode to ascii:
         value = value.encode("ascii")
         # Finally, do it:
-        return encoder.add_string(value)
+        encoder.add_string(value)
 
 
 class BitfieldMixin:
@@ -347,18 +439,15 @@ class EnumInt16Field(EnumMixin, Int16Field):
 
 
 class AddressField(Uint32Field):
-    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> str:
-        uint32 = super().decode_from_registers(decoder)
-        return socket.inet_ntoa(struct.pack("!I", uint32))
+    def decode_from_registers(self, decoder: BinaryPayloadDecoder) -> Tuple[str, bool]:
+        uint32, _ = super().decode_from_registers(decoder)
+        if uint32 == 0:
+            return None, False
+        return socket.inet_ntoa(struct.pack("!I", uint32)), True
 
-    @property
-    @has_been_read
-    def implemented(self) -> bool:
-        # Not implemented if raw value is 0, which equates to 0.0.0.0 when inet_ntoa'd
-        return self._last_read.value != "0.0.0.0"
-
-    # def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder):
-    #     return getattr(encoder, "add_" + self._modbus_decode_type)(value)
+    def encode_to_payload(self, value: int, encoder: BinaryPayloadBuilder):
+        raise NotImplementedError()
+        getattr(encoder, "add_" + self._modbus_decode_type)(value)
 
 
 class DescribedIntFlag(IntFlag):

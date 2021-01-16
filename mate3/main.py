@@ -16,24 +16,19 @@ from mate3.sunspec.fields import Mode
 
 def read(client, args):
     if args.format == "text":
-        for device in client.devices.connected_devices:
+        for device in client.connected_devices:
             # name:
             name = device.__class__.__name__
             if hasattr(device, "port"):
                 name = f"{name} on port {device.port_number.value}"
             print(name)
+            print()
             # values:
-            print("\t" + " | ".join(["name".ljust(50), "impl", "sf", "unscaled", "value".ljust(20)]))
-            print("\t" + " | ".join(["-" * 50, "----", "--", "--------", "-" * 20]))
+            print("\t" + " | ".join(["name".ljust(50), "implemented", "value".ljust(20)]))
+            print("\t" + " | ".join(["-" * 50, "-" * 11, "-" * 20]))
             for field in device.fields([Mode.R, Mode.RW]):
                 ss = [f"\t{field.name.ljust(50)}"]
-                ss.append("Y".rjust(4) if field.implemented else "N".rjust(4))
-                # if field.scale_factor is not None:
-                #     ss.append(f"{value.scale_factor.value}".rjust(2))
-                #     ss.append(f"{value.raw_value}".rjust(8))
-                # else:
-                ss.append(" -")
-                ss.append(" " * 7 + "-")
+                ss.append("Y".ljust(11) if field.implemented else "N".ljust(11))
                 ss.append(f"{repr(field.value)}".ljust(20) if field.implemented else "-".ljust(20))
                 print(" | ".join(ss))
             print()

@@ -240,6 +240,10 @@ class Mate3Client:
         # Instantiate the model:
         model = DEVICE_IDS[device_id]()
 
+        # Assign client to all fields:
+        for field in model.fields():
+            field._client = self
+
         # TODO: Make sure we don't read past the end of length (as reported by device). This shouldn't happen except in
         # e.g. a case where the (old) device model firmware returns only 10 fields, and then 'new' one (whatever we're
         # using in our spec) specifies 11, then we'd accidentally try to read one more.

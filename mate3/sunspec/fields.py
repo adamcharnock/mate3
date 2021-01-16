@@ -49,6 +49,9 @@ class Field(metaclass=ABCMeta):
         self._cached_value = None
         self._cached_implemented = None
 
+        # And client gets set later as a convenience so we can do self.read() without specifying a client context.
+        self._client = None
+
     @property
     def end(self):
         return self.start + self.size
@@ -58,11 +61,11 @@ class Field(metaclass=ABCMeta):
         return self._last_read
 
     def __repr__(self):
-        name = f"Field[{self.field.name}]"
+        name = f"Field[{self.name}]"
         if self._last_read is None:
             return f"{name} (Unread)"
         ss = [name]
-        ss.append(f"{self.field.mode}")
+        ss.append(f"{self.mode}")
         ss.append("Implemented" if self.implemented else "Not implemented")
         ss.append(f"Value: {self.value}")
         return " | ".join(ss)
@@ -104,6 +107,9 @@ class Field(metaclass=ABCMeta):
             registers=self._last_read.registers, byteorder=Endian.Big, wordorder=Endian.Big
         )
         self._cached_value, self._cached_implemented = self.decode_from_registers(decoder)
+
+        # Mark as usable in cache:
+        self._can_reuse_cached = True
 
     @property
     @has_been_read
@@ -152,16 +158,16 @@ class Field(metaclass=ABCMeta):
         """
         logger.debug(f"Attempting to write {value} to {self.name}")
 
-        if self.field.mode not in (Mode.W, Mode.RW):
+        if self.mode not in (Mode.W, Mode.RW):
             raise RuntimeError("Can't write to this field!")
 
         if not self.implemented:
             raise RuntimeError("This field is marked as not implemented, so you shouldn't write to it!")
 
         # OK, now convert to registers:
-        encoder = BinaryPayloadBuilder(registers=self._last_read.registers, byteorder=Endian.Big, wordorder=Endian.Big)
+        encoder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Big)
         self.encode_to_payload(value, encoder)
-        registers = encoder.build()
+        registers = encoder.to_registers()
         logger.debug(f"Writing {self.value} to {self.name} as registers {registers} at address {self.address}")
 
         # Do the write
@@ -175,13 +181,13 @@ class Field(metaclass=ABCMeta):
             )
 
     def read(self):
-        if self.field.mode not in (Mode.R, Mode.RW):
+        if self.mode not in (Mode.R, Mode.RW):
             raise RuntimeError("Can't read from this field!")
 
         # OK, read the appropriate registers:
         logger.debug(f"Reading {self.name} from address {self.address}")
         read_time = datetime.now()
-        registers = self._client._client.read_holding_registers(address=self.address, count=self.field.size)
+        registers = self._client._client.read_holding_registers(address=self.address, count=self.size)
         logger.debug(f"Read {registers} for {self.name} from {self.address}")
         self.last_read = FieldRead(address=self.address, time=read_time, registers=registers)
 
@@ -329,15 +335,13 @@ class StringField(Field):
         implemented = bites != b"\x00" * self.size * 2
         return bites.rstrip(b"\x00") if implemented else None, implemented
 
-    def encode_to_payload(self, value: str, encoder: BinaryPayloadBuilder) -> None:
-        if not isinstance(value, str):
-            raise ValueError("Expected str!")
+    def encode_to_payload(self, value: bytes, encoder: BinaryPayloadBuilder) -> None:
+        if not isinstance(value, bytes):
+            raise ValueError("Expected bytes!")
         if len(value) > self.size * 2:
             raise ValueError(f"String must be less than {self.size * 2} characters")
         # Pad with "\0" if needed:
-        value = value.ljust(self.size * 2, "\0")
-        # Encode to ascii:
-        value = value.encode("ascii")
+        value = value.ljust(self.size * 2, b"\0")
         # Finally, do it:
         encoder.add_string(value)
 

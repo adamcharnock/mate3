@@ -8,6 +8,10 @@ class Model:
     Base model for Sunspec models - which are really just containers for Fields.
     """
 
+    @property
+    def address(self):
+        return self.did.address
+
     def fields(self, modes: Optional[Iterable[Mode]] = None) -> Iterable[Field]:
         """
         Often we want to loop through all the fields for a model - ignoring those that aren't 'real' fields such as

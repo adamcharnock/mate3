@@ -15,7 +15,6 @@ repository = "https://github.com/adamcharnock/mate3/"
 python = "^3.7"
 pymodbus = "^2.4"
 loguru = "^0.5.3"
-fixedint = "^0.1.6"
 
 [tool.poetry.dev-dependencies]
 dephell = ">=0.7.6"

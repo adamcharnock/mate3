@@ -76,8 +76,14 @@ class Field(metaclass=ABCMeta):
         return self._last_read.address
 
     @property
+    @has_been_read
     def registers(self) -> Tuple[int]:
         return self._last_read.registers
+
+    @property
+    @has_been_read
+    def read_time(self) -> datetime:
+        return self._last_read.time
 
     @last_read.setter
     def last_read(self, read: FieldRead):

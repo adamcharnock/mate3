@@ -1,21 +1,24 @@
 # Contributing
 
+## General design decisions
+
+- Keep it simple for now - both for developers and for users. Don't worry too much about weird edge cases that could arise, unless they're likely to occur (i.e. someone reports it).
+- General Intellisense behaviour is important since we've got so many fields. And having a type annotation on them is even better for auto-completion etc. Since we're using dynamically generated models, it'd be tempting (and probably cleaner) to make liberal use of `__getattr__`, but we don't, 'cos that'd mess with Intellisense.
+- Documentation and tests come when there's time/users. Tests are best for now, as they serve as documentation too.
+
 ## Brief overview of the code ...
 
 The key things to note are:
 
-- All the modbus information about devices/fields/etc. is auto-generated from `./sunspec/doc/OutBack.Power.SunSpec.Map.xlsx`. 
+- Stuff related to SunSpec should go in `./sunspec`.
+- `./sunspec/models.py` includes the field definitions, and is auto-generated from `./sunspec/scripts/code_generator.py`.
 - All the other code for reading/interacting then utilises these definitions.
-- If it seems weird that e.g. we have `Field`s and `FieldValue`s, this is why. The `Field` is the pure things parsed from the specification provided by Outback, which we want to keep clean and separate. The `FieldValue` is then the thing you actually interact with (and references an underlying `Field`). Maybe there's a nicer way of doing it, but for now this works.
-- Typing is handy.
-- General focus is on simple usage for the majority of use cases.
 - There are some basic tests - it'd be nice to have more!
 - Using the caching options in `Mate3Client` or the CLI are best for developing, as it avoids bricking your device.
 
 ## Code contributions
 
-If you wish to edit the mate3 source (contributions are gladly received!), 
-then you can get the project directly from GitHub:
+If you wish to edit the mate3 source (contributions are gladly received!), then you can get the project directly from GitHub:
 
 ```sh
 # Install poetry if you don't have it already (if you're unsure, you don't have it)

@@ -64,7 +64,7 @@ class CachingModbusClient(NonCachingModbusClient):
 
         # Only write to disk if writeable
         if not self._writeable:
-            logger.info("Not persisting any changes to cache on client close as writeable is False")
+            logger.debug("Not persisting any changes to cache on client close as writeable is False")
         else:
             with open(self._cache_path, "w") as f:
                 json.dump(self._cache, f, indent=2)

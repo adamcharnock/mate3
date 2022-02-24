@@ -19,7 +19,7 @@ def read(client, args):
         for device in client.devices.connected_devices:
             # name:
             name = device.__class__.__name__
-            if hasattr(device, "port"):
+            if hasattr(device, "port_number"):
                 name = f"{name} on port {device.port_number.value}"
             print(name)
             # values:

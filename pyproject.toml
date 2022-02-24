@@ -24,7 +24,7 @@ pytest-subtests = "^0.4.0"
 pytest-console-scripts = "^1.1.0"
 openpyxl = "^3.0.5"
 flake8 = "^3.8.4"
-black = {version = "^20.8b1", allow-prereleases = true}
+black = {version = "^22.1.0", allow-prereleases = true}
 
 [tool.poetry.scripts]
 mate3 = 'mate3.main:main'

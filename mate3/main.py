@@ -90,7 +90,7 @@ def dump_modbus_reads(args, port):
     dump_path = Path(args.dump_path)
     if dump_path.exists():
         os.remove(dump_path)
-    with Mate3Client(host=args.host, port=port, cache_path=args.dump_path, cache_only=False) as client:
+    with Mate3Client(host=args.host, port=port, cache_path=args.dump_path, cache_only=False, cache_writeable=True) as client:
         client.read_all_modbus_values_unparsed()
         print(
             f"All debug modbus reads are cached in the file '{args.dump_path}'.\nNOTE THAT THIS MAY CONTAIN SENSITIVE "

@@ -54,10 +54,10 @@ def read(client, args):
 def write(client, args):
 
     # Util functions to get the field from a string such as `charge_controllers[3].config.absorb_volts`
-    attr_idx_pattern = re.compile(r"([^\[\.]+)(\[[0-9]+\])?")
+    attr_idx_pattern = re.compile(r"([^\[\.]+)(\[([0-9]+)\])?")
 
     def get_field(field, paths: List[Tuple[str]]):
-        attr, idx = paths[0]
+        attr, _ignore, idx = paths[0]
         field = getattr(field, attr)
         if idx:
             field = field[int(idx)]

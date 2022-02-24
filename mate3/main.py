@@ -19,15 +19,16 @@ def read(client, args):
         for device in client.devices.connected_devices:
             # name:
             name = device.__class__.__name__
-            if hasattr(device, "port"):
+            if hasattr(device, "port_number"):
                 name = f"{name} on port {device.port_number.value}"
             print(name)
             # values:
-            print("\t" + " | ".join(["name".ljust(50), "impl", "sf", "unscaled", "value".ljust(20)]))
-            print("\t" + " | ".join(["-" * 50, "----", "--", "--------", "-" * 20]))
+            print("\t" + " | ".join(["name".ljust(50), "impl", "RW", "sf", "unscaled", "value".ljust(20)]))
+            print("\t" + " | ".join(["-" * 50, "----", "--", "--", "--------", "-" * 20]))
             for value in device.fields([Mode.R, Mode.RW]):
                 ss = [f"\t{value.field.name.ljust(50)}"]
                 ss.append("Y".rjust(4) if value.implemented else "N".rjust(4))
+                ss.append(value.field.mode.name.ljust(2))
                 if value.scale_factor is not None:
                     ss.append(f"{value.scale_factor.value}".rjust(2))
                     ss.append(f"{value.raw_value}".rjust(8))
@@ -53,10 +54,10 @@ def read(client, args):
 def write(client, args):
 
     # Util functions to get the field from a string such as `charge_controllers[3].config.absorb_volts`
-    attr_idx_pattern = re.compile(r"([^\[\.]+)(\[[0-9]+\])?")
+    attr_idx_pattern = re.compile(r"([^\[\.]+)(\[([0-9]+)\])?")
 
     def get_field(field, paths: List[Tuple[str]]):
-        attr, idx = paths[0]
+        attr, _ignore, idx = paths[0]
         field = getattr(field, attr)
         if idx:
             field = field[int(idx)]
@@ -89,7 +90,7 @@ def dump_modbus_reads(args, port):
     dump_path = Path(args.dump_path)
     if dump_path.exists():
         os.remove(dump_path)
-    with Mate3Client(host=args.host, port=port, cache_path=args.dump_path, cache_only=False) as client:
+    with Mate3Client(host=args.host, port=port, cache_path=args.dump_path, cache_only=False, cache_writeable=True) as client:
         client.read_all_modbus_values_unparsed()
         print(
             f"All debug modbus reads are cached in the file '{args.dump_path}'.\nNOTE THAT THIS MAY CONTAIN SENSITIVE "

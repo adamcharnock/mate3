@@ -11,13 +11,13 @@ def test_individual_reads_work(subtests):
     """
 
     with Mate3Client(host=None, cache_path=CACHE_PATH, cache_only=True) as client:
-        field = client.devices.mate3.system_name
+        field = client.mate3.system_name
         first_read_time = field.last_read
 
         with subtests.test("Reading doesn't fail"):
             field.read()
         with subtests.test("Reading updates the last_read time"):
-            assert field.last_read > first_read_time
+            assert field.last_read.time > first_read_time.time
 
 
 def test_individual_writes_work(subtests):
@@ -26,9 +26,9 @@ def test_individual_writes_work(subtests):
     """
 
     with Mate3Client(host=None, cache_path=CACHE_PATH, cache_only=True) as client:
-        field = client.devices.mate3.system_name
-        first_read_time = field.last_read
+        field = client.mate3.system_name
+        first_read_time = field.last_read.time
         with subtests.test("Writing doesn't fail"):
-            field.write("Test")
+            field.write(b"Test")
         with subtests.test("A read occurs after writing (i.e. there's an updated last_read time)"):
-            assert field.last_read > first_read_time
+            assert field.last_read.time > first_read_time

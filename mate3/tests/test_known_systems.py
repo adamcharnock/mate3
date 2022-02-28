@@ -13,16 +13,18 @@ def _test_read_gives_expected_results(client, system_dir):
 
     # Get the values for this client:
     read_devices = []
-    for device in client.devices.connected_devices:
+    for device in client.connected_devices:
         name = device.__class__.__name__
         values = {}
         for value in device.fields([Mode.R, Mode.RW]):
-            values[value.field.name] = value.to_dict()
+            values[value.name] = value.to_dict()
         read_devices.append({"name": name, "address": device.address, "values": values})
+    read_devices = sorted(read_devices, key=lambda x: x["address"])
 
     # Compare them with what we expect:
     with open(system_dir / "expected.json") as f:
         expected_devices = json.load(f)
+    expected_devices = sorted(expected_devices, key=lambda x: x["address"])
 
     assert check_objects(expected_devices, read_devices)
 
@@ -38,7 +40,7 @@ def test_known_system(subtests, system_dir):
         with subtests.test("Writing the same values back gives the same results"):
             # ... 'cos if that isn't the case, it implies we're serialising/deserialising incorrectly.
             cache = {k: v for k, v in client._client._cache.items()}
-            for device in client.devices.connected_devices:
+            for device in client.connected_devices:
                 # NB: ignoring Mode.W as we can't read the value to be able to write it back i.e. we don't know what to
                 # write.
                 for value in device.fields(modes=[Mode.RW]):

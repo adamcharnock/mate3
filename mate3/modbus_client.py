@@ -45,7 +45,7 @@ class CachingModbusClient(NonCachingModbusClient):
             self._original_cache_hash = self._hash()
         else:
             if self._cache_only:
-                raise RuntimeError("Cache doesn't exist!")
+                raise RuntimeError(f"Cache doesn't exist at '{self._cache_path}'")
         self._cache_only = cache_only
         if not self._cache_only:
             super().__init__(*args, **kwargs)
@@ -64,7 +64,7 @@ class CachingModbusClient(NonCachingModbusClient):
 
         # Only write to disk if writeable
         if not self._writeable:
-            logger.info("Not persisting any changes to cache on client close as writeable is False")
+            logger.debug("Not persisting any changes to cache on client close as writeable is False")
         else:
             with open(self._cache_path, "w") as f:
                 json.dump(self._cache, f, indent=2)

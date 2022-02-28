@@ -16,35 +16,30 @@ from mate3.sunspec.fields import Mode
 
 def read(client, args):
     if args.format == "text":
-        for device in client.devices.connected_devices:
+        for device in client.connected_devices:
             # name:
             name = device.__class__.__name__
             if hasattr(device, "port"):
                 name = f"{name} on port {device.port_number.value}"
             print(name)
+            print()
             # values:
-            print("\t" + " | ".join(["name".ljust(50), "impl", "sf", "unscaled", "value".ljust(20)]))
-            print("\t" + " | ".join(["-" * 50, "----", "--", "--------", "-" * 20]))
-            for value in device.fields([Mode.R, Mode.RW]):
-                ss = [f"\t{value.field.name.ljust(50)}"]
-                ss.append("Y".rjust(4) if value.implemented else "N".rjust(4))
-                if value.scale_factor is not None:
-                    ss.append(f"{value.scale_factor.value}".rjust(2))
-                    ss.append(f"{value.raw_value}".rjust(8))
-                else:
-                    ss.append(" -")
-                    ss.append(" " * 7 + "-")
-                ss.append(f"{repr(value.value)}".ljust(20) if value.implemented else "-".ljust(20))
+            print("\t" + " | ".join(["name".ljust(50), "implemented", "value".ljust(20)]))
+            print("\t" + " | ".join(["-" * 50, "-" * 11, "-" * 20]))
+            for field in device.fields([Mode.R, Mode.RW]):
+                ss = [f"\t{field.name.ljust(50)}"]
+                ss.append("Y".ljust(11) if field.implemented else "N".ljust(11))
+                ss.append(f"{repr(field.value)}".ljust(20) if field.implemented else "-".ljust(20))
                 print(" | ".join(ss))
             print()
 
     elif args.format in ("json", "prettyjson"):
         devices = []
-        for device in client.devices.connected_devices:
+        for device in client.connected_devices:
             name = device.__class__.__name__
             values = {}
             for value in device.fields([Mode.R, Mode.RW]):
-                values[value.field.name] = value.to_dict()
+                values[value.name] = value.to_dict()
             devices.append({"name": name, "address": device.address, "values": values})
         indent = None if args.format == "json" else 4
         print(json.dumps(devices, indent=indent))
@@ -68,7 +63,7 @@ def write(client, args):
 
     for set_arg in args.set:
         path, value = set_arg.split("=")
-        field = get_field(client.devices, attr_idx_pattern.findall(path))
+        field = get_field(client, attr_idx_pattern.findall(path))
         value = eval(value, globals(), locals())  # TODO: get rid of eval!
         field.write(value)
 
@@ -76,7 +71,7 @@ def write(client, args):
 def list_devices(client):
     print("name".ljust(50), "address".ljust(10), "port")
     print("----".ljust(50), "-------".ljust(10), "----")
-    for device in client.devices.connected_devices:
+    for device in client.connected_devices:
         name = device.__class__.__name__.replace("DeviceValues", "").replace("Values", "")
         port = device.port_number.value if hasattr(device, "port_number") else None
         print(name.ljust(50), str(device.address).ljust(10), port)

@@ -48,7 +48,7 @@ jobs:
         poetry run flake8 mate3/sunspec/models.py --ignore=E501 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Check black has been run (excluding auto-generated code)
       run: |
-        poetry run black . --check --exclude='setup.py|models.py'
+        poetry run black . --check --exclude='setup.py|fields.py|models.py'
     - name: Test with pytest
       run: |
         poetry run pytest

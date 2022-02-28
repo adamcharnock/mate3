@@ -477,8 +477,8 @@ python-versions = "*"
 
 [[package]]
 name = "mistune"
-version = "2.0.2"
-description = "A sane Markdown parser with useful plugins and renderers"
+version = "0.8.4"
+description = "The fastest markdown parser in pure Python"
 category = "dev"
 optional = false
 python-versions = "*"
@@ -629,7 +629,7 @@ documents = ["sphinx (>=1.1.3)", "sphinx-rtd-theme", "humanfriendly"]
 quality = ["coverage (>=3.5.3)", "nose (>=1.2.1)", "mock (>=1.0.0)", "pep8 (>=1.3.3)"]
 repl = ["click (>=7.0)", "prompt-toolkit (==2.0.4)", "pygments (>=2.2.0)", "click (>=7.0)", "prompt-toolkit (>=3.0.8)", "pygments (>=2.2.0)", "aiohttp (>=3.7.3)", "pyserial-asyncio (>=0.5)"]
 tornado = ["tornado (==4.5.3)"]
-twisted = ["Twisted[conch,serial] (>=20.3.0)", "Twisted[conch] (>=20.3.0)"]
+twisted = ["Twisted[serial,conch] (>=20.3.0)", "Twisted[conch] (>=20.3.0)"]
 
 [[package]]
 name = "pyparsing"
@@ -869,7 +869,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "3f67cb33247d340bd07a520fe6051f695c31fcea5482712604e088e79f3ccba7"
+content-hash = "832bab0ba8f1ef13b1ab048737bb2befe837269fe4505814eac545fd49418bff"
 
 [metadata.files]
 aiohttp = [
@@ -1213,8 +1213,8 @@ mccabe = [
     {file = "mccabe-0.6.1.tar.gz", hash = "sha256:dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"},
 ]
 mistune = [
-    {file = "mistune-2.0.2-py2.py3-none-any.whl", hash = "sha256:6bab6c6abd711c4604206c7d8cad5cd48b28f072b4bb75797d74146ba393a049"},
-    {file = "mistune-2.0.2.tar.gz", hash = "sha256:6fc88c3cb49dba8b16687b41725e661cf85784c12e8974a29b9d336dd596c3a1"},
+    {file = "mistune-0.8.4-py2.py3-none-any.whl", hash = "sha256:88a1051873018da288eee8538d476dffe1262495144b33ecb586c4ab266bb8d4"},
+    {file = "mistune-0.8.4.tar.gz", hash = "sha256:59a3429db53c50b5c6bcc8a07f8848cb00d7dc8bdb431a4ab41920d201d4756e"},
 ]
 mock = [
     {file = "mock-4.0.3-py3-none-any.whl", hash = "sha256:122fcb64ee37cfad5b3f48d7a7d51875d7031aaf3d8be7c42e2bee25044eee62"},

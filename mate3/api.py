@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
 from loguru import logger
-from pymodbus.constants import Defaults
+from pymodbus.constants import Defaults, Endian
 from pymodbus.payload import BinaryPayloadDecoder
 
 from mate3.devices import (
